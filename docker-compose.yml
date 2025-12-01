@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: finex-postgres
+    environment:
+      POSTGRES_DB: finex
+      POSTGRES_USER: finex
+      POSTGRES_PASSWORD: finex123
+    ports:
+      - "5432:5432"
+    volumes:
+      - finex-db-data:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  finex-db-data:
