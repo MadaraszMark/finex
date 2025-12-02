@@ -1,7 +1,5 @@
 package hu.finex.main.model;
 
-import java.util.Locale.Category;
-
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import jakarta.persistence.Entity;
