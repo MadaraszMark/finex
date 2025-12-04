@@ -1,12 +1,17 @@
 package hu.finex.main.dto;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 
 import hu.finex.main.model.enums.AccountStatus;
 import hu.finex.main.model.enums.AccountType;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -41,5 +46,5 @@ public class AccountResponse {
     private AccountStatus status;
 
     @Schema(description = "Létrehozás időpontja",example = "2025-02-12T11:30:22Z")
-    private OffsetDateTime createdAt;
+    private Instant createdAt;
 }

@@ -1,5 +1,9 @@
 package hu.finex.main.service;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import hu.finex.main.dto.AuthResponse;
 import hu.finex.main.dto.CreateUserRequest;
 import hu.finex.main.dto.LoginRequest;
@@ -14,9 +18,6 @@ import hu.finex.main.repository.LoginLogRepository;
 import hu.finex.main.repository.UserRepository;
 import hu.finex.main.security.JwtTokenUtil;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +28,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenUtil jwtTokenUtil;
     private final UserMapper userMapper;
+    private final AccountService accountService;
 
     @Transactional
     public AuthResponse login(LoginRequest request, String ip, String userAgent) {
@@ -69,6 +71,8 @@ public class AuthService {
         String passwordHash = passwordEncoder.encode(request.getPassword());
         User user = userMapper.toEntity(request, passwordHash);
         user = userRepository.save(user);
+        
+        accountService.createDefaultAccount(user);
 
         return userMapper.toResponse(user);
     }

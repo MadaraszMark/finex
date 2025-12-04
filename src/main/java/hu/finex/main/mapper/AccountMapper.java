@@ -1,6 +1,6 @@
 package hu.finex.main.mapper;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 import org.springframework.stereotype.Component;
 
@@ -48,7 +48,7 @@ public class AccountMapper {
                 .accountType(request.getAccountType())
                 .cardNumber(null)
                 .status(null)
-                .createdAt(OffsetDateTime.now())
+                .createdAt(Instant.now())
                 .build();
     }
 
