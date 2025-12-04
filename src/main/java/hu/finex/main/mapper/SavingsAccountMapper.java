@@ -1,6 +1,6 @@
 package hu.finex.main.mapper;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 import org.springframework.stereotype.Component;
 
@@ -21,8 +21,8 @@ public class SavingsAccountMapper {
                 .currency(request.getCurrency())
                 .interestRate(request.getInterestRate())
                 .status(null)
-                .createdAt(OffsetDateTime.now())
-                .updatedAt(OffsetDateTime.now())
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
                 .build();
     }
 
@@ -30,7 +30,7 @@ public class SavingsAccountMapper {
         entity.setName(request.getName());
         entity.setInterestRate(request.getInterestRate());
         entity.setStatus(request.getStatus());
-        entity.setUpdatedAt(OffsetDateTime.now());
+        entity.setUpdatedAt(Instant.now());
     }
 
     public SavingsAccountResponse toResponse(SavingsAccount entity) {

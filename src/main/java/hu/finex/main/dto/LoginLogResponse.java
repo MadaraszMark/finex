@@ -1,10 +1,14 @@
 package hu.finex.main.dto;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 import hu.finex.main.model.enums.LoginStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -33,6 +37,6 @@ public class LoginLogResponse {
     private String failureReason;
 
     @Schema(description = "A belépési esemény időpontja", example = "2025-02-12T14:22:10Z")
-    private OffsetDateTime createdAt;
+    private Instant createdAt;
 }
 

@@ -1,11 +1,15 @@
 package hu.finex.main.dto;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 import hu.finex.main.model.enums.TransactionType;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -31,6 +35,6 @@ public class TransactionListItemResponse {
     private String currency;
 
     @Schema(description = "Időpont", example = "2025-02-15T11:00:15Z")
-    private OffsetDateTime createdAt;
+    private Instant createdAt;
 }
 

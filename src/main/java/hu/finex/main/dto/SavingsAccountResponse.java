@@ -1,7 +1,7 @@
 package hu.finex.main.dto;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 import hu.finex.main.model.enums.SavingsStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -41,8 +41,8 @@ public class SavingsAccountResponse {
     private SavingsStatus status;
 
     @Schema(description = "Létrehozás dátuma")
-    private OffsetDateTime createdAt;
+    private Instant createdAt;
 
     @Schema(description = "Utolsó módosítás dátuma")
-    private OffsetDateTime updatedAt;
+    private Instant updatedAt;
 }

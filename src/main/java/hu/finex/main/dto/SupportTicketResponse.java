@@ -1,10 +1,14 @@
 package hu.finex.main.dto;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 import hu.finex.main.model.enums.TicketStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -30,9 +34,9 @@ public class SupportTicketResponse {
     private TicketStatus status;
 
     @Schema(description = "Létrehozás időpontja", example = "2025-02-12T12:10:05Z")
-    private OffsetDateTime createdAt;
+    private Instant createdAt;
 
     @Schema(description = "Utolsó módosítás időpontja",example = "2025-02-12T12:30:10Z")
-    private OffsetDateTime updatedAt;
+    private Instant updatedAt;
 }
 
