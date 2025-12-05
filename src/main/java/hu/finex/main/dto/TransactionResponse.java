@@ -2,6 +2,7 @@ package hu.finex.main.dto;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 
 import hu.finex.main.model.enums.TransactionType;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -39,6 +40,9 @@ public class TransactionResponse {
 
     @Schema(description = "Fogadó számlaszám", example = "HU10101000001234567890000000")
     private String toAccount;
+    
+    @Schema(description = "A tranzakcióhoz tartozó kategóriák")
+    private List<CategoryResponse> categories;
 
     @Schema(description = "Devizanem", example = "EUR")
     private String currency;

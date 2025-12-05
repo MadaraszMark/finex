@@ -35,7 +35,7 @@ public class TransactionCategoryController {
                     @ApiResponse(responseCode = "409", description = "Kapcsolat már létezik")
             }
     )
-    public ResponseEntity<TransactionCategoryResponse> assign(@PathVariable Long transactionId,@PathVariable Long categoryId
+    public ResponseEntity<TransactionCategoryResponse> assign(@PathVariable("transactionId") Long transactionId,@PathVariable Long categoryId
     ) {
         return ResponseEntity.ok(service.assignCategory(transactionId, categoryId));
     }
@@ -46,7 +46,7 @@ public class TransactionCategoryController {
                     @ApiResponse(responseCode = "404", description = "Tranzakció nem található")
             }
     )
-    public ResponseEntity<List<TransactionCategoryListItemResponse>> listByTransaction(@PathVariable Long transactionId) {
+    public ResponseEntity<List<TransactionCategoryListItemResponse>> listByTransaction(@PathVariable("transactionId") Long transactionId) {
         return ResponseEntity.ok(service.listByTransaction(transactionId));
     }
 
@@ -56,7 +56,7 @@ public class TransactionCategoryController {
                     @ApiResponse(responseCode = "404", description = "Kategória nem található")
             }
     )
-    public ResponseEntity<List<TransactionCategoryResponse>> listByCategory(@PathVariable Long categoryId) {
+    public ResponseEntity<List<TransactionCategoryResponse>> listByCategory(@PathVariable("categoryId") Long categoryId) {
         return ResponseEntity.ok(service.listByCategory(categoryId));
     }
 

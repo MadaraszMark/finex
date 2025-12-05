@@ -42,7 +42,7 @@ public class CategoryController {
                     @ApiResponse(responseCode = "404", description = "Kategória nem található")
             }
     )
-    public ResponseEntity<CategoryResponse> getById(@PathVariable Long id) {
+    public ResponseEntity<CategoryResponse> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(categoryService.getById(id));
     }
 
@@ -61,7 +61,7 @@ public class CategoryController {
                     @ApiResponse(responseCode = "404", description = "Kategória nem található")
             }
     )
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") Long id) {
         categoryService.delete(id);
         return ResponseEntity.noContent().build();
     }

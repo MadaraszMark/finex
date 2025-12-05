@@ -45,7 +45,7 @@ public class TransactionController {
                 @ApiResponse(responseCode = "404", description = "Tranzakció nem található")
             }
     )
-    public ResponseEntity<TransactionResponse> getById(@PathVariable Long id) {
+    public ResponseEntity<TransactionResponse> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(transactionService.getById(id));
     }
 
@@ -55,7 +55,7 @@ public class TransactionController {
                 @ApiResponse(responseCode = "404", description = "Számla nem található")
             }
     )
-    public ResponseEntity<Page<TransactionListItemResponse>> listByAccount(@PathVariable Long accountId,Pageable pageable) {
+    public ResponseEntity<Page<TransactionListItemResponse>> listByAccount(@PathVariable("accountId") Long accountId,Pageable pageable) {
         return ResponseEntity.ok(transactionService.listByAccount(accountId, pageable));
     }
 }

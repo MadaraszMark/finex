@@ -11,13 +11,19 @@ import hu.finex.main.dto.AccountResponse;
 import hu.finex.main.dto.CreateAccountRequest;
 import hu.finex.main.dto.UpdateAccountStatusRequest;
 import hu.finex.main.dto.UpdateCardNumberRequest;
+import hu.finex.main.exception.BusinessException;
 import hu.finex.main.exception.NotFoundException;
 import hu.finex.main.mapper.AccountMapper;
 import hu.finex.main.model.Account;
+import hu.finex.main.model.BalanceHistory;
+import hu.finex.main.model.Transaction;
 import hu.finex.main.model.User;
 import hu.finex.main.model.enums.AccountStatus;
 import hu.finex.main.model.enums.AccountType;
+import hu.finex.main.model.enums.TransactionType;
 import hu.finex.main.repository.AccountRepository;
+import hu.finex.main.repository.BalanceHistoryRepository;
+import hu.finex.main.repository.TransactionRepository;
 import hu.finex.main.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -28,7 +34,9 @@ public class AccountService {
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
     private final AccountMapper accountMapper;
-
+    private final TransactionRepository transactionRepository;
+    private final BalanceHistoryRepository balanceHistoryRepository;
+    
     @Transactional
     public AccountResponse create(CreateAccountRequest request) {
         User user = userRepository.findById(request.getUserId()).orElseThrow(() -> new NotFoundException("Felhasználó nem található."));
@@ -163,7 +171,6 @@ public class AccountService {
         return (10 - (sum % 10)) % 10;
     }
 
-    
     private String generateCardNumber() {
         String bin = "489512"; // fiktív BIN
         StringBuilder number = new StringBuilder(bin);
@@ -179,9 +186,41 @@ public class AccountService {
         return number.toString();
     }
 
-    
     private String generateAccountNumber() {
         // Egyszerű placeholder: "ACC" + időbélyeg
         return "ACC" + System.currentTimeMillis();
     }
+    
+    @Transactional
+    public AccountResponse deposit(Long accountId, BigDecimal amount, String message, Long userId) {
+
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new NotFoundException("Számla nem található."));
+
+        if (!account.getUser().getId().equals(userId)) {
+            throw new BusinessException("Ehhez a számlához nincs jogosultságod.");
+        }
+
+        account.setBalance(account.getBalance().add(amount));
+
+        // Transaction
+        Transaction tx = Transaction.builder()
+                .account(account)
+                .amount(amount)
+                .type(TransactionType.INCOME)
+                .currency(account.getCurrency())
+                .message(message)
+                .build();
+        transactionRepository.save(tx);
+
+        // Balance History
+        BalanceHistory history = BalanceHistory.builder()
+                .account(account)
+                .balance(account.getBalance())
+                .build();
+        balanceHistoryRepository.save(history);
+
+        return accountMapper.toResponse(account);
+    }
+
 }

@@ -41,7 +41,7 @@ public class SavingsAccountController {
                     @ApiResponse(responseCode = "404", description = "Nem található")
             }
     )
-    public ResponseEntity<SavingsAccountResponse> getById(@PathVariable Long id) {
+    public ResponseEntity<SavingsAccountResponse> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(savingsAccountService.getById(id));
     }
 
@@ -50,19 +50,19 @@ public class SavingsAccountController {
                     @ApiResponse(responseCode = "200", description = "Sikeres lekérdezés")
             }
     )
-    public ResponseEntity<Page<SavingsAccountResponse>> listByUser(@PathVariable Long userId,Pageable pageable) {
+    public ResponseEntity<Page<SavingsAccountResponse>> listByUser(@PathVariable("userId") Long userId,Pageable pageable) {
         return ResponseEntity.ok(savingsAccountService.listByUser(userId, pageable));
     }
 
     @GetMapping("/user/{userId}/status/{status}")
     @Operation(summary = "Felhasználó megtakarításai státusz alapján",responses = {@ApiResponse(responseCode = "200", description = "Sikeres lekérdezés")})
-    public ResponseEntity<Page<SavingsAccountResponse>> listByUserAndStatus(@PathVariable Long userId,@PathVariable SavingsStatus status,Pageable pageable) {
+    public ResponseEntity<Page<SavingsAccountResponse>> listByUserAndStatus(@PathVariable("userId") Long userId,@PathVariable SavingsStatus status,Pageable pageable) {
         return ResponseEntity.ok(savingsAccountService.listByUserAndStatus(userId, status, pageable));
     }
 
     @GetMapping("/user/{userId}/min-balance/{minBalance}")
     @Operation(summary = "Felhasználó megtakarításai minimum egyenleg alapján",responses = {@ApiResponse(responseCode = "200", description = "Sikeres lekérdezés")})
-    public ResponseEntity<Page<SavingsAccountResponse>> listAboveBalance(@PathVariable Long userId,@PathVariable String minBalance,Pageable pageable) {
+    public ResponseEntity<Page<SavingsAccountResponse>> listAboveBalance(@PathVariable("userId") Long userId,@PathVariable String minBalance,Pageable pageable) {
         return ResponseEntity.ok(
                 savingsAccountService.listAboveBalance(userId, new java.math.BigDecimal(minBalance), pageable)
         );
@@ -75,7 +75,7 @@ public class SavingsAccountController {
                     @ApiResponse(responseCode = "409", description = "Név már foglalt")
             }
     )
-    public ResponseEntity<SavingsAccountResponse> update(@PathVariable Long id,@Valid @RequestBody UpdateSavingsAccountRequest request) {
+    public ResponseEntity<SavingsAccountResponse> update(@PathVariable("id") Long id,@Valid @RequestBody UpdateSavingsAccountRequest request) {
         return ResponseEntity.ok(savingsAccountService.update(id, request));
     }
 
@@ -85,7 +85,7 @@ public class SavingsAccountController {
                     @ApiResponse(responseCode = "404", description = "Nem található")
             }
     )
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") Long id) {
         savingsAccountService.delete(id);
         return ResponseEntity.noContent().build();
     }

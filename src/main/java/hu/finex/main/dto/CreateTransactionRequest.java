@@ -1,13 +1,18 @@
 package hu.finex.main.dto;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import hu.finex.main.model.enums.TransactionType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -45,5 +50,9 @@ public class CreateTransactionRequest {
     @Size(max = 3)
     @Schema(description = "A tranzakció devizaneme",example = "HUF",required = true)
     private String currency;
+    
+    @Schema(description = "A tranzakció kategóriái (opcionális)", example = "[1, 3, 5]")
+    private List<Long> categoryIds;
+    
 }
 

@@ -35,7 +35,7 @@ public class BalanceHistoryController {
                     @ApiResponse(responseCode = "404", description = "Rekord nem található")
             }
     )
-    public ResponseEntity<BalanceHistoryResponse> getById(@PathVariable Long id) {
+    public ResponseEntity<BalanceHistoryResponse> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(balanceHistoryService.getById(id));
     }
 
@@ -45,7 +45,7 @@ public class BalanceHistoryController {
                     @ApiResponse(responseCode = "404", description = "Számla nem található")
             }
     )
-    public ResponseEntity<Page<BalanceHistoryListItemResponse>> listByAccount(@PathVariable Long accountId,Pageable pageable) {
+    public ResponseEntity<Page<BalanceHistoryListItemResponse>> listByAccount(@PathVariable("accountId") Long accountId,Pageable pageable) {
         return ResponseEntity.ok(balanceHistoryService.listByAccount(accountId, pageable)
         );
     }
@@ -61,7 +61,7 @@ public class BalanceHistoryController {
                     @ApiResponse(responseCode = "400", description = "Hibás időintervallum")
             }
     )
-    public ResponseEntity<Page<BalanceHistoryListItemResponse>> listByAccountBetween(@PathVariable Long accountId,@RequestParam OffsetDateTime start,@RequestParam OffsetDateTime end,Pageable pageable) {
+    public ResponseEntity<Page<BalanceHistoryListItemResponse>> listByAccountBetween(@PathVariable("accountId") Long accountId,@RequestParam OffsetDateTime start,@RequestParam OffsetDateTime end,Pageable pageable) {
         if (start.isAfter(end)) {
             throw new IllegalArgumentException("A kezdő időpont nem lehet később, mint a vég időpont.");
         }

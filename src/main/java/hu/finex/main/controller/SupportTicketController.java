@@ -47,7 +47,7 @@ public class SupportTicketController {
                     @ApiResponse(responseCode = "404", description = "Ticket nem található")
             }
     )
-    public ResponseEntity<SupportTicketResponse> getById(@PathVariable Long id) {
+    public ResponseEntity<SupportTicketResponse> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(supportTicketService.getById(id));
     }
 
@@ -56,7 +56,7 @@ public class SupportTicketController {
                     @ApiResponse(responseCode = "200", description = "Siker")
             }
     )
-    public ResponseEntity<Page<SupportTicketResponse>> listByUser(@PathVariable Long userId,Pageable pageable) {
+    public ResponseEntity<Page<SupportTicketResponse>> listByUser(@PathVariable("userId") Long userId,Pageable pageable) {
         return ResponseEntity.ok(
                 supportTicketService.listByUser(userId, pageable)
         );
@@ -67,7 +67,7 @@ public class SupportTicketController {
                     @ApiResponse(responseCode = "200", description = "Siker")
             }
     )
-    public ResponseEntity<Page<SupportTicketResponse>> listByStatus( @PathVariable TicketStatus status,Pageable pageable) {
+    public ResponseEntity<Page<SupportTicketResponse>> listByStatus(@PathVariable("status") TicketStatus status,Pageable pageable) {
         return ResponseEntity.ok(
                 supportTicketService.listByStatus(status, pageable)
         );
@@ -78,7 +78,7 @@ public class SupportTicketController {
                     @ApiResponse(responseCode = "200", description = "Siker")
             }
     )
-    public ResponseEntity<Page<SupportTicketResponse>> listByUserAndStatus(@PathVariable Long userId,@PathVariable TicketStatus status,Pageable pageable) {
+    public ResponseEntity<Page<SupportTicketResponse>> listByUserAndStatus(@PathVariable("userId") Long userId,@PathVariable TicketStatus status,Pageable pageable) {
         return ResponseEntity.ok(
                 supportTicketService.listByUserAndStatus(userId, status, pageable)
         );
@@ -91,7 +91,7 @@ public class SupportTicketController {
                     @ApiResponse(responseCode = "400", description = "Érvénytelen bemenet")
             }
     )
-    public ResponseEntity<SupportTicketResponse> updateStatus(@PathVariable Long id,@Valid @RequestBody UpdateSupportTicketStatusRequest request) {
+    public ResponseEntity<SupportTicketResponse> updateStatus(@PathVariable("id") Long id,@Valid @RequestBody UpdateSupportTicketStatusRequest request) {
         return ResponseEntity.ok(
                 supportTicketService.updateStatus(id, request)
         );

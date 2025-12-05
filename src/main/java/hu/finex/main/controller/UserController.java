@@ -29,7 +29,7 @@ public class UserController {
                     @ApiResponse(responseCode = "404", description = "Felhasználó nem található")
             }
     )
-    public ResponseEntity<UserResponse> getById(@PathVariable Long id) {
+    public ResponseEntity<UserResponse> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(userService.getById(id));
     }
 
@@ -42,7 +42,7 @@ public class UserController {
                     @ApiResponse(responseCode = "409", description = "Email cím már használatban van")
             }
     )
-    public ResponseEntity<UserResponse> update(@PathVariable Long id,@Valid @RequestBody UpdateUserRequest request) {
+    public ResponseEntity<UserResponse> update(@PathVariable("id") Long id,@Valid @RequestBody UpdateUserRequest request) {
         return ResponseEntity.ok(userService.update(id, request));
     }
 
@@ -52,7 +52,7 @@ public class UserController {
                     @ApiResponse(responseCode = "404", description = "Felhasználó nem található")
             }
     )
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") Long id) {
         userService.delete(id);
         return ResponseEntity.noContent().build();
     }
