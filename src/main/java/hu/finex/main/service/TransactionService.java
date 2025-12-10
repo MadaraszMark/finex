@@ -12,6 +12,8 @@ import hu.finex.main.dto.CategoryResponse;
 import hu.finex.main.dto.CreateTransactionRequest;
 import hu.finex.main.dto.TransactionListItemResponse;
 import hu.finex.main.dto.TransactionResponse;
+import hu.finex.main.dto.TransferRequest;
+import hu.finex.main.dto.TransferResponse;
 import hu.finex.main.exception.BusinessException;
 import hu.finex.main.exception.NotFoundException;
 import hu.finex.main.mapper.BalanceHistoryMapper;
@@ -74,6 +76,7 @@ public class TransactionService {
         
         return buildResponseWithCategories(transaction);
     }
+    
 
     @Transactional(readOnly = true)
     public TransactionResponse getById(Long id) {
@@ -125,13 +128,95 @@ public class TransactionService {
 
         // Kapcsoló rekordok mentése
         for (Long categoryId : categoryIds) {
+
+            Category category = categoryRepository.findById(categoryId)
+                    .orElseThrow(() -> new NotFoundException("Kategória nem található: " + categoryId));
+
             TransactionCategory tc = TransactionCategory.builder()
                     .transaction(transaction)
-                    .category(Category.builder().id(categoryId).build())
+                    .category(category)
                     .build();
 
             transactionCategoryRepository.save(tc);
         }
     }
+    
+    @Transactional
+    public TransferResponse transfer(TransferRequest request) {
+
+        Account from = accountRepository.findById(request.getFromAccountId())
+                .orElseThrow(() -> new NotFoundException("Forrás számla nem található."));
+
+        Account to = accountRepository.findById(request.getToAccountId())
+                .orElseThrow(() -> new NotFoundException("Cél számla nem található."));
+
+        if (from.getId().equals(to.getId())) {
+            throw new BusinessException("Nem utalhatsz saját magadnak ugyanarra a számlára.");
+        }
+
+        if (!from.getCurrency().equalsIgnoreCase(request.getCurrency()) ||
+            !to.getCurrency().equalsIgnoreCase(request.getCurrency())) {
+            throw new BusinessException("A devizanem nem egyezik a számlák devizanemével.");
+        }
+
+        BigDecimal amount = request.getAmount();
+
+        if (from.getBalance().compareTo(amount) < 0) {
+            throw new BusinessException("Nincs elég egyenleg a forrás számlán.");
+        }
+
+        from.setBalance(from.getBalance().subtract(amount));
+        to.setBalance(to.getBalance().add(amount));
+
+        balanceHistoryRepository.save(balanceHistoryMapper.toEntity(from, from.getBalance()));
+        balanceHistoryRepository.save(balanceHistoryMapper.toEntity(to, to.getBalance()));
+
+        CreateTransactionRequest outReq = CreateTransactionRequest.builder()
+                .accountId(from.getId())
+                .type(TransactionType.TRANSFER_OUT)
+                .amount(amount)
+                .message(request.getMessage())
+                .currency(request.getCurrency())
+                .fromAccount(from.getAccountNumber())
+                .toAccount(to.getAccountNumber())
+                .categoryIds(request.getCategoryIds())
+                .build();
+
+        Transaction outTx = transactionRepository.save(
+                transactionMapper.toEntity(outReq, from)
+        );
+
+        saveCategories(outTx, request.getCategoryIds());
+
+        CreateTransactionRequest inReq = CreateTransactionRequest.builder()
+                .accountId(to.getId())
+                .type(TransactionType.TRANSFER_IN)
+                .amount(amount)
+                .message(request.getMessage())
+                .currency(request.getCurrency())
+                .fromAccount(from.getAccountNumber())
+                .toAccount(to.getAccountNumber())
+                .categoryIds(request.getCategoryIds())
+                .build();
+
+        Transaction inTx = transactionRepository.save(
+                transactionMapper.toEntity(inReq, to)
+        );
+
+        saveCategories(inTx, request.getCategoryIds());
+
+        return TransferResponse.builder()
+                .fromAccountId(from.getId())
+                .toAccountId(to.getId())
+                .amount(amount)
+                .currency(request.getCurrency())
+                .message(request.getMessage())
+                .categories(buildResponseWithCategories(outTx).getCategories())
+                .fromAccountNewBalance(from.getBalance())
+                .toAccountNewBalance(to.getBalance())
+                .createdAt(outTx.getCreatedAt())
+                .build();
+    }
+
 
 }
