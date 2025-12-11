@@ -1,7 +1,21 @@
 package hu.finex.main.controller;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import hu.finex.main.dto.CreateSavingsAccountRequest;
 import hu.finex.main.dto.SavingsAccountResponse;
+import hu.finex.main.dto.SavingsTransferRequest;
+import hu.finex.main.dto.SavingsTransferResponse;
 import hu.finex.main.dto.UpdateSavingsAccountRequest;
 import hu.finex.main.model.enums.SavingsStatus;
 import hu.finex.main.service.SavingsAccountService;
@@ -12,10 +26,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/savings")
@@ -46,9 +56,7 @@ public class SavingsAccountController {
     }
 
     @GetMapping("/user/{userId}")
-    @Operation(summary = "Felhasználó összes megtakarítása", responses = {
-                    @ApiResponse(responseCode = "200", description = "Sikeres lekérdezés")
-            }
+    @Operation(summary = "Felhasználó összes megtakarítása", responses = {@ApiResponse(responseCode = "200", description = "Sikeres lekérdezés")}
     )
     public ResponseEntity<Page<SavingsAccountResponse>> listByUser(@PathVariable("userId") Long userId,Pageable pageable) {
         return ResponseEntity.ok(savingsAccountService.listByUser(userId, pageable));
@@ -77,6 +85,30 @@ public class SavingsAccountController {
     )
     public ResponseEntity<SavingsAccountResponse> update(@PathVariable("id") Long id,@Valid @RequestBody UpdateSavingsAccountRequest request) {
         return ResponseEntity.ok(savingsAccountService.update(id, request));
+    }
+    
+    @PostMapping("/{id}/deposit-from-account")
+    @Operation(summary = "Pénz átvezetése folyószámláról megtakarítási számlára",responses = {@ApiResponse(responseCode = "200", description = "Sikeres átvezetés",content = @Content(schema = @Schema(implementation = SavingsTransferResponse.class))),
+                    @ApiResponse(responseCode = "400", description = "Üzleti hiba"),
+                    @ApiResponse(responseCode = "404", description = "Számla nem található")
+            }
+    )
+    public ResponseEntity<SavingsTransferResponse> depositFromAccount(@PathVariable("id") Long savingsId,@Valid @RequestBody SavingsTransferRequest request) {
+        return ResponseEntity.ok(
+                savingsAccountService.depositFromAccount(savingsId, request)
+        );
+    }
+
+    @PostMapping("/{id}/withdraw-to-account")
+    @Operation(summary = "Pénz kivétele megtakarítási számláról folyószámlára",responses = {@ApiResponse(responseCode = "200", description = "Sikeres átvezetés",content = @Content(schema = @Schema(implementation = SavingsTransferResponse.class))),
+                    @ApiResponse(responseCode = "400", description = "Üzleti hiba"),
+                    @ApiResponse(responseCode = "404", description = "Számla nem található")
+            }
+    )
+    public ResponseEntity<SavingsTransferResponse> withdrawToAccount(@PathVariable("id") Long savingsId,@Valid @RequestBody SavingsTransferRequest request) {
+        return ResponseEntity.ok(
+                savingsAccountService.withdrawToAccount(savingsId, request)
+        );
     }
 
     @DeleteMapping("/{id}")

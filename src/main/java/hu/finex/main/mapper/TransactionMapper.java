@@ -2,6 +2,7 @@ package hu.finex.main.mapper;
 
 import org.springframework.stereotype.Component;
 
+import hu.finex.main.dto.CreateSavingsTransactionRequest;
 import hu.finex.main.dto.CreateTransactionRequest;
 import hu.finex.main.dto.TransactionListItemResponse;
 import hu.finex.main.dto.TransactionResponse;
@@ -47,5 +48,18 @@ public class TransactionMapper {
                 .createdAt(transaction.getCreatedAt())
                 .build();
     }
+    
+    public Transaction toEntity(CreateSavingsTransactionRequest request, Account account) {
+        return Transaction.builder()
+                .account(account)
+                .type(request.getType())
+                .amount(request.getAmount())
+                .message(request.getMessage())
+                .fromAccount(request.getFromAccount())
+                .toAccount(request.getToAccount())
+                .currency(request.getCurrency())
+                .build();
+    }
+
 }
 

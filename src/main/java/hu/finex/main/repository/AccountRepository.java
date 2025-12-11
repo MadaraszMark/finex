@@ -8,12 +8,15 @@ import org.springframework.stereotype.Repository;
 
 import hu.finex.main.model.Account;
 import hu.finex.main.model.enums.AccountStatus;
+import hu.finex.main.model.enums.AccountType;
 
 @Repository
 public interface AccountRepository extends JpaRepository<Account, Long> {
 
     //Számlaszám alapján lekérés (egyedi)
     Optional<Account> findByAccountNumber(String accountNumber);
+    
+    Optional<Account> findFirstByUser_IdAndAccountType(Long userId, AccountType accountType);
 
     //User összes számlája
     List<Account> findByUser_Id(Long userId);
