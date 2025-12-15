@@ -1,5 +1,7 @@
 package hu.finex.main.service;
 
+import java.security.Principal;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -27,18 +29,21 @@ public class SupportTicketService {
     private final SupportTicketMapper supportTicketMapper;
 
     @Transactional
-    public SupportTicketResponse create(CreateSupportTicketRequest request) {
-        User user = userRepository.findById(request.getUserId()).orElseThrow(() -> new NotFoundException("Felhasználó nem található."));
+    public SupportTicketResponse create(CreateSupportTicketRequest request,Principal principal) {
+        User user = userRepository.findByEmailIgnoreCase(principal.getName()).orElseThrow(() -> new NotFoundException("Felhasználó nem található."));
 
         if (supportTicketRepository.existsByUser_IdAndStatus(user.getId(), TicketStatus.OPEN)) {
             throw new BusinessException("Már van egy nyitott ticketed, kérjük várd meg a választ.");
         }
+
         SupportTicket ticket = supportTicketMapper.toEntity(request, user);
+        ticket.setStatus(TicketStatus.OPEN);
 
         ticket = supportTicketRepository.save(ticket);
 
         return supportTicketMapper.toResponse(ticket);
     }
+
 
     @Transactional(readOnly = true)
     public SupportTicketResponse getById(Long id) {

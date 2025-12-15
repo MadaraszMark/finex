@@ -14,10 +14,6 @@ import lombok.*;
 @Schema(description = "Új ügyfélszolgálati ticket létrehozásához szükséges adatok")
 public class CreateSupportTicketRequest {
 
-    @NotNull
-    @Schema(description = "A ticketet létrehozó felhasználó ID-ja",example = "42", required = true)
-    private Long userId;
-
     @NotBlank
     @Size(max = 200)
     @Schema(description = "A ticket címe",example = "Probléma történt a legutóbbi utalásomnál..",maxLength = 200, required = true)
