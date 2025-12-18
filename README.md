@@ -87,8 +87,9 @@ Az alkalmazás célja, hogy a backend funkcióit egy **modern, letisztult mobilb
 ⚠️ **Megjegyzés:**  
 Az alábbi UI képek és leírások **koncepciótervek**, a végleges funkcionalitás és megjelenés a fejlesztés során változhat.
 
-![Finex iOS App – Planned UI](README-assets/FineX-Home.jpg)
-
+<div align="center">
+  <img src="README-assets/FineX-Home.jpg" width="350"/>
+</div>
 ---
 
 ## Tervezett képernyők (SwiftUI)
