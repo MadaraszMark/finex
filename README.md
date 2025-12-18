@@ -89,7 +89,7 @@ Az alábbi UI képek és leírások **koncepciótervek**, a végleges funkcional
 
 <div align="center">
   <img src="README-assets/FineX-Home.jpg" width="220"/>
-  <img src="README-assets/FineX-WelcomeHome.jpg" width="220"/>
+  <img src="README-assets/FineX-WelcomeScreen.jpg" width="220"/>
   <img src="README-assets/FineX-Login.jpg" width="220"/>
 </div>  
 
