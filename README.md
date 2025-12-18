@@ -1,4 +1,4 @@
-## Finex – Digitális banki mobile applikáció (folyamatban)
+## FineX – Mobilbanki alkalmazás (fejlesztés alatt)
 
 ### Technológiák:
 - Java 17+
