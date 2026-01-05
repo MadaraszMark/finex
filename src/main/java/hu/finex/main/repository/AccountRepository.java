@@ -29,5 +29,7 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 
     //Account-number prefix keresés (pl. HUF számlák)
     List<Account> findByAccountNumberStartingWith(String prefix);
+    
+    Optional<Account> findFirstByUser_IdAndStatusAndAccountType(Long userId, AccountStatus status, AccountType accountType);
 }
 

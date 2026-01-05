@@ -51,10 +51,7 @@ public class BalanceHistoryController {
     }
 
     @GetMapping("/account/{accountId}/between")
-    @Operation(summary = "Balance history időintervallum alapján",description = """
-                    Grafikonokhoz ideális endpoint.  
-                    A 'start' és 'end' ISO datetime formátumban legyen (pl. 2025-02-10T00:00:00Z).  
-                    """,
+    @Operation(summary = "Balance history időintervallum alapján",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Sikeres lekérdezés",content = @Content(schema = @Schema(implementation = Page.class))),
                     @ApiResponse(responseCode = "404", description = "Számla nem található"),

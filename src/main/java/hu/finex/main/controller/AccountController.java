@@ -64,6 +64,20 @@ public class AccountController {
     public ResponseEntity<AccountResponse> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(accountService.getById(id));
     }
+    
+    @GetMapping("/me")
+    @Operation(summary = "Bejelentkezett felhasználó bankszámlájának lekérdezése", responses = {
+        @ApiResponse(responseCode = "200", description = "Sikeres lekérdezés",
+            content = @Content(schema = @Schema(implementation = AccountResponse.class))),
+        @ApiResponse(responseCode = "404", description = "Számla nem található")
+    })
+    public ResponseEntity<AccountResponse> getMyAccount(Principal principal) {
+        String email = principal.getName();
+        User user = userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new NotFoundException("Felhasználó nem található."));
+
+        return ResponseEntity.ok(accountService.getMyAccount(user.getId()));
+    }
 
     @GetMapping("/user/{userId}")
     @Operation(summary = "Felhasználó összes bankszámlájának lekérdezése",responses = {
