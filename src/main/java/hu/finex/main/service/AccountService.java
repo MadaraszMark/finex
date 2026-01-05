@@ -57,6 +57,16 @@ public class AccountService {
 
         return accountMapper.toResponse(account);
     }
+    
+    @Transactional(readOnly = true)
+    public AccountResponse getMyAccount(Long userId) {
+        Account account = accountRepository
+                .findFirstByUser_IdAndStatusAndAccountType(userId, AccountStatus.ACTIVE, AccountType.CURRENT)
+                .orElseThrow(() -> new NotFoundException("Számla nem található."));
+
+        return accountMapper.toResponse(account);
+    }
+
 
     @Transactional(readOnly = true)
     public List<AccountListItemResponse> listByUser(Long userId) {
