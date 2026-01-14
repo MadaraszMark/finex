@@ -1,6 +1,6 @@
 ## FineX – Mobilbanki alkalmazás (fejlesztés alatt)
 
-### Technológiák:
+### 🔧 Technológiák
 - Java 17+
 - Spring Boot 3.5.4
 - Spring Web
@@ -11,72 +11,81 @@
 - Spring Security (JWT)
 - Swagger (Springdoc OpenAPI)
 - PostgreSQL
-- Unit tesztek
+- JUnit 5, Testcontainers (repository tesztek)  
+- Maven  
 
 ---
 
-## Mi ez?
+## 📌 Projekt leírás
 Saját gyakorló projekt, ahol egy digitális banki backend rendszert építek fel modulárisan Spring Boot segítségével.  
-A projekt célja, hogy **valós banki funkciókat** modellezzek és gyakoroljak (felhasználók, bankszámlák, tranzakciók, megtakarítások, átutalások, ügyfélszolgálat).
-
-A backend frontend nélkül, Postman segítségével tesztelhető.  
-A későbbiekben egy **SwiftUI alapú iOS kliens alkalmazás** készül hozzá.
+A projekt célja, hogy **valós banki funkciókat** modellezzek és gyakoroljak (felhasználók, bankszámlák, tranzakciók, megtakarítások, átutalások, ügyfélszolgálat).  
 
 ---
 
-## Jelenleg kész:
-- **Alap konfigurációk**
-  - Spring Boot alkalmazás indítása
-  - PostgreSQL adatbázis kapcsolat
-  - Global Exception Handling
-  - Auditing (createdAt, updatedAt)
-- **Biztonság**
-  - JWT alapú autentikáció
-  - Stateless SecurityConfig
-  - Védett endpointok (csak bejelentkezett felhasználók)
-- **Felhasználók**
-  - Regisztráció és bejelentkezés
-- **Bankszámlák**
-  - Folyószámlák kezelése
-  - Egyenleg és devizanem
-- **Tranzakciók**
-  - Bevételek és kiadások
-  - Átutalások számlák között
-  - Egyenleg history
-- **Megtakarítások**
-  - Megtakarítási számlák
-  - Pénz áthelyezése folyószámláról / folyószámlára
-- **Ügyfélszolgálat**
-  - Support ticket rendszer
-  - Ticket nyitás csak bejelentkezett felhasználóknak
+## ✅ Jelenleg megvalósított funkciók
+### Alapok
+- Spring Boot alapkonfiguráció
+- PostgreSQL adatbázis
+- Hibernate + JPA
+- Auditing (`createdAt`, `updatedAt`)
+- Globális exception handling
+
+### Biztonság
+- JWT alapú autentikáció
+- Stateless SecurityConfig
+- Védett endpointok (csak autentikált felhasználóknak)
+
+### Felhasználók
+- Regisztráció
+- Bejelentkezés
+- Saját profil lekérdezése és módosítása
+
+### Bankszámlák
+- Folyószámlák kezelése
+- Devizanemek
+- Egyenleg kezelés
+- Státuszok (ACTIVE, FROZEN, CLOSED)
+
+### Tranzakciók
+- Bevétel / kiadás
+- Számlák közötti átutalás
+- Kimenő és bejövő tranzakciók
+- Egyenleg history (BalanceHistory)
+
+### Megtakarítások
+- Megtakarítási számlák
+- Pénz áthelyezése folyószámla ↔ megtakarítás
+
+### Ügyfélszolgálat
+- Support ticket rendszer
+- Ticket nyitás csak bejelentkezett felhasználóknak
+- Ticket státuszkezelés
+
+---  
+
+## 🧪 Tesztelés
+
+- Unit tesztek
+- Repository tesztek **Testcontainers + PostgreSQL** segítségével
+- A tesztek **külön, izolált adatbázist** használnak (Docker container)
 
 ---
 
-## Tervezett funkciók:
-- **Jogosultságkezelés**
-  - Admin / User role-ok
-  - Admin-only endpointok
-- **Tranzakciók bővítése**
-  - Tranzakciók szűrése (időszak, összeg, típus)
-  - Kategóriák és statisztikák
-- **Megtakarítások**
-  - Automatikus havi megtakarítás
-  - Kamat számítás
-- **Értesítések**
-  - Tranzakciós értesítések
-  - Support ticket válasz értesítések
-- **Audit és naplózás**
-  - Kritikus műveletek logolása
-- **SwiftUI frontend**
-  - iOS banki alkalmazás
-  - Bejelentkezés / regisztráció
-  - Számlák és tranzakciók megjelenítése
-  - Megtakarítások kezelése
-  - Support ticket felület
-- **UI / UX tervezés**
-  - Figma alapú design
-  - Modern mobilbanki kinézet
- 
+## 🚧 Tervezett funkciók
+
+### Jogosultságkezelés
+- User / Admin role-ok
+- Admin-only endpointok
+
+### Tranzakciók bővítése
+- Szűrés időszak, összeg, típus szerint
+- Tranzakció kategóriák
+- Statisztikák és dashboard adatok
+
+### Megtakarítások
+- Automatikus havi megtakarítás
+- Kamat számítás
+
 ---
 
 ## Tervezett mobilalkalmazás (SwiftUI – WIP)
