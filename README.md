@@ -11,7 +11,7 @@
 - Spring Security (JWT)
 - Swagger (Springdoc OpenAPI)
 - PostgreSQL
-- JUnit 5, Testcontainers (repository tesztek)  
+- JUnit 5, Testcontainers (repository tesztek), Spring Boot Test / MockMvc, @WebMvcTest alapú controller slice tesztek   
 - Maven  
 
 ---
