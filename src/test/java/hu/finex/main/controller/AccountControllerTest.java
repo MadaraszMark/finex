@@ -20,8 +20,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,17 +41,16 @@ import hu.finex.main.repository.UserRepository;
 import hu.finex.main.service.AccountService;
 
 @WebMvcTest(
-		  controllers = AccountController.class,
-		  excludeAutoConfiguration = {
-		      org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class,
-		      org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration.class,
-		      org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientWebSecurityAutoConfiguration.class,
-		      org.springframework.boot.autoconfigure.security.oauth2.client.OAuth2ClientAutoConfiguration.class,
-		      org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration.class,
-		      org.springframework.boot.autoconfigure.security.saml2.Saml2RelyingPartyAutoConfiguration.class
-		  }
-		)
-		@AutoConfigureMockMvc(addFilters = false)
+	    controllers = AccountController.class,
+	    excludeFilters = {
+	        @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = hu.finex.main.config.SecurityConfig.class),
+	        @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = hu.finex.main.security.JwtAuthenticationFilter.class),
+	        @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = hu.finex.main.security.JwtTokenUtil.class)
+	    }
+	)
+	@AutoConfigureMockMvc(addFilters = false)
+
+@ActiveProfiles("test")
 class AccountControllerTest {
 
     @Autowired MockMvc mockMvc;
@@ -95,9 +96,7 @@ class AccountControllerTest {
 
         when(accountService.getById(10L)).thenReturn(resp);
 
-        mockMvc.perform(get("/accounts/10"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(10));
+        mockMvc.perform(get("/accounts/10")).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(10));
     }
 
     @Test
@@ -110,9 +109,7 @@ class AccountControllerTest {
         AccountResponse resp = AccountResponse.builder().id(99L).userId(1L).build();
         when(accountService.getMyAccount(1L)).thenReturn(resp);
 
-        mockMvc.perform(get("/accounts/me").principal(principal))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(99));
+        mockMvc.perform(get("/accounts/me").principal(principal)).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(99));
     }
 
     @Test
@@ -120,8 +117,7 @@ class AccountControllerTest {
         Principal principal = () -> "missing@finex.hu";
         when(userRepository.findByEmailIgnoreCase("missing@finex.hu")).thenReturn(java.util.Optional.empty());
 
-        mockMvc.perform(get("/accounts/me").principal(principal))
-                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/accounts/me").principal(principal)).andExpect(status().isNotFound());
     }
 
     @Test
@@ -133,17 +129,12 @@ class AccountControllerTest {
 
         when(accountService.listByUser(5L)).thenReturn(list);
 
-        mockMvc.perform(get("/accounts/user/5"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].id").value(1));
+        mockMvc.perform(get("/accounts/user/5")).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2)).andExpect(jsonPath("$[0].id").value(1));
     }
 
     @Test
     void updateCard_shouldReturn200() throws Exception {
-        UpdateCardNumberRequest req = UpdateCardNumberRequest.builder()
-                .cardNumber("4895121234567890")
-                .build();
+        UpdateCardNumberRequest req = UpdateCardNumberRequest.builder().cardNumber("4895121234567890").build();
 
         AccountResponse resp = AccountResponse.builder().id(10L).cardNumber("4895121234567890").build();
         when(accountService.updateCardNumber(eq(10L), any(UpdateCardNumberRequest.class))).thenReturn(resp);
@@ -158,9 +149,7 @@ class AccountControllerTest {
 
     @Test
     void updateStatus_shouldReturn200() throws Exception {
-        UpdateAccountStatusRequest req = UpdateAccountStatusRequest.builder()
-                .status(AccountStatus.FROZEN)
-                .build();
+        UpdateAccountStatusRequest req = UpdateAccountStatusRequest.builder().status(AccountStatus.FROZEN).build();
 
         AccountResponse resp = AccountResponse.builder().id(10L).status(AccountStatus.FROZEN).build();
         when(accountService.updateStatus(eq(10L), any(UpdateAccountStatusRequest.class))).thenReturn(resp);
@@ -196,7 +185,6 @@ class AccountControllerTest {
 
     @Test
     void delete_shouldReturn204() throws Exception {
-        mockMvc.perform(delete("/accounts/10"))
-                .andExpect(status().isNoContent());
+        mockMvc.perform(delete("/accounts/10")).andExpect(status().isNoContent());
     }
 }
