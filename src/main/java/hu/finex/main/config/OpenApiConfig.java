@@ -11,6 +11,8 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 @Configuration
 public class OpenApiConfig {
 
+	// Swagger / OpenAPI konfiguráció JWT Bearer authentication támogatásához
+	
     @Bean
     public OpenAPI openAPI() {
 
