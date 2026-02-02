@@ -19,6 +19,8 @@ import hu.finex.main.repository.UserRepository;
 import hu.finex.main.security.JwtTokenUtil;
 import lombok.RequiredArgsConstructor;
 
+// Bejelentkezés és regisztráció üzleti logikája (JWT + login naplózás)
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -32,6 +34,8 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest request, String ip, String userAgent) {
+    	
+    	// Email alapján felhasználó keresése, sikertelen próbálkozás is naplózásra kerül
         User user = userRepository.findByEmailIgnoreCase(request.getEmail()).orElseThrow(() -> new NotFoundException("Felhasználó nem található."));
 
         boolean passwordOk = passwordEncoder.matches(request.getPassword(), user.getPasswordHash());
@@ -39,6 +43,7 @@ public class AuthService {
         LoginStatus status = passwordOk ? LoginStatus.SUCCESS : LoginStatus.FAILED;
         String failureReason = passwordOk ? null : "Hibás jelszó.";
 
+        // Minden belépési kísérlet naplózva van (sikeres és sikertelen is)
         LoginLog log = LoginLog.builder()
                 .user(user)
                 .status(status)
@@ -72,6 +77,7 @@ public class AuthService {
         User user = userMapper.toEntity(request, passwordHash);
         user = userRepository.save(user);
         
+        // Regisztráció után automatikusan létrejön az alapértelmezett folyószámla
         accountService.createDefaultAccount(user);
 
         return userMapper.toResponse(user);
