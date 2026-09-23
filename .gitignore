@@ -1,33 +1,21 @@
-HELP.md
-target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+# A backend és a frontend saját .gitignore-t használ a saját mappájában.
+# Itt csak a közös, gyökérszintű szabályok vannak.
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
+# Operációs rendszer
+.DS_Store
+Thumbs.db
+desktop.ini
 
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
+# IDE-beállítások a gyökérben
+/.idea/
+/.vscode/
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
+# Helyi környezeti változók, titkok
+.env
+.env.*
+!.env.example
 
-### VS Code ###
-.vscode/
+# Naplófájlok
+*.log
+# Eclipse workspace-metaadatok (bármelyik mappában)
+.metadata/
