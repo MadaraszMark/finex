@@ -1,4 +1,6 @@
-version: "3.9"
+# Rögzített projektnév: így a volume neve (finex_finex-db-data) ugyanaz marad,
+# mint amikor ez a fájl még a "finex" mappában volt, és a meglévő adatok megmaradnak.
+name: finex
 
 services:
   postgres:

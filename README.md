@@ -1,5 +1,16 @@
 ## FineX – Mobilbanki alkalmazás (fejlesztés alatt)
 
+### 📁 Projekt felépítése
+
+| Mappa | Tartalom | Fejlesztőeszköz |
+|---|---|---|
+| [`backend/`](backend) | Spring Boot REST API (Java 17, Maven) | Eclipse / Spring Tool Suite |
+| [`frontend/`](frontend) | React webes felület *(hamarosan)* | VS Code |
+| [`database/`](database) | PostgreSQL (Docker Compose), adatbázis-mentések | Docker Desktop, pgAdmin |
+| [`docs/`](docs) | Dokumentáció, UI koncepcióképek | – |
+
+---
+
 ### 🔧 Technológiák
 - Java 17+
 - Spring Boot 3.5.4
@@ -97,9 +108,9 @@ Az alkalmazás célja, hogy a backend funkcióit egy **modern, letisztult mobilb
 Az alábbi UI képek és leírások **koncepciótervek**, a végleges funkcionalitás és megjelenés a fejlesztés során változhat.
 
 <div align="center">
-  <img src="README-assets/FineX-Home.jpg" width="220"/>
-  <img src="README-assets/FineX-WelcomeScreen.jpg" width="220"/>
-  <img src="README-assets/FineX-Login.jpg" width="220"/>
+  <img src="docs/images/FineX-Home.jpg" width="220"/>
+  <img src="docs/images/FineX-WelcomeScreen.jpg" width="220"/>
+  <img src="docs/images/FineX-Login.jpg" width="220"/>
 </div>  
 
 ## Tervezett képernyők (SwiftUI)
