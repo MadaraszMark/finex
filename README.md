@@ -5,7 +5,7 @@
 | Mappa | Tartalom | Fejlesztőeszköz |
 |---|---|---|
 | [`backend/`](backend) | Spring Boot REST API (Java 17, Maven) | Eclipse / Spring Tool Suite |
-| [`frontend/`](frontend) | React webes felület *(hamarosan)* | VS Code |
+| [`frontend/`](frontend) | React + TypeScript webes felület (Vite, Tailwind CSS) | VS Code |
 | [`database/`](database) | PostgreSQL (Docker Compose), adatbázis-mentések | Docker Desktop, pgAdmin |
 | [`docs/`](docs) | Dokumentáció, UI koncepcióképek | – |
 
