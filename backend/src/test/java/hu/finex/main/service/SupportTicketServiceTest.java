@@ -1,23 +1,23 @@
 package hu.finex.main.service;
 
-import hu.finex.main.dto.CreateSupportTicketRequest;
-import hu.finex.main.dto.SupportTicketResponse;
-import hu.finex.main.dto.UpdateSupportTicketStatusRequest;
+import hu.finex.main.dto.*;
 import hu.finex.main.exception.BusinessException;
 import hu.finex.main.exception.NotFoundException;
 import hu.finex.main.mapper.SupportTicketMapper;
 import hu.finex.main.model.SupportTicket;
+import hu.finex.main.model.SupportTicketMessage;
 import hu.finex.main.model.User;
+import hu.finex.main.model.enums.NotificationType;
 import hu.finex.main.model.enums.TicketStatus;
+import hu.finex.main.repository.SupportTicketMessageRepository;
 import hu.finex.main.repository.SupportTicketRepository;
-import hu.finex.main.repository.UserRepository;
+import hu.finex.main.security.CurrentUser;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.*;
 
-import java.security.Principal;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,256 +28,215 @@ import static org.mockito.Mockito.*;
 class SupportTicketServiceTest {
 
     @Mock private SupportTicketRepository supportTicketRepository;
-    @Mock private UserRepository userRepository;
+    @Mock private SupportTicketMessageRepository supportTicketMessageRepository;
     @Mock private SupportTicketMapper supportTicketMapper;
+    @Mock private NotificationService notificationService;
+    @Mock private CurrentUser currentUser;
 
     @InjectMocks private SupportTicketService service;
 
     @Test
-    void create_shouldThrowNotFound_whenUserMissing() {
-        Principal principal = () -> "missing@example.com";
-        CreateSupportTicketRequest req = CreateSupportTicketRequest.builder()
-                .title("T")
-                .message("M")
-                .build();
-
-        when(userRepository.findByEmailIgnoreCase("missing@example.com")).thenReturn(Optional.empty());
-
-        assertThrows(NotFoundException.class, () -> service.create(req, principal));
-
-        verify(userRepository).findByEmailIgnoreCase("missing@example.com");
-        verifyNoInteractions(supportTicketRepository, supportTicketMapper);
-    }
-
-    @Test
     void create_shouldThrowBusinessException_whenOpenTicketExists() {
-        Principal principal = () -> "user@example.com";
-        CreateSupportTicketRequest req = CreateSupportTicketRequest.builder()
-                .title("T")
-                .message("M")
-                .build();
-
-        User user = User.builder().id(10L).email("user@example.com").build();
-        when(userRepository.findByEmailIgnoreCase("user@example.com")).thenReturn(Optional.of(user));
+        User user = User.builder().id(10L).build();
+        when(currentUser.requireEntity()).thenReturn(user);
         when(supportTicketRepository.existsByUser_IdAndStatus(10L, TicketStatus.OPEN)).thenReturn(true);
 
-        assertThrows(BusinessException.class, () -> service.create(req, principal));
+        CreateSupportTicketRequest req = CreateSupportTicketRequest.builder()
+                .title("T")
+                .message("M")
+                .build();
 
-        verify(userRepository).findByEmailIgnoreCase("user@example.com");
-        verify(supportTicketRepository).existsByUser_IdAndStatus(10L, TicketStatus.OPEN);
-        verifyNoInteractions(supportTicketMapper);
+        assertThrows(BusinessException.class, () -> service.create(req));
+
         verify(supportTicketRepository, never()).save(any());
+        verifyNoInteractions(supportTicketMapper);
     }
 
     @Test
     void create_shouldSetStatusOpen_saveAndReturnResponse() {
-        Principal principal = () -> "user@example.com";
-        CreateSupportTicketRequest req = CreateSupportTicketRequest.builder()
-                .title("Title")
-                .message("Message")
-                .build();
-
-        User user = User.builder().id(10L).email("user@example.com").build();
-        when(userRepository.findByEmailIgnoreCase("user@example.com")).thenReturn(Optional.of(user));
+        User user = User.builder().id(10L).build();
+        when(currentUser.requireEntity()).thenReturn(user);
         when(supportTicketRepository.existsByUser_IdAndStatus(10L, TicketStatus.OPEN)).thenReturn(false);
 
-        SupportTicket mapped = SupportTicket.builder()
-                .user(user)
-                .title("Title")
-                .message("Message")
-                .status(null)
+        CreateSupportTicketRequest req = CreateSupportTicketRequest.builder()
+                .title("Kártya tiltás")
+                .message("Elvesztettem a kártyámat")
                 .build();
+
+        SupportTicket mapped = SupportTicket.builder().user(user).title("Kártya tiltás").message("Elvesztettem a kártyámat").build();
         when(supportTicketMapper.toEntity(req, user)).thenReturn(mapped);
 
-        SupportTicket saved = SupportTicket.builder()
-                .id(99L)
-                .user(user)
-                .title("Title")
-                .message("Message")
-                .status(TicketStatus.OPEN)
-                .build();
-        when(supportTicketRepository.save(any(SupportTicket.class))).thenReturn(saved);
+        SupportTicket saved = SupportTicket.builder().id(100L).user(user).status(TicketStatus.OPEN).build();
+        when(supportTicketRepository.save(mapped)).thenReturn(saved);
+        when(supportTicketMapper.toResponse(saved)).thenReturn(SupportTicketResponse.builder().id(100L).status(TicketStatus.OPEN).build());
 
-        SupportTicketResponse expected = SupportTicketResponse.builder()
-                .id(99L)
-                .userId(10L)
-                .title("Title")
-                .message("Message")
-                .status(TicketStatus.OPEN)
-                .build();
-        when(supportTicketMapper.toResponse(saved)).thenReturn(expected);
+        SupportTicketResponse resp = service.create(req);
 
-        SupportTicketResponse resp = service.create(req, principal);
-
-        assertNotNull(resp);
-        assertEquals(99L, resp.getId());
-        assertEquals(10L, resp.getUserId());
-        assertEquals(TicketStatus.OPEN, resp.getStatus());
-
-        ArgumentCaptor<SupportTicket> ticketCaptor = ArgumentCaptor.forClass(SupportTicket.class);
-        verify(supportTicketRepository).save(ticketCaptor.capture());
-        assertEquals(TicketStatus.OPEN, ticketCaptor.getValue().getStatus());
-
-        verify(userRepository).findByEmailIgnoreCase("user@example.com");
-        verify(supportTicketRepository).existsByUser_IdAndStatus(10L, TicketStatus.OPEN);
-        verify(supportTicketMapper).toEntity(req, user);
-        verify(supportTicketMapper).toResponse(saved);
+        assertEquals(100L, resp.getId());
+        assertEquals(TicketStatus.OPEN, mapped.getStatus());
     }
 
     @Test
-    void getById_shouldReturnResponse() {
-        SupportTicket ticket = SupportTicket.builder().id(5L).build();
-        when(supportTicketRepository.findById(5L)).thenReturn(Optional.of(ticket));
+    void listMine_shouldReturnOwnTickets() {
+        when(currentUser.requireId()).thenReturn(10L);
 
-        SupportTicketResponse expected = SupportTicketResponse.builder().id(5L).build();
-        when(supportTicketMapper.toResponse(ticket)).thenReturn(expected);
-
-        SupportTicketResponse resp = service.getById(5L);
-
-        assertNotNull(resp);
-        assertEquals(5L, resp.getId());
-
-        verify(supportTicketRepository).findById(5L);
-        verify(supportTicketMapper).toResponse(ticket);
-    }
-
-    @Test
-    void getById_shouldThrowNotFound_whenMissing() {
-        when(supportTicketRepository.findById(5L)).thenReturn(Optional.empty());
-
-        assertThrows(NotFoundException.class, () -> service.getById(5L));
-
-        verify(supportTicketRepository).findById(5L);
-        verifyNoInteractions(supportTicketMapper);
-    }
-
-    @Test
-    void listByUser_shouldThrowNotFound_whenUserMissing() {
         Pageable pageable = PageRequest.of(0, 10);
-        when(userRepository.findById(7L)).thenReturn(Optional.empty());
+        SupportTicket ticket = SupportTicket.builder().id(1L).build();
+        when(supportTicketRepository.findByUser_IdOrderByCreatedAtDesc(10L, pageable)).thenReturn(new PageImpl<>(List.of(ticket), pageable, 1));
+        when(supportTicketMapper.toListItem(ticket)).thenReturn(SupportTicketListItemResponse.builder().id(1L).build());
 
-        assertThrows(NotFoundException.class, () -> service.listByUser(7L, pageable));
+        Page<SupportTicketListItemResponse> page = service.listMine(pageable);
 
-        verify(userRepository).findById(7L);
-        verifyNoInteractions(supportTicketRepository, supportTicketMapper);
+        assertEquals(1, page.getTotalElements());
+        assertEquals(1L, page.getContent().get(0).getId());
     }
 
     @Test
-    void listByUser_shouldReturnMappedPage() {
-        Pageable pageable = PageRequest.of(0, 2);
-        when(userRepository.findById(7L)).thenReturn(Optional.of(User.builder().id(7L).build()));
+    void getMine_shouldReturnTicketWithConversation() {
+        when(currentUser.requireId()).thenReturn(10L);
 
-        SupportTicket t1 = SupportTicket.builder().id(1L).build();
-        SupportTicket t2 = SupportTicket.builder().id(2L).build();
-        Page<SupportTicket> page = new PageImpl<>(List.of(t1, t2), pageable, 2);
+        SupportTicket ticket = SupportTicket.builder().id(1L).build();
+        when(supportTicketRepository.findByIdAndUser_Id(1L, 10L)).thenReturn(Optional.of(ticket));
 
-        when(supportTicketRepository.findByUser_IdOrderByCreatedAtDesc(7L, pageable)).thenReturn(page);
+        SupportTicketMessage message = SupportTicketMessage.builder().id(5L).build();
+        when(supportTicketMessageRepository.findByTicket_IdOrderByCreatedAtAsc(1L)).thenReturn(List.of(message));
 
-        SupportTicketResponse r1 = SupportTicketResponse.builder().id(1L).build();
-        SupportTicketResponse r2 = SupportTicketResponse.builder().id(2L).build();
-        when(supportTicketMapper.toResponse(t1)).thenReturn(r1);
-        when(supportTicketMapper.toResponse(t2)).thenReturn(r2);
+        TicketMessageResponse messageResp = TicketMessageResponse.builder().id(5L).build();
+        when(supportTicketMapper.toMessageResponse(message)).thenReturn(messageResp);
+        when(supportTicketMapper.toResponse(ticket, List.of(messageResp))).thenReturn(SupportTicketResponse.builder().id(1L).messages(List.of(messageResp)).build());
 
-        Page<SupportTicketResponse> resp = service.listByUser(7L, pageable);
+        SupportTicketResponse resp = service.getMine(1L);
 
-        assertEquals(2, resp.getTotalElements());
-        assertSame(r1, resp.getContent().get(0));
-        assertSame(r2, resp.getContent().get(1));
-
-        verify(supportTicketRepository).findByUser_IdOrderByCreatedAtDesc(7L, pageable);
-        verify(supportTicketMapper).toResponse(t1);
-        verify(supportTicketMapper).toResponse(t2);
+        assertEquals(1, resp.getMessages().size());
     }
 
     @Test
-    void listByStatus_shouldReturnMappedPage() {
-        Pageable pageable = PageRequest.of(0, 1);
+    void getMine_shouldThrowNotFound_whenTicketBelongsToOtherUser() {
+        when(currentUser.requireId()).thenReturn(10L);
+        when(supportTicketRepository.findByIdAndUser_Id(1L, 10L)).thenReturn(Optional.empty());
 
-        SupportTicket ticket = SupportTicket.builder().id(1L).status(TicketStatus.OPEN).build();
-        Page<SupportTicket> page = new PageImpl<>(List.of(ticket), pageable, 1);
-
-        when(supportTicketRepository.findByStatusOrderByCreatedAtDesc(TicketStatus.OPEN, pageable)).thenReturn(page);
-
-        SupportTicketResponse item = SupportTicketResponse.builder().id(1L).build();
-        when(supportTicketMapper.toResponse(ticket)).thenReturn(item);
-
-        Page<SupportTicketResponse> resp = service.listByStatus(TicketStatus.OPEN, pageable);
-
-        assertEquals(1, resp.getTotalElements());
-        assertSame(item, resp.getContent().get(0));
-
-        verify(supportTicketRepository).findByStatusOrderByCreatedAtDesc(TicketStatus.OPEN, pageable);
-        verify(supportTicketMapper).toResponse(ticket);
+        assertThrows(NotFoundException.class, () -> service.getMine(1L));
     }
 
     @Test
-    void listByUserAndStatus_shouldThrowNotFound_whenUserMissing() {
+    void addMessage_shouldThrowBusinessException_whenTicketIsResolved() {
+        User user = User.builder().id(10L).build();
+        when(currentUser.requireEntity()).thenReturn(user);
+        when(supportTicketRepository.findByIdAndUser_Id(1L, 10L)).thenReturn(Optional.of(SupportTicket.builder().id(1L).status(TicketStatus.RESOLVED).build()));
+
+        CreateTicketMessageRequest req = CreateTicketMessageRequest.builder().message("Még egy kérdés").build();
+
+        assertThrows(BusinessException.class, () -> service.addMessage(1L, req));
+
+        verifyNoInteractions(supportTicketMessageRepository);
+    }
+
+    @Test
+    void addMessage_shouldSaveUsersMessage() {
+        User user = User.builder().id(10L).build();
+        when(currentUser.requireEntity()).thenReturn(user);
+
+        SupportTicket ticket = SupportTicket.builder().id(1L).status(TicketStatus.IN_PROGRESS).build();
+        when(supportTicketRepository.findByIdAndUser_Id(1L, 10L)).thenReturn(Optional.of(ticket));
+
+        CreateTicketMessageRequest req = CreateTicketMessageRequest.builder().message("Köszönöm!").build();
+        SupportTicketMessage entity = SupportTicketMessage.builder().message("Köszönöm!").build();
+        when(supportTicketMapper.toMessageEntity(ticket, user, req)).thenReturn(entity);
+        when(supportTicketMessageRepository.findByTicket_IdOrderByCreatedAtAsc(1L)).thenReturn(List.of());
+        when(supportTicketMapper.toResponse(ticket, List.of())).thenReturn(SupportTicketResponse.builder().id(1L).build());
+
+        service.addMessage(1L, req);
+
+        verify(supportTicketMessageRepository).save(entity);
+        assertNotNull(ticket.getUpdatedAt());
+        assertEquals(TicketStatus.IN_PROGRESS, ticket.getStatus());
+    }
+
+    @Test
+    void listAll_shouldFilterByStatus_whenGiven() {
         Pageable pageable = PageRequest.of(0, 10);
-        when(userRepository.findById(7L)).thenReturn(Optional.empty());
+        SupportTicket ticket = SupportTicket.builder().id(1L).build();
+        when(supportTicketRepository.findByStatusOrderByCreatedAtDesc(TicketStatus.OPEN, pageable)).thenReturn(new PageImpl<>(List.of(ticket), pageable, 1));
+        when(supportTicketMapper.toListItem(ticket)).thenReturn(SupportTicketListItemResponse.builder().id(1L).build());
 
-        assertThrows(NotFoundException.class, () -> service.listByUserAndStatus(7L, TicketStatus.OPEN, pageable));
+        Page<SupportTicketListItemResponse> page = service.listAll(TicketStatus.OPEN, pageable);
 
-        verify(userRepository).findById(7L);
-        verifyNoInteractions(supportTicketRepository, supportTicketMapper);
+        assertEquals(1, page.getTotalElements());
+        verify(supportTicketRepository, never()).findAllByOrderByCreatedAtDesc(any());
     }
 
     @Test
-    void listByUserAndStatus_shouldReturnMappedPage() {
-        Pageable pageable = PageRequest.of(0, 1);
-        when(userRepository.findById(7L)).thenReturn(Optional.of(User.builder().id(7L).build()));
+    void listAll_shouldListEverything_whenNoStatus() {
+        Pageable pageable = PageRequest.of(0, 10);
+        when(supportTicketRepository.findAllByOrderByCreatedAtDesc(pageable)).thenReturn(Page.empty(pageable));
 
-        SupportTicket ticket = SupportTicket.builder().id(1L).status(TicketStatus.OPEN).build();
-        Page<SupportTicket> page = new PageImpl<>(List.of(ticket), pageable, 1);
+        service.listAll(null, pageable);
 
-        when(supportTicketRepository.findByUser_IdAndStatusOrderByCreatedAtDesc(7L, TicketStatus.OPEN, pageable))
-                .thenReturn(page);
+        verify(supportTicketRepository, never()).findByStatusOrderByCreatedAtDesc(any(), any());
+    }
 
-        SupportTicketResponse item = SupportTicketResponse.builder().id(1L).build();
-        when(supportTicketMapper.toResponse(ticket)).thenReturn(item);
+    @Test
+    void reply_shouldMoveOpenTicketToInProgress_andNotifyUser() {
+        User admin = User.builder().id(1L).build();
+        User owner = User.builder().id(10L).build();
+        when(currentUser.requireEntity()).thenReturn(admin);
 
-        Page<SupportTicketResponse> resp = service.listByUserAndStatus(7L, TicketStatus.OPEN, pageable);
+        SupportTicket ticket = SupportTicket.builder().id(1L).user(owner).title("Kártya tiltás").status(TicketStatus.OPEN).build();
+        when(supportTicketRepository.findById(1L)).thenReturn(Optional.of(ticket));
 
-        assertEquals(1, resp.getTotalElements());
-        assertSame(item, resp.getContent().get(0));
+        CreateTicketMessageRequest req = CreateTicketMessageRequest.builder().message("A kártyát letiltottuk.").build();
+        SupportTicketMessage entity = SupportTicketMessage.builder().message("A kártyát letiltottuk.").build();
+        when(supportTicketMapper.toMessageEntity(ticket, admin, req)).thenReturn(entity);
+        when(supportTicketMessageRepository.findByTicket_IdOrderByCreatedAtAsc(1L)).thenReturn(List.of());
+        when(supportTicketMapper.toResponse(ticket, List.of())).thenReturn(SupportTicketResponse.builder().id(1L).status(TicketStatus.IN_PROGRESS).build());
 
-        verify(supportTicketRepository).findByUser_IdAndStatusOrderByCreatedAtDesc(7L, TicketStatus.OPEN, pageable);
-        verify(supportTicketMapper).toResponse(ticket);
+        SupportTicketResponse resp = service.reply(1L, req);
+
+        assertEquals(TicketStatus.IN_PROGRESS, ticket.getStatus());
+        assertEquals(TicketStatus.IN_PROGRESS, resp.getStatus());
+        verify(supportTicketMessageRepository).save(entity);
+        verify(notificationService).notify(eq(owner), eq(NotificationType.SUPPORT), eq("Válasz érkezett"), contains("Kártya tiltás"));
+    }
+
+    @Test
+    void reply_shouldThrowNotFound_whenTicketMissing() {
+        when(currentUser.requireEntity()).thenReturn(User.builder().id(1L).build());
+        when(supportTicketRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> service.reply(1L, CreateTicketMessageRequest.builder().message("x").build()));
+
+        verifyNoInteractions(supportTicketMessageRepository, notificationService);
+    }
+
+    @Test
+    void updateStatus_shouldUpdate_andNotifyUser() {
+        User owner = User.builder().id(10L).build();
+        SupportTicket ticket = SupportTicket.builder().id(1L).user(owner).title("Kártya tiltás").status(TicketStatus.IN_PROGRESS).build();
+        when(supportTicketRepository.findById(1L)).thenReturn(Optional.of(ticket));
+
+        UpdateSupportTicketStatusRequest req = UpdateSupportTicketStatusRequest.builder().status(TicketStatus.RESOLVED).build();
+        doAnswer(invocation -> {
+            ticket.setStatus(TicketStatus.RESOLVED);
+            return null;
+        }).when(supportTicketMapper).updateStatus(ticket, req);
+
+        when(supportTicketMessageRepository.findByTicket_IdOrderByCreatedAtAsc(1L)).thenReturn(List.of());
+        when(supportTicketMapper.toResponse(ticket, List.of())).thenReturn(SupportTicketResponse.builder().id(1L).status(TicketStatus.RESOLVED).build());
+
+        SupportTicketResponse resp = service.updateStatus(1L, req);
+
+        assertEquals(TicketStatus.RESOLVED, resp.getStatus());
+        verify(notificationService).notify(eq(owner), eq(NotificationType.SUPPORT), anyString(), contains("megoldva"));
     }
 
     @Test
     void updateStatus_shouldThrowNotFound_whenTicketMissing() {
-        when(supportTicketRepository.findById(5L)).thenReturn(Optional.empty());
+        when(supportTicketRepository.findById(1L)).thenReturn(Optional.empty());
 
-        UpdateSupportTicketStatusRequest req = UpdateSupportTicketStatusRequest.builder()
-                .status(TicketStatus.RESOLVED)
-                .build();
+        UpdateSupportTicketStatusRequest req = UpdateSupportTicketStatusRequest.builder().status(TicketStatus.RESOLVED).build();
 
-        assertThrows(NotFoundException.class, () -> service.updateStatus(5L, req));
+        assertThrows(NotFoundException.class, () -> service.updateStatus(1L, req));
 
-        verify(supportTicketRepository).findById(5L);
-        verifyNoInteractions(supportTicketMapper);
-    }
-
-    @Test
-    void updateStatus_shouldUpdateAndReturnResponse() {
-        SupportTicket ticket = SupportTicket.builder().id(5L).status(TicketStatus.OPEN).build();
-        when(supportTicketRepository.findById(5L)).thenReturn(Optional.of(ticket));
-
-        UpdateSupportTicketStatusRequest req = UpdateSupportTicketStatusRequest.builder()
-                .status(TicketStatus.IN_PROGRESS)
-                .build();
-
-        SupportTicketResponse expected = SupportTicketResponse.builder().id(5L).status(TicketStatus.IN_PROGRESS).build();
-        when(supportTicketMapper.toResponse(ticket)).thenReturn(expected);
-
-        SupportTicketResponse resp = service.updateStatus(5L, req);
-
-        assertNotNull(resp);
-        assertEquals(5L, resp.getId());
-        assertEquals(TicketStatus.IN_PROGRESS, ticket.getStatus());
-        assertEquals(TicketStatus.IN_PROGRESS, resp.getStatus());
-
-        verify(supportTicketRepository).findById(5L);
-        verify(supportTicketMapper).toResponse(ticket);
+        verifyNoInteractions(supportTicketMapper, notificationService);
     }
 }

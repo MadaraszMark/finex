@@ -3,6 +3,7 @@ package hu.finex.main.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -24,6 +25,7 @@ public class SavingsTransferRequest {
     @Schema(description = "Az átvezetendő összeg (1 vagy több)",example = "20000", required = true)
     private BigDecimal amount;
 
+    @Size(max = 255)
     @Schema(description = "Opcionális megjegyzés",example = "Havi megtakarítás")
     private String message;
 }

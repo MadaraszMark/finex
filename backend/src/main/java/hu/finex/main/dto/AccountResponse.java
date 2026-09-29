@@ -2,7 +2,6 @@ package hu.finex.main.dto;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.OffsetDateTime;
 
 import hu.finex.main.model.enums.AccountStatus;
 import hu.finex.main.model.enums.AccountType;
@@ -27,6 +26,9 @@ public class AccountResponse {
     @Schema(description = "A számlatulajdonos felhasználó ID-ja", example = "42")
     private Long userId;
 
+    @Schema(description = "A számla megjelenítési neve", example = "Fő számla")
+    private String name;
+
     @Schema(description = "A számla egyedi száma (IBAN jellegű)", example = "HU42117730161111101800000000")
     private String accountNumber;
 
@@ -36,11 +38,8 @@ public class AccountResponse {
     @Schema(description = "Számla devizaneme", example = "EUR")
     private String currency;
 
-    @Schema(description = "A számla típusa", example = "SAVINGS")
+    @Schema(description = "A számla típusa", example = "CURRENT")
     private AccountType accountType;
-
-    @Schema(description = "A számlához tartozó bankkártya (maszkolva)",example = "**** **** **** 5521")
-    private String cardNumber;
 
     @Schema(description = "A számla státusza", example = "ACTIVE")
     private AccountStatus status;

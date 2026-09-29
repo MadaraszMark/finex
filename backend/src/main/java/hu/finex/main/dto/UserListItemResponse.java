@@ -1,5 +1,9 @@
 package hu.finex.main.dto;
 
+import java.time.Instant;
+
+import hu.finex.main.model.enums.UserRole;
+import hu.finex.main.model.enums.UserStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
@@ -21,6 +25,12 @@ public class UserListItemResponse {
     private String email;
 
     @Schema(description = "Szerepkör", example = "ADMIN")
-    private String role;
+    private UserRole role;
+
+    @Schema(description = "Státusz", example = "ACTIVE")
+    private UserStatus status;
+
+    @Schema(description = "Regisztráció időpontja", example = "2025-02-12T14:22:10Z")
+    private Instant createdAt;
 }
 

@@ -11,9 +11,11 @@ import hu.finex.main.model.enums.LoginStatus;
 @Component
 public class LoginLogMapper {
 
-    public LoginLog toEntity(User user, String ip, String userAgent, String failureReason, LoginStatus status) {
+    // A user null lehet: ismeretlen e-mail címmel érkező próbálkozás is naplózásra kerül
+    public LoginLog toEntity(User user, String email, String ip, String userAgent, String failureReason, LoginStatus status) {
         return LoginLog.builder()
                 .user(user)
+                .email(email)
                 .ipAddress(ip)
                 .userAgent(userAgent)
                 .failureReason(failureReason)
@@ -24,7 +26,8 @@ public class LoginLogMapper {
     public LoginLogResponse toResponse(LoginLog log) {
         return LoginLogResponse.builder()
                 .id(log.getId())
-                .userId(log.getUser().getId())
+                .userId(log.getUser() != null ? log.getUser().getId() : null)
+                .email(log.getEmail())
                 .status(log.getStatus())
                 .ipAddress(log.getIpAddress())
                 .userAgent(log.getUserAgent())
@@ -37,6 +40,8 @@ public class LoginLogMapper {
         return LoginLogListItemResponse.builder()
                 .status(log.getStatus())
                 .ipAddress(log.getIpAddress())
+                .userAgent(log.getUserAgent())
+                .failureReason(log.getFailureReason())
                 .createdAt(log.getCreatedAt())
                 .build();
     }

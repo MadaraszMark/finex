@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 
 import hu.finex.main.dto.CreateCategoryRequest;
 import hu.finex.main.dto.CategoryResponse;
+import hu.finex.main.dto.UpdateCategoryRequest;
 import hu.finex.main.model.Category;
 
 @Component
@@ -17,6 +18,11 @@ public class CategoryMapper {
     }
 
     public void updateEntity(Category category, CreateCategoryRequest request) {
+        category.setName(request.getName());
+        category.setIcon(request.getIcon());
+    }
+
+    public void updateEntity(Category category, UpdateCategoryRequest request) {
         category.setName(request.getName());
         category.setIcon(request.getIcon());
     }

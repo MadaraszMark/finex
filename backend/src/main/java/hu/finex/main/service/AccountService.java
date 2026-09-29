@@ -1,236 +1,250 @@
 package hu.finex.main.service;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import hu.finex.main.dto.AccountListItemResponse;
+import hu.finex.main.config.FinexProperties;
 import hu.finex.main.dto.AccountResponse;
 import hu.finex.main.dto.CreateAccountRequest;
+import hu.finex.main.dto.DepositRequest;
+import hu.finex.main.dto.StatementItemResponse;
+import hu.finex.main.dto.StatementResponse;
 import hu.finex.main.dto.UpdateAccountStatusRequest;
-import hu.finex.main.dto.UpdateCardNumberRequest;
 import hu.finex.main.exception.BusinessException;
 import hu.finex.main.exception.NotFoundException;
 import hu.finex.main.mapper.AccountMapper;
 import hu.finex.main.model.Account;
-import hu.finex.main.model.BalanceHistory;
-import hu.finex.main.model.Transaction;
 import hu.finex.main.model.User;
 import hu.finex.main.model.enums.AccountStatus;
 import hu.finex.main.model.enums.AccountType;
+import hu.finex.main.model.enums.NotificationType;
 import hu.finex.main.model.enums.TransactionType;
 import hu.finex.main.repository.AccountRepository;
-import hu.finex.main.repository.BalanceHistoryRepository;
-import hu.finex.main.repository.TransactionRepository;
-import hu.finex.main.repository.UserRepository;
+import hu.finex.main.repository.ReportRepository;
+import hu.finex.main.repository.StandingOrderRepository;
+import hu.finex.main.security.CurrentUser;
+import hu.finex.main.util.DateUtils;
+import hu.finex.main.util.IbanUtils;
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class AccountService {
 
+    private static final Map<AccountStatus, String> STATUS_LABELS = Map.of(
+            AccountStatus.ACTIVE, "aktív",
+            AccountStatus.BLOCKED, "letiltott",
+            AccountStatus.FROZEN, "befagyasztott",
+            AccountStatus.CLOSED, "lezárt");
+
     private final AccountRepository accountRepository;
-    private final UserRepository userRepository;
     private final AccountMapper accountMapper;
-    private final TransactionRepository transactionRepository;
-    private final BalanceHistoryRepository balanceHistoryRepository;
-    
-    @Transactional
-    public AccountResponse create(CreateAccountRequest request) {
-        User user = userRepository.findById(request.getUserId()).orElseThrow(() -> new NotFoundException("Felhasználó nem található."));
+    private final CardService cardService;
+    private final LedgerService ledgerService;
+    private final NotificationService notificationService;
+    private final StandingOrderRepository standingOrderRepository;
+    private final ReportRepository reportRepository;
+    private final CurrentUser currentUser;
+    private final FinexProperties finexProperties;
 
-        String generatedAccountNumber = generateAccountNumber();
-
-        Account account = accountMapper.toEntity(request, user, generatedAccountNumber);
-        account.setStatus(AccountStatus.ACTIVE);
-
-        account = accountRepository.save(account);
-
-        return accountMapper.toResponse(account);
+    // A bejelentkezett felhasználó összes számlája nyitás sorrendjében
+    @Transactional(readOnly = true)
+    public List<AccountResponse> listMine() {
+        return accountRepository.findByUser_IdOrderByCreatedAtAsc(currentUser.requireId()).stream().map(accountMapper::toResponse).toList();
     }
 
     @Transactional(readOnly = true)
     public AccountResponse getById(Long id) {
-        Account account = accountRepository.findById(id).orElseThrow(() -> new NotFoundException("Számla nem található."));
-
-        return accountMapper.toResponse(account);
+        return accountMapper.toResponse(findOwned(id));
     }
-    
+
+    // Elsődleges folyószámla: a legrégebbi aktív folyószámla (a főoldal kártyájához)
     @Transactional(readOnly = true)
-    public AccountResponse getMyAccount(Long userId) {
+    public AccountResponse getMyAccount() {
         Account account = accountRepository
-                .findFirstByUser_IdAndStatusAndAccountType(userId, AccountStatus.ACTIVE, AccountType.CURRENT)
+                .findFirstByUser_IdAndStatusAndAccountTypeOrderByCreatedAtAsc(currentUser.requireId(), AccountStatus.ACTIVE, AccountType.CURRENT)
                 .orElseThrow(() -> new NotFoundException("Számla nem található."));
 
         return accountMapper.toResponse(account);
     }
 
-
-    @Transactional(readOnly = true)
-    public List<AccountListItemResponse> listByUser(Long userId) {
-        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("Felhasználó nem található."));
-
-        List<Account> accounts = accountRepository.findByUser_Id(userId);
-        
-        return accounts.stream().map(accountMapper::toListItem).toList();
-    }
-
+    // Új folyószámla nyitása a bejelentkezett felhasználónak, bankkártyával együtt
     @Transactional
-    public AccountResponse updateCardNumber(Long id, UpdateCardNumberRequest request) {
-        Account account = accountRepository.findById(id).orElseThrow(() -> new NotFoundException("Számla nem található."));
+    public AccountResponse open(CreateAccountRequest request) {
+        User user = currentUser.requireEntity();
 
-        account.setCardNumber(request.getCardNumber());
-
-        return accountMapper.toResponse(account);
-    }
-
-    @Transactional
-    public AccountResponse updateStatus(Long id, UpdateAccountStatusRequest request) {
-        Account account = accountRepository.findById(id).orElseThrow(() -> new NotFoundException("Számla nem található."));
-
-        account.setStatus(request.getStatus());
-
-        return accountMapper.toResponse(account);
-    }
-
-    @Transactional
-    public void delete(Long id) {
-        Account account = accountRepository.findById(id).orElseThrow(() -> new NotFoundException("Számla nem található."));
-
-        account.setStatus(AccountStatus.CLOSED);
-    }
-    
-    private String generateHungarianIban() {
-        // 24 jegyű random bankszámlaszám
-        StringBuilder base = new StringBuilder();
-        for (int i = 0; i < 24; i++) {
-            base.append((int) (Math.random() * 10));
+        if (accountRepository.countByUser_IdAndStatusNot(user.getId(), AccountStatus.CLOSED) >= finexProperties.getMaxAccountsPerUser()) {
+            throw new BusinessException("Legfeljebb " + finexProperties.getMaxAccountsPerUser() + " nyitott számlád lehet.");
         }
 
-        String countryCode = "HU";
-        String checksumBase = base.toString() + convertLettersToDigits(countryCode + "00");
+        Account account = accountMapper.toEntity(request, user, generateUniqueAccountNumber());
+        account = accountRepository.save(account);
 
-        int mod = mod97(checksumBase);
-        int checksum = 98 - mod;
+        cardService.createCard(account);
 
-        String formattedChecksum = String.format("%02d", checksum);
-
-        return countryCode + formattedChecksum + base;
+        return accountMapper.toResponse(account);
     }
-    
+
+    // Regisztrációkor automatikusan létrejövő forint folyószámla, bankkártyával
     @Transactional
     public Account createDefaultAccount(User user) {
         Account account = Account.builder()
                 .user(user)
-                .accountNumber(generateHungarianIban())
+                .name("Fő számla")
+                .accountNumber(generateUniqueAccountNumber())
                 .balance(BigDecimal.ZERO)
                 .currency("HUF")
                 .accountType(AccountType.CURRENT)
-                .cardNumber(generateCardNumber())
                 .status(AccountStatus.ACTIVE)
                 .build();
-        return accountRepository.save(account);
+        account = accountRepository.save(account);
+
+        cardService.createCard(account);
+
+        return account;
     }
 
-    // Betűk átalakítása számokká (A=10, B=11...)
-    private String convertLettersToDigits(String input) {
-        StringBuilder result = new StringBuilder();
-        for (char ch : input.toCharArray()) {
-            if (Character.isLetter(ch)) {
-                result.append((ch - 'A') + 10);
-            } else {
-                result.append(ch);
-            }
-        }
-        return result.toString();
-    }
-
-    // Nagy szám mod 97
-    private int mod97(String input) {
-        String remainder = "0";
-
-        for (int i = 0; i < input.length(); i += 7) {
-            int end = Math.min(i + 7, input.length());
-            String chunk = remainder + input.substring(i, end);
-            remainder = String.valueOf(Long.parseLong(chunk) % 97);
-        }
-
-        return Integer.parseInt(remainder);
-    }
-    
-    private int generateLuhnCheckDigit(String numberWithoutCheckDigit) {
-        int sum = 0;
-        boolean alternate = true;
-
-        for (int i = numberWithoutCheckDigit.length() - 1; i >= 0; i--) {
-            int n = Character.getNumericValue(numberWithoutCheckDigit.charAt(i));
-
-            if (alternate) {
-                n *= 2;
-                if (n > 9) {
-                    n -= 9;
-                }
-            }
-
-            sum += n;
-            alternate = !alternate;
-        }
-
-        return (10 - (sum % 10)) % 10;
-    }
-
-    private String generateCardNumber() {
-        String bin = "489512"; // fiktív BIN
-        StringBuilder number = new StringBuilder(bin);
-
-        // 9 véletlen számjegy
-        for (int i = 0; i < 9; i++) {
-            number.append((int) (Math.random() * 10));
-        }
-        // Luhn-ellenőrző szám generálása
-        int checkDigit = generateLuhnCheckDigit(number.toString());
-        number.append(checkDigit);
-
-        return number.toString();
-    }
-
-    private String generateAccountNumber() {
-        // Egyszerű placeholder: "ACC" + időbélyeg
-        return "ACC" + System.currentTimeMillis();
-    }
-    
+    // Befizetés (demó: pl. ATM-es készpénzbefizetés)
     @Transactional
-    public AccountResponse deposit(Long accountId, BigDecimal amount, String message, Long userId) {
+    public AccountResponse deposit(Long accountId, DepositRequest request) {
+        Account account = lockOwned(accountId);
+        ensureActive(account);
 
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new NotFoundException("Számla nem található."));
-
-        if (!account.getUser().getId().equals(userId)) {
-            throw new BusinessException("Ehhez a számlához nincs jogosultságod.");
-        }
-
-        account.setBalance(account.getBalance().add(amount));
-
-        // Transaction
-        Transaction tx = Transaction.builder()
-                .account(account)
-                .amount(amount)
-                .type(TransactionType.INCOME)
-                .currency(account.getCurrency())
-                .message(message)
-                .build();
-        transactionRepository.save(tx);
-
-        // Balance History
-        BalanceHistory history = BalanceHistory.builder()
-                .account(account)
-                .balance(account.getBalance())
-                .build();
-        balanceHistoryRepository.save(history);
+        String message = request.getMessage() != null ? request.getMessage() : "Készpénzbefizetés";
+        ledgerService.credit(account, TransactionType.INCOME, request.getAmount(), "Készpénzbefizetés", message, null);
 
         return accountMapper.toResponse(account);
     }
 
+    // Számla lezárása: csak nulla egyenleggel, és az utolsó nyitott számla nem zárható le.
+    // A kártyák megszűnnek, a számláról induló rendszeres átutalások leállnak.
+    @Transactional
+    public void close(Long id) {
+        Account account = lockOwned(id);
+
+        if (account.getStatus() == AccountStatus.CLOSED) {
+            throw new BusinessException("A számla már le van zárva.");
+        }
+        if (account.getBalance().signum() != 0) {
+            throw new BusinessException("Csak nulla egyenlegű számla zárható le. Előbb utald át a pénzt egy másik számládra.");
+        }
+        if (accountRepository.countByUser_IdAndStatusNot(account.getUser().getId(), AccountStatus.CLOSED) <= 1) {
+            throw new BusinessException("Az utolsó nyitott számládat nem zárhatod le.");
+        }
+
+        closeAccount(account);
+    }
+
+    // Számlakivonat: a nyitóegyenleget és a futó egyenleget az adatbázis függvényei számolják
+    // (account_balance_at, account_statement), itt csak az összesítők készülnek
+    @Transactional(readOnly = true)
+    public StatementResponse getStatement(Long id, LocalDate from, LocalDate to) {
+        Account account = findOwned(id);
+
+        if (from.isAfter(to)) {
+            throw new BusinessException("A kezdő dátum nem lehet későbbi a záró dátumnál.");
+        }
+
+        Instant fromInstant = DateUtils.startOfDay(from);
+        Instant toInstant = DateUtils.startOfDay(to.plusDays(1));
+
+        BigDecimal openingBalance = reportRepository.findBalanceAt(account.getId(), fromInstant);
+        List<StatementItemResponse> items = reportRepository.findStatement(account.getId(), fromInstant, toInstant);
+
+        BigDecimal totalIncome = items.stream()
+                .map(StatementItemResponse::getSignedAmount)
+                .filter(amount -> amount.signum() > 0)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalOutcome = items.stream()
+                .map(StatementItemResponse::getSignedAmount)
+                .filter(amount -> amount.signum() < 0)
+                .map(BigDecimal::negate)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal closingBalance = items.isEmpty() ? openingBalance : items.get(items.size() - 1).getRunningBalance();
+
+        return StatementResponse.builder()
+                .accountId(account.getId())
+                .accountNumber(account.getAccountNumber())
+                .currency(account.getCurrency())
+                .from(from)
+                .to(to)
+                .openingBalance(openingBalance)
+                .closingBalance(closingBalance)
+                .totalIncome(totalIncome)
+                .totalOutcome(totalOutcome)
+                .items(items)
+                .build();
+    }
+
+    // Admin: összes számla, opcionálisan státusz szerint
+    @Transactional(readOnly = true)
+    public Page<AccountResponse> listAll(AccountStatus status, Pageable pageable) {
+        Page<Account> accounts = status != null ? accountRepository.findByStatus(status, pageable) : accountRepository.findAll(pageable);
+        return accounts.map(accountMapper::toResponse);
+    }
+
+    // Admin: számla befagyasztása, tiltása, feloldása vagy lezárása; a tulajdonos értesítést kap
+    @Transactional
+    public AccountResponse updateStatus(Long id, UpdateAccountStatusRequest request) {
+        Account account = accountRepository.findByIdForUpdate(id).orElseThrow(() -> new NotFoundException("Számla nem található."));
+
+        if (account.getStatus() == AccountStatus.CLOSED) {
+            throw new BusinessException("Lezárt számla státusza nem módosítható.");
+        }
+
+        if (request.getStatus() == AccountStatus.CLOSED) {
+            if (account.getBalance().signum() != 0) {
+                throw new BusinessException("Csak nulla egyenlegű számla zárható le.");
+            }
+            closeAccount(account);
+        } else {
+            accountMapper.updateStatus(account, request);
+        }
+
+        notificationService.notify(account.getUser(), NotificationType.SECURITY, "Számlád státusza megváltozott",
+                "A(z) " + account.getName() + " számlád új státusza: " + STATUS_LABELS.get(account.getStatus()) + ".");
+
+        return accountMapper.toResponse(account);
+    }
+
+    private void closeAccount(Account account) {
+        account.setStatus(AccountStatus.CLOSED);
+        cardService.cancelCardsOfAccount(account.getId());
+        standingOrderRepository.findByAccount_IdAndActiveTrue(account.getId()).forEach(order -> order.setActive(false));
+    }
+
+    private Account findOwned(Long id) {
+        return accountRepository.findByIdAndUser_Id(id, currentUser.requireId()).orElseThrow(() -> new NotFoundException("Számla nem található."));
+    }
+
+    // Először csak ellenőrzünk (entitás betöltése nélkül), aztán zárolva olvassuk be: így biztosan a legfrissebb egyenleggel számolunk
+    private Account lockOwned(Long id) {
+        if (!accountRepository.existsByIdAndUser_Id(id, currentUser.requireId())) {
+            throw new NotFoundException("Számla nem található.");
+        }
+        return accountRepository.findByIdForUpdate(id).orElseThrow(() -> new NotFoundException("Számla nem található."));
+    }
+
+    private void ensureActive(Account account) {
+        if (account.getStatus() != AccountStatus.ACTIVE) {
+            throw new BusinessException("A számla nem aktív, ezért nem végezhető rajta művelet.");
+        }
+    }
+
+    // Egyedi IBAN számlaszám (ütközés esetén újrapróbálkozás)
+    private String generateUniqueAccountNumber() {
+        String accountNumber;
+        do {
+            accountNumber = IbanUtils.generateHungarian();
+        } while (accountRepository.existsByAccountNumber(accountNumber));
+        return accountNumber;
+    }
 }

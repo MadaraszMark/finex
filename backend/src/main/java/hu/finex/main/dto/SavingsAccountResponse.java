@@ -25,7 +25,7 @@ public class SavingsAccountResponse {
     @Schema(description = "Felhasználó azonosítója", example = "12")
     private Long userId;
 
-    @Schema(description = "Megtakarítás neve", example = "Havi megtakarítás")
+    @Schema(description = "Megtakarítás neve", example = "Nyaralás")
     private String name;
 
     @Schema(description = "Aktuális egyenleg", example = "83000.00")
@@ -34,8 +34,14 @@ public class SavingsAccountResponse {
     @Schema(description = "Deviza", example = "HUF")
     private String currency;
 
-    @Schema(description = "Kamatláb (%)", example = "2.5")
+    @Schema(description = "Éves kamatláb (%)", example = "3.50")
     private BigDecimal interestRate;
+
+    @Schema(description = "Célösszeg (ha van)", example = "600000.00")
+    private BigDecimal targetAmount;
+
+    @Schema(description = "A célösszeg hány százaléka van meg (célösszeg nélkül üres)", example = "13.83")
+    private BigDecimal progressPercent;
 
     @Schema(description = "Státusz", example = "ACTIVE")
     private SavingsStatus status;

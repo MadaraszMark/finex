@@ -51,6 +51,12 @@ public class Account {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    // Megjelenítési név (pl. "Fő számla", "Euró számla")
+    @NotBlank
+    @Size(max = 100)
+    @Column(nullable = false, length = 100)
+    private String name;
+
     // Egyedi számlaszám
     @NotBlank
     @Size(max = 34)
@@ -68,21 +74,16 @@ public class Account {
     @Column(nullable = false, length = 3)
     private String currency;
 
-    // ÚJ: Account típus (PostgreSQL ENUM)
+    // Account típus
     @NotNull
     @Enumerated(EnumType.STRING)
-    @Column(name = "account_type", nullable = false)
+    @Column(name = "account_type", nullable = false, length = 20)
     private AccountType accountType;
 
-    // ÚJ: Kártyaszám (maszkolt)
-    @Size(max = 20)
-    @Column(name = "card_number", length = 20)
-    private String cardNumber;
-
-    // ÚJ: Account státusz
+    // Account státusz
     @NotNull
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = false, length = 20)
     private AccountStatus status;
 
     @CreatedDate

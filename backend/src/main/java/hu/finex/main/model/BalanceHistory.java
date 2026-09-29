@@ -26,7 +26,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "balance_history",indexes = {@Index(name = "idx_balance_history_account_id", columnList = "account_id"),@Index(name = "idx_balance_history_created_at", columnList = "created_at")})
+@Table(name = "balance_history",indexes = {@Index(name = "idx_balance_history_account_created", columnList = "account_id, created_at")})
 @EntityListeners(AuditingEntityListener.class)
 @Getter @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

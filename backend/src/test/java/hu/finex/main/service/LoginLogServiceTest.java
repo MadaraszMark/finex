@@ -1,20 +1,26 @@
 package hu.finex.main.service;
 
+import hu.finex.main.config.FinexProperties;
 import hu.finex.main.dto.LoginLogListItemResponse;
 import hu.finex.main.dto.LoginLogResponse;
+import hu.finex.main.exception.BusinessException;
 import hu.finex.main.exception.NotFoundException;
 import hu.finex.main.mapper.LoginLogMapper;
 import hu.finex.main.model.LoginLog;
+import hu.finex.main.model.User;
 import hu.finex.main.model.enums.LoginStatus;
 import hu.finex.main.repository.LoginLogRepository;
-import hu.finex.main.repository.UserRepository;
+import hu.finex.main.security.CurrentUser;
+import hu.finex.main.util.DateUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.*;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,184 +31,134 @@ import static org.mockito.Mockito.*;
 class LoginLogServiceTest {
 
     @Mock private LoginLogRepository loginLogRepository;
-    @Mock private UserRepository userRepository;
     @Mock private LoginLogMapper loginLogMapper;
+    @Mock private CurrentUser currentUser;
+    @Spy private FinexProperties finexProperties = new FinexProperties();
 
     @InjectMocks private LoginLogService service;
 
     @Test
-    void listByUser_shouldThrowNotFound_whenUserMissing() {
+    void recordAttempt_shouldSaveMappedLog() {
+        User user = User.builder().id(1L).build();
+        LoginLog log = LoginLog.builder().user(user).email("a@finex.hu").status(LoginStatus.SUCCESS).build();
+        when(loginLogMapper.toEntity(user, "a@finex.hu", "127.0.0.1", "UA", null, LoginStatus.SUCCESS)).thenReturn(log);
+
+        service.recordAttempt(user, "a@finex.hu", LoginStatus.SUCCESS, "127.0.0.1", "UA", null);
+
+        verify(loginLogRepository).save(log);
+    }
+
+    @Test
+    void isTemporarilyLocked_shouldBeTrue_whenTooManyFailuresInWindow() {
+        when(loginLogRepository.findFirstByEmailAndStatusOrderByCreatedAtDesc("a@finex.hu", LoginStatus.SUCCESS)).thenReturn(Optional.empty());
+        when(loginLogRepository.countByEmailAndStatusAndCreatedAtAfter(eq("a@finex.hu"), eq(LoginStatus.FAILED), any())).thenReturn(5L);
+
+        assertTrue(service.isTemporarilyLocked("a@finex.hu"));
+    }
+
+    @Test
+    void isTemporarilyLocked_shouldBeFalse_belowTheLimit() {
+        when(loginLogRepository.findFirstByEmailAndStatusOrderByCreatedAtDesc("a@finex.hu", LoginStatus.SUCCESS)).thenReturn(Optional.empty());
+        when(loginLogRepository.countByEmailAndStatusAndCreatedAtAfter(eq("a@finex.hu"), eq(LoginStatus.FAILED), any())).thenReturn(4L);
+
+        assertFalse(service.isTemporarilyLocked("a@finex.hu"));
+    }
+
+    @Test
+    void isTemporarilyLocked_shouldCountOnlyFailuresAfterLastSuccess() {
+        Instant lastSuccess = Instant.now().minus(2, ChronoUnit.MINUTES);
+        when(loginLogRepository.findFirstByEmailAndStatusOrderByCreatedAtDesc("a@finex.hu", LoginStatus.SUCCESS))
+                .thenReturn(Optional.of(LoginLog.builder().createdAt(lastSuccess).build()));
+        when(loginLogRepository.countByEmailAndStatusAndCreatedAtAfter("a@finex.hu", LoginStatus.FAILED, lastSuccess)).thenReturn(1L);
+
+        assertFalse(service.isTemporarilyLocked("a@finex.hu"));
+    }
+
+    @Test
+    void isTemporarilyLocked_shouldUseWindowStart_whenLastSuccessIsOlder() {
+        Instant oldSuccess = Instant.now().minus(3, ChronoUnit.HOURS);
+        when(loginLogRepository.findFirstByEmailAndStatusOrderByCreatedAtDesc("a@finex.hu", LoginStatus.SUCCESS))
+                .thenReturn(Optional.of(LoginLog.builder().createdAt(oldSuccess).build()));
+
+        ArgumentCaptor<Instant> sinceCaptor = ArgumentCaptor.forClass(Instant.class);
+        when(loginLogRepository.countByEmailAndStatusAndCreatedAtAfter(eq("a@finex.hu"), eq(LoginStatus.FAILED), sinceCaptor.capture())).thenReturn(0L);
+
+        service.isTemporarilyLocked("a@finex.hu");
+
+        // A 15 perces zárolási ablak eleje számít, nem a régi sikeres belépés
+        assertTrue(sinceCaptor.getValue().isAfter(Instant.now().minus(16, ChronoUnit.MINUTES)));
+    }
+
+    @Test
+    void listMine_shouldReturnMappedPage() {
+        when(currentUser.requireId()).thenReturn(7L);
+
         Pageable pageable = PageRequest.of(0, 10);
-        when(userRepository.existsById(5L)).thenReturn(false);
+        LoginLog log = LoginLog.builder().id(1L).build();
+        when(loginLogRepository.findByUser_IdOrderByCreatedAtDesc(7L, pageable)).thenReturn(new PageImpl<>(List.of(log), pageable, 1));
+        when(loginLogMapper.toListItem(log)).thenReturn(LoginLogListItemResponse.builder().status(LoginStatus.SUCCESS).build());
 
-        assertThrows(NotFoundException.class, () -> service.listByUser(5L, pageable));
+        Page<LoginLogListItemResponse> page = service.listMine(pageable);
 
-        verify(userRepository).existsById(5L);
-        verifyNoInteractions(loginLogRepository, loginLogMapper);
+        assertEquals(1, page.getTotalElements());
+        assertEquals(LoginStatus.SUCCESS, page.getContent().get(0).getStatus());
     }
 
     @Test
-    void listByUser_shouldReturnMappedPage() {
-        Pageable pageable = PageRequest.of(0, 2);
-        when(userRepository.existsById(5L)).thenReturn(true);
-
-        LoginLog l1 = LoginLog.builder().id(1L).build();
-        LoginLog l2 = LoginLog.builder().id(2L).build();
-        Page<LoginLog> page = new PageImpl<>(List.of(l1, l2), pageable, 2);
-
-        when(loginLogRepository.findByUser_IdOrderByCreatedAtDesc(5L, pageable)).thenReturn(page);
-
-        LoginLogListItemResponse r1 = LoginLogListItemResponse.builder().build();
-        LoginLogListItemResponse r2 = LoginLogListItemResponse.builder().build();
-        when(loginLogMapper.toListItem(l1)).thenReturn(r1);
-        when(loginLogMapper.toListItem(l2)).thenReturn(r2);
-
-        Page<LoginLogListItemResponse> resp = service.listByUser(5L, pageable);
-
-        assertNotNull(resp);
-        assertEquals(2, resp.getTotalElements());
-        assertSame(r1, resp.getContent().get(0));
-        assertSame(r2, resp.getContent().get(1));
-
-        verify(userRepository).existsById(5L);
-        verify(loginLogRepository).findByUser_IdOrderByCreatedAtDesc(5L, pageable);
-        verify(loginLogMapper).toListItem(l1);
-        verify(loginLogMapper).toListItem(l2);
-    }
-
-    @Test
-    void listByStatus_shouldReturnMappedPage() {
-        Pageable pageable = PageRequest.of(0, 1);
-
-        LoginLog log = LoginLog.builder().id(1L).status(LoginStatus.FAILED).build();
-        Page<LoginLog> page = new PageImpl<>(List.of(log), pageable, 1);
-
-        when(loginLogRepository.findByStatusOrderByCreatedAtDesc(LoginStatus.FAILED, pageable)).thenReturn(page);
-
-        LoginLogListItemResponse item = LoginLogListItemResponse.builder().build();
-        when(loginLogMapper.toListItem(log)).thenReturn(item);
-
-        Page<LoginLogListItemResponse> resp = service.listByStatus(LoginStatus.FAILED, pageable);
-
-        assertEquals(1, resp.getTotalElements());
-        assertSame(item, resp.getContent().get(0));
-
-        verify(loginLogRepository).findByStatusOrderByCreatedAtDesc(LoginStatus.FAILED, pageable);
-        verify(loginLogMapper).toListItem(log);
-    }
-
-    @Test
-    void listByIp_shouldReturnMappedPage() {
-        Pageable pageable = PageRequest.of(0, 1);
+    void search_shouldConvertDatesAndTrimIp() {
+        Pageable pageable = PageRequest.of(0, 10);
+        LocalDate from = LocalDate.of(2025, 3, 1);
+        LocalDate to = LocalDate.of(2025, 3, 31);
 
         LoginLog log = LoginLog.builder().id(1L).build();
-        Page<LoginLog> page = new PageImpl<>(List.of(log), pageable, 1);
+        when(loginLogRepository.search(LoginStatus.FAILED, 7L, "10.0.0.1", DateUtils.startOfDay(from), DateUtils.startOfDay(LocalDate.of(2025, 4, 1)), pageable))
+                .thenReturn(new PageImpl<>(List.of(log), pageable, 1));
+        when(loginLogMapper.toResponse(log)).thenReturn(LoginLogResponse.builder().id(1L).build());
 
-        when(loginLogRepository.findByIpAddressOrderByCreatedAtDesc("1.1.1.1", pageable)).thenReturn(page);
+        Page<LoginLogResponse> page = service.search(LoginStatus.FAILED, 7L, " 10.0.0.1 ", from, to, pageable);
 
-        LoginLogListItemResponse item = LoginLogListItemResponse.builder().build();
-        when(loginLogMapper.toListItem(log)).thenReturn(item);
-
-        Page<LoginLogListItemResponse> resp = service.listByIp("1.1.1.1", pageable);
-
-        assertEquals(1, resp.getTotalElements());
-        assertSame(item, resp.getContent().get(0));
-
-        verify(loginLogRepository).findByIpAddressOrderByCreatedAtDesc("1.1.1.1", pageable);
-        verify(loginLogMapper).toListItem(log);
+        assertEquals(1, page.getTotalElements());
     }
 
     @Test
-    void listByUserAndStatus_shouldThrowNotFound_whenUserMissing() {
+    void search_shouldUseOpenPeriod_whenNoFilter() {
         Pageable pageable = PageRequest.of(0, 10);
-        when(userRepository.existsById(3L)).thenReturn(false);
+        when(loginLogRepository.search(null, null, null, DateUtils.BEGINNING_OF_TIME, DateUtils.END_OF_TIME, pageable)).thenReturn(Page.empty(pageable));
 
-        assertThrows(NotFoundException.class, () ->
-                service.listByUserAndStatus(3L, LoginStatus.SUCCESS, pageable));
+        Page<LoginLogResponse> page = service.search(null, null, "  ", null, null, pageable);
 
-        verify(userRepository).existsById(3L);
-        verifyNoInteractions(loginLogRepository, loginLogMapper);
+        assertEquals(0, page.getTotalElements());
     }
 
     @Test
-    void listByUserAndStatus_shouldReturnMappedPage() {
-        Pageable pageable = PageRequest.of(0, 1);
-        when(userRepository.existsById(3L)).thenReturn(true);
+    void search_shouldThrowBusinessException_whenFromIsAfterTo() {
+        assertThrows(BusinessException.class, () -> service.search(null, null, null, LocalDate.of(2025, 4, 1), LocalDate.of(2025, 3, 1), PageRequest.of(0, 10)));
 
-        LoginLog log = LoginLog.builder().id(9L).status(LoginStatus.SUCCESS).build();
-        Page<LoginLog> page = new PageImpl<>(List.of(log), pageable, 1);
-
-        when(loginLogRepository.findByUser_IdAndStatusOrderByCreatedAtDesc(3L, LoginStatus.SUCCESS, pageable))
-                .thenReturn(page);
-
-        LoginLogListItemResponse item = LoginLogListItemResponse.builder().build();
-        when(loginLogMapper.toListItem(log)).thenReturn(item);
-
-        Page<LoginLogListItemResponse> resp =
-                service.listByUserAndStatus(3L, LoginStatus.SUCCESS, pageable);
-
-        assertEquals(1, resp.getTotalElements());
-        assertSame(item, resp.getContent().get(0));
-
-        verify(userRepository).existsById(3L);
-        verify(loginLogRepository).findByUser_IdAndStatusOrderByCreatedAtDesc(3L, LoginStatus.SUCCESS, pageable);
-        verify(loginLogMapper).toListItem(log);
-    }
-
-    @Test
-    void listByDateRange_shouldReturnMappedPage() {
-        Pageable pageable = PageRequest.of(0, 2);
-        OffsetDateTime start = OffsetDateTime.parse("2025-01-01T00:00:00+00:00");
-        OffsetDateTime end = OffsetDateTime.parse("2025-02-01T00:00:00+00:00");
-
-        LoginLog l1 = LoginLog.builder().id(1L).build();
-        LoginLog l2 = LoginLog.builder().id(2L).build();
-        Page<LoginLog> page = new PageImpl<>(List.of(l1, l2), pageable, 2);
-
-        when(loginLogRepository.findByCreatedAtBetweenOrderByCreatedAtDesc(start, end, pageable))
-                .thenReturn(page);
-
-        LoginLogListItemResponse r1 = LoginLogListItemResponse.builder().build();
-        LoginLogListItemResponse r2 = LoginLogListItemResponse.builder().build();
-        when(loginLogMapper.toListItem(l1)).thenReturn(r1);
-        when(loginLogMapper.toListItem(l2)).thenReturn(r2);
-
-        Page<LoginLogListItemResponse> resp =
-                service.listByDateRange(start, end, pageable);
-
-        assertEquals(2, resp.getTotalElements());
-        assertSame(r1, resp.getContent().get(0));
-        assertSame(r2, resp.getContent().get(1));
-
-        verify(loginLogRepository).findByCreatedAtBetweenOrderByCreatedAtDesc(start, end, pageable);
-        verify(loginLogMapper).toListItem(l1);
-        verify(loginLogMapper).toListItem(l2);
+        verifyNoInteractions(loginLogRepository);
     }
 
     @Test
     void getById_shouldReturnResponse() {
-        LoginLog log = LoginLog.builder().id(5L).build();
-        when(loginLogRepository.findById(5L)).thenReturn(Optional.of(log));
+        LoginLog log = LoginLog.builder().id(10L).build();
+        when(loginLogRepository.findById(10L)).thenReturn(Optional.of(log));
 
-        LoginLogResponse expected = LoginLogResponse.builder().id(5L).build();
+        LoginLogResponse expected = LoginLogResponse.builder().id(10L).build();
         when(loginLogMapper.toResponse(log)).thenReturn(expected);
 
-        LoginLogResponse resp = service.getById(5L);
+        LoginLogResponse resp = service.getById(10L);
 
-        assertNotNull(resp);
-        assertEquals(5L, resp.getId());
-
-        verify(loginLogRepository).findById(5L);
+        assertEquals(10L, resp.getId());
+        verify(loginLogRepository).findById(10L);
         verify(loginLogMapper).toResponse(log);
     }
 
     @Test
     void getById_shouldThrowNotFound_whenMissing() {
-        when(loginLogRepository.findById(5L)).thenReturn(Optional.empty());
+        when(loginLogRepository.findById(10L)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> service.getById(5L));
+        assertThrows(NotFoundException.class, () -> service.getById(10L));
 
-        verify(loginLogRepository).findById(5L);
+        verify(loginLogRepository).findById(10L);
         verifyNoInteractions(loginLogMapper);
     }
 }

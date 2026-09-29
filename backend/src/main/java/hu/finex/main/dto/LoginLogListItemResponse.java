@@ -24,6 +24,12 @@ public class LoginLogListItemResponse {
     @Schema(description = "IP cím", example = "10.0.0.5")
     private String ipAddress;
 
+    @Schema(description = "Kliens user-agent (böngésző, eszköz)", example = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X)")
+    private String userAgent;
+
+    @Schema(description = "Sikertelen belépés oka (ha van)", example = "Hibás jelszó")
+    private String failureReason;
+
     @Schema(description = "Időbélyeg", example = "2025-02-12T14:22:10Z")
     private Instant createdAt;
 }

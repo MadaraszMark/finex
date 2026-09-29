@@ -1,8 +1,8 @@
 package hu.finex.main.dto;
 
-import hu.finex.main.model.enums.AccountType;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
@@ -11,19 +11,16 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Schema(description = "Új bankszámla létrehozásához szükséges adatok")
+@Schema(description = "Új bankszámla nyitásához szükséges adatok (a bejelentkezett felhasználónak)")
 public class CreateAccountRequest {
 
-    @NotNull
-    @Schema(description = "A számlát birtokló felhasználó azonosítója",example = "42", required = true)
-    private Long userId;
+    @NotBlank
+    @Size(max = 100)
+    @Schema(description = "A számla megjelenítési neve",example = "Euró számla", maxLength = 100, required = true)
+    private String name;
 
-    @NotNull
-    @Size(max = 3)
-    @Schema(description = "A számla devizaneme ISO formátumban",example = "HUF", maxLength = 3, required = true)
+    @NotBlank
+    @Pattern(regexp = "HUF|EUR|USD", message = "Támogatott devizanemek: HUF, EUR, USD.")
+    @Schema(description = "A számla devizaneme ISO formátumban",example = "EUR", maxLength = 3, required = true)
     private String currency;
-
-    @NotNull
-    @Schema(description = "A számla típusa (CURRENT, SAVINGS, CREDIT)",example = "CURRENT", required = true)
-    private AccountType accountType;
 }

@@ -1,7 +1,10 @@
 package hu.finex.main.controller;
 
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -10,9 +13,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import hu.finex.main.dto.CreateTransactionRequest;
 import hu.finex.main.dto.TransactionListItemResponse;
 import hu.finex.main.dto.TransactionResponse;
+import hu.finex.main.dto.TransactionSearchRequest;
 import hu.finex.main.dto.TransferRequest;
 import hu.finex.main.dto.TransferResponse;
 import hu.finex.main.service.TransactionService;
@@ -27,24 +30,24 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/transactions")
 @RequiredArgsConstructor
-@Tag(name = "Transaction API", description = "Tranzakciók kezelése és lekérdezése")
+@Tag(name = "Transaction API", description = "Tranzakciók keresése és utalás")
 public class TransactionController {
 
     private final TransactionService transactionService;
 
-    @PostMapping
-    @Operation(summary = "Új tranzakció létrehozása",responses = {
-                @ApiResponse(responseCode = "200", description = "Sikeres létrehozás",content = @Content(schema = @Schema(implementation = TransactionResponse.class))),
-                @ApiResponse(responseCode = "400", description = "Érvénytelen adatok"),
-                @ApiResponse(responseCode = "404", description = "Számla nem található")
+    @GetMapping
+    @Operation(summary = "Saját tranzakciók keresése (lapozható)", description = "Minden szűrő opcionális: számla, típus, időszak, összeg, szöveg (megjegyzés vagy partner), kategória. Alapértelmezés: a legújabb elöl.",responses = {
+                @ApiResponse(responseCode = "200", description = "Sikeres lekérdezés"),
+                @ApiResponse(responseCode = "404", description = "A megadott számla nem található")
             }
     )
-    public ResponseEntity<TransactionResponse> create(@Valid @RequestBody CreateTransactionRequest request) {
-        return ResponseEntity.ok(transactionService.create(request));
+    public ResponseEntity<Page<TransactionListItemResponse>> search(@ParameterObject TransactionSearchRequest filter,
+                                                                    @ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(transactionService.search(filter, pageable));
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Tranzakció lekérdezése ID alapján",responses = {
+    @Operation(summary = "Saját tranzakció lekérdezése ID alapján",responses = {
                 @ApiResponse(responseCode = "200", description = "Sikeres lekérdezés",content = @Content(schema = @Schema(implementation = TransactionResponse.class))),
                 @ApiResponse(responseCode = "404", description = "Tranzakció nem található")
             }
@@ -53,22 +56,12 @@ public class TransactionController {
         return ResponseEntity.ok(transactionService.getById(id));
     }
 
-    @GetMapping("/account/{accountId}")
-    @Operation(summary = "Tranzakciók listázása adott számlához (lapozható)",responses = {
-                @ApiResponse(responseCode = "200", description = "Sikeres lekérdezés"),
-                @ApiResponse(responseCode = "404", description = "Számla nem található")
-            }
-    )
-    public ResponseEntity<Page<TransactionListItemResponse>> listByAccount(@PathVariable("accountId") Long accountId,Pageable pageable) {
-        return ResponseEntity.ok(transactionService.listByAccount(accountId, pageable));
-    }
-    
     @PostMapping("/transfer")
-    @Operation(summary = "Pénz utalása két bankszámla között",description = "Ugyanabban a devizanemben tartott számlák között utal. " +
-                          "Két tranzakció jön létre: TRANSFER_OUT és TRANSFER_IN.",responses = {
+    @Operation(summary = "Utalás IBAN számlaszámra",description = "A saját számláról utal. FineX-es címzettnél azonnal jóváíródik (TRANSFER_OUT + TRANSFER_IN), " +
+                          "külső számlánál csak a terhelés történik meg. Ellenőrzi a fedezetet, a számlák állapotát, a devizanemet és a napi limitet.",responses = {
                     @ApiResponse(responseCode = "200", description = "Sikeres utalás",content = @Content(schema = @Schema(implementation = TransferResponse.class))),
-                    @ApiResponse(responseCode = "400", description = "Hibás kérés"),
-                    @ApiResponse(responseCode = "404", description = "Számla nem található")
+                    @ApiResponse(responseCode = "400", description = "Hibás kérés, nincs fedezet vagy túllépné a limitet"),
+                    @ApiResponse(responseCode = "404", description = "Forrás számla nem található")
             }
     )
     public ResponseEntity<TransferResponse> transfer(@Valid @RequestBody TransferRequest request) {

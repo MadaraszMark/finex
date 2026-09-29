@@ -19,4 +19,7 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     // Összes kategória név szerint rendezve
     List<Category> findAllByOrderByNameAsc();
+
+    // Név ütközés ellenőrzés átnevezéskor (a saját nevét megtarthatja)
+    boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
 }

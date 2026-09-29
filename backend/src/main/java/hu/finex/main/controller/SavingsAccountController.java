@@ -1,7 +1,12 @@
 package hu.finex.main.controller;
 
+import java.util.List;
+
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,14 +15,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import hu.finex.main.dto.CreateSavingsAccountRequest;
 import hu.finex.main.dto.SavingsAccountResponse;
+import hu.finex.main.dto.SavingsTransactionResponse;
 import hu.finex.main.dto.SavingsTransferRequest;
 import hu.finex.main.dto.SavingsTransferResponse;
 import hu.finex.main.dto.UpdateSavingsAccountRequest;
-import hu.finex.main.model.enums.SavingsStatus;
 import hu.finex.main.service.SavingsAccountService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -30,23 +36,30 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/savings")
 @RequiredArgsConstructor
-@Tag(name = "Savings Account API", description = "Megtakarítási számlák kezelése")
+@Tag(name = "Savings Account API", description = "A bejelentkezett felhasználó megtakarításai")
 public class SavingsAccountController {
 
     private final SavingsAccountService savingsAccountService;
 
+    @GetMapping
+    @Operation(summary = "Saját (nem lezárt) megtakarítások", responses = {@ApiResponse(responseCode = "200", description = "Sikeres lekérdezés")}
+    )
+    public ResponseEntity<List<SavingsAccountResponse>> listMine() {
+        return ResponseEntity.ok(savingsAccountService.listMine());
+    }
+
     @PostMapping
-    @Operation(summary = "Új megtakarítási számla létrehozása",responses = {
-                    @ApiResponse(responseCode = "200", description = "Sikeres létrehozás",content = @Content(schema = @Schema(implementation = SavingsAccountResponse.class))),
-                    @ApiResponse(responseCode = "400", description = "Hibás bemenet")
+    @Operation(summary = "Új megtakarítás létrehozása", description = "A kamatlábat a bank határozza meg; a kezdő összeg a megadott folyószámláról érkezik.",responses = {
+                    @ApiResponse(responseCode = "201", description = "Sikeres létrehozás",content = @Content(schema = @Schema(implementation = SavingsAccountResponse.class))),
+                    @ApiResponse(responseCode = "400", description = "Hibás bemenet, foglalt név vagy nincs fedezet")
             }
     )
     public ResponseEntity<SavingsAccountResponse> create(@Valid @RequestBody CreateSavingsAccountRequest request) {
-        return ResponseEntity.ok(savingsAccountService.create(request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(savingsAccountService.create(request));
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Megtakarítás lekérdezése ID alapján",responses = {
+    @Operation(summary = "Saját megtakarítás lekérdezése ID alapján",responses = {
                     @ApiResponse(responseCode = "200", description = "Sikeres lekérdezés",content = @Content(schema = @Schema(implementation = SavingsAccountResponse.class))),
                     @ApiResponse(responseCode = "404", description = "Nem található")
             }
@@ -55,41 +68,20 @@ public class SavingsAccountController {
         return ResponseEntity.ok(savingsAccountService.getById(id));
     }
 
-    @GetMapping("/user/{userId}")
-    @Operation(summary = "Felhasználó összes megtakarítása", responses = {@ApiResponse(responseCode = "200", description = "Sikeres lekérdezés")}
-    )
-    public ResponseEntity<Page<SavingsAccountResponse>> listByUser(@PathVariable("userId") Long userId,Pageable pageable) {
-        return ResponseEntity.ok(savingsAccountService.listByUser(userId, pageable));
-    }
-
-    @GetMapping("/user/{userId}/status/{status}")
-    @Operation(summary = "Felhasználó megtakarításai státusz alapján",responses = {@ApiResponse(responseCode = "200", description = "Sikeres lekérdezés")})
-    public ResponseEntity<Page<SavingsAccountResponse>> listByUserAndStatus(@PathVariable("userId") Long userId,@PathVariable SavingsStatus status,Pageable pageable) {
-        return ResponseEntity.ok(savingsAccountService.listByUserAndStatus(userId, status, pageable));
-    }
-
-    @GetMapping("/user/{userId}/min-balance/{minBalance}")
-    @Operation(summary = "Felhasználó megtakarításai minimum egyenleg alapján",responses = {@ApiResponse(responseCode = "200", description = "Sikeres lekérdezés")})
-    public ResponseEntity<Page<SavingsAccountResponse>> listAboveBalance(@PathVariable("userId") Long userId,@PathVariable String minBalance,Pageable pageable) {
-        return ResponseEntity.ok(
-                savingsAccountService.listAboveBalance(userId, new java.math.BigDecimal(minBalance), pageable)
-        );
-    }
-
     @PutMapping("/{id}")
-    @Operation(summary = "Megtakarítás adatainak módosítása",responses = {
+    @Operation(summary = "Megtakarítás átnevezése és célösszeg módosítása",responses = {
                     @ApiResponse(responseCode = "200", description = "Sikeres módosítás",content = @Content(schema = @Schema(implementation = SavingsAccountResponse.class))),
-                    @ApiResponse(responseCode = "404", description = "Nem található"),
-                    @ApiResponse(responseCode = "409", description = "Név már foglalt")
+                    @ApiResponse(responseCode = "400", description = "Hibás bemenet vagy foglalt név"),
+                    @ApiResponse(responseCode = "404", description = "Nem található")
             }
     )
     public ResponseEntity<SavingsAccountResponse> update(@PathVariable("id") Long id,@Valid @RequestBody UpdateSavingsAccountRequest request) {
         return ResponseEntity.ok(savingsAccountService.update(id, request));
     }
-    
+
     @PostMapping("/{id}/deposit-from-account")
     @Operation(summary = "Pénz átvezetése folyószámláról megtakarítási számlára",responses = {@ApiResponse(responseCode = "200", description = "Sikeres átvezetés",content = @Content(schema = @Schema(implementation = SavingsTransferResponse.class))),
-                    @ApiResponse(responseCode = "400", description = "Üzleti hiba"),
+                    @ApiResponse(responseCode = "400", description = "Üzleti hiba (pl. nincs fedezet, nem aktív számla)"),
                     @ApiResponse(responseCode = "404", description = "Számla nem található")
             }
     )
@@ -101,7 +93,7 @@ public class SavingsAccountController {
 
     @PostMapping("/{id}/withdraw-to-account")
     @Operation(summary = "Pénz kivétele megtakarítási számláról folyószámlára",responses = {@ApiResponse(responseCode = "200", description = "Sikeres átvezetés",content = @Content(schema = @Schema(implementation = SavingsTransferResponse.class))),
-                    @ApiResponse(responseCode = "400", description = "Üzleti hiba"),
+                    @ApiResponse(responseCode = "400", description = "Üzleti hiba (pl. nincs fedezet, nem aktív számla)"),
                     @ApiResponse(responseCode = "404", description = "Számla nem található")
             }
     )
@@ -111,14 +103,25 @@ public class SavingsAccountController {
         );
     }
 
-    @DeleteMapping("/{id}")
-    @Operation(summary = "Megtakarítás törlése (soft delete: státusz CLOSED)",responses = {
-                    @ApiResponse(responseCode = "204", description = "Sikeres törlés"),
+    @GetMapping("/{id}/transactions")
+    @Operation(summary = "A megtakarítás mozgásai (befizetés, kivét, kamat), lapozva",responses = {
+                    @ApiResponse(responseCode = "200", description = "Sikeres lekérdezés"),
                     @ApiResponse(responseCode = "404", description = "Nem található")
             }
     )
-    public ResponseEntity<Void> delete(@PathVariable("id") Long id) {
-        savingsAccountService.delete(id);
+    public ResponseEntity<Page<SavingsTransactionResponse>> listTransactions(@PathVariable("id") Long id,@ParameterObject @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(savingsAccountService.listTransactions(id, pageable));
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Megtakarítás lezárása", description = "A teljes egyenleg visszakerül a megadott folyószámlára, a megtakarítás CLOSED státuszú lesz.",responses = {
+                    @ApiResponse(responseCode = "204", description = "Sikeres lezárás"),
+                    @ApiResponse(responseCode = "400", description = "Üzleti hiba"),
+                    @ApiResponse(responseCode = "404", description = "Nem található")
+            }
+    )
+    public ResponseEntity<Void> close(@PathVariable("id") Long id,@RequestParam("accountId") Long accountId) {
+        savingsAccountService.close(id, accountId);
         return ResponseEntity.noContent().build();
     }
 }

@@ -3,7 +3,6 @@ package hu.finex.main.controller;
 import hu.finex.main.dto.AuthResponse;
 import hu.finex.main.dto.CreateUserRequest;
 import hu.finex.main.dto.LoginRequest;
-import hu.finex.main.dto.UserResponse;
 import hu.finex.main.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -25,17 +24,15 @@ public class AuthController {
 
     private final AuthService authService;
 
-    //  Bejelentkezés 
-    
+    //  Bejelentkezés
+
     @PostMapping("/login")
-    @Operation(summary = "Bejelentkezés",description = "JWT token generálása érvényes email + jelszó megadásával.",responses = {
+    @Operation(summary = "Bejelentkezés",description = "JWT token generálása érvényes email + jelszó megadásával. Minden próbálkozás naplózásra kerül, 5 sikertelen próbálkozás után a fiók 15 percre zárolódik.",responses = {
                     @ApiResponse(responseCode = "200",
                             description = "Sikeres bejelentkezés",
                             content = @Content(schema = @Schema(implementation = AuthResponse.class))
                     ),
-                    @ApiResponse(responseCode = "400", description = "Hibás kérés"),
-                    @ApiResponse(responseCode = "404", description = "Felhasználó nem található"),
-                    @ApiResponse(responseCode = "409", description = "Hibás email vagy jelszó")
+                    @ApiResponse(responseCode = "400", description = "Hibás email vagy jelszó, letiltott vagy átmenetileg zárolt fiók")
             }
     )
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request,HttpServletRequest httpRequest) {
@@ -49,17 +46,16 @@ public class AuthController {
     // Regisztráció
 
     @PostMapping("/register")
-    @Operation(summary = "Regisztráció",description = "Új felhasználó létrehozása. A jelszó automatikusan hash-elésre kerül.",responses = {
+    @Operation(summary = "Regisztráció",description = "Új felhasználó létrehozása (mindig USER szerepkörrel). Automatikusan létrejön egy forint folyószámla bankkártyával, és a válaszban már a bejelentkezési token is benne van.",responses = {
                     @ApiResponse(responseCode = "201",
                             description = "Sikeres regisztráció",
-                            content = @Content(schema = @Schema(implementation = UserResponse.class))
+                            content = @Content(schema = @Schema(implementation = AuthResponse.class))
                     ),
-                    @ApiResponse(responseCode = "400", description = "Hibás bemenet"),
-                    @ApiResponse(responseCode = "409", description = "Az email már foglalt")
+                    @ApiResponse(responseCode = "400", description = "Hibás bemenet vagy az email már foglalt")
             }
     )
-    public ResponseEntity<UserResponse> register(@Valid @RequestBody CreateUserRequest request) {
-        UserResponse response = authService.register(request);
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody CreateUserRequest request) {
+        AuthResponse response = authService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }
