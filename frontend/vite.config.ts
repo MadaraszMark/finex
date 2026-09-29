@@ -17,4 +17,20 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        // A nagy külső könyvtárak külön fájlokba kerülnek: kisebb a fő csomag, és egy új kiadás után
+        // a böngésző a változatlan könyvtárakat a gyorsítótárból tölti be
+        codeSplitting: {
+          groups: [
+            { name: 'react', test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            { name: 'router', test: /[\\/]node_modules[\\/]react-router[\\/]/ },
+            { name: 'data', test: /[\\/]node_modules[\\/](@tanstack|axios)[\\/]/ },
+            { name: 'motion', test: /[\\/]node_modules[\\/](motion|framer-motion|motion-dom|motion-utils)[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
 })

@@ -3,8 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f7f5fc" />
+    <meta name="description" content="FineX – online bank, szakdolgozati projekt" />
     <title>FineX</title>
+    <!-- A téma (világos/sötét) még a React betöltése előtt beáll, így nincs villanás az oldal megnyitásakor -->
+    <script>
+      ;(function () {
+        var preference = null
+        try {
+          preference = localStorage.getItem('finex.theme')
+        } catch (e) {}
+        var dark =
+          preference === 'dark' ||
+          (preference !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.classList.toggle('dark', dark)
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
