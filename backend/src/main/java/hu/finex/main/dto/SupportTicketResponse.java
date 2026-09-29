@@ -1,6 +1,7 @@
 package hu.finex.main.dto;
 
 import java.time.Instant;
+import java.util.List;
 
 import hu.finex.main.model.enums.TicketStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -24,6 +25,12 @@ public class SupportTicketResponse {
     @Schema(description = "A ticketet létrehozó felhasználó ID-ja",example = "42")
     private Long userId;
 
+    @Schema(description = "A ticketet létrehozó felhasználó neve",example = "Kovács Bence")
+    private String userFullName;
+
+    @Schema(description = "A ticketet létrehozó felhasználó e-mail címe",example = "bence.kovacs@example.com")
+    private String userEmail;
+
     @Schema(description = "A ticket címe",example = "Issue with account balance update")
     private String title;
 
@@ -32,6 +39,9 @@ public class SupportTicketResponse {
 
     @Schema(description = "A ticket státusza",example = "OPEN")
     private TicketStatus status;
+
+    @Schema(description = "A ticketre érkezett válaszok időrendben")
+    private List<TicketMessageResponse> messages;
 
     @Schema(description = "Létrehozás időpontja", example = "2025-02-12T12:10:05Z")
     private Instant createdAt;

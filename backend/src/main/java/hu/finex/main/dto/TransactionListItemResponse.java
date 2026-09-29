@@ -2,6 +2,7 @@ package hu.finex.main.dto;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 
 import hu.finex.main.model.enums.TransactionType;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -22,6 +23,9 @@ public class TransactionListItemResponse {
     @Schema(description = "A tranzakció azonosítója", example = "5012")
     private Long id;
 
+    @Schema(description = "A tranzakcióhoz tartozó számla ID-ja", example = "102")
+    private Long accountId;
+
     @Schema(description = "A tranzakció típusa", example = "OUTCOME")
     private TransactionType type;
 
@@ -31,8 +35,14 @@ public class TransactionListItemResponse {
     @Schema(description = "Megjegyzés", example = "Kávézó")
     private String message;
 
+    @Schema(description = "A másik fél neve (kedvezményezett, küldő vagy kereskedő)", example = "Tesco")
+    private String partnerName;
+
     @Schema(description = "Devizanem", example = "HUF")
     private String currency;
+
+    @Schema(description = "A tranzakció kategóriái (ikonnal a listához)")
+    private List<CategoryResponse> categories;
 
     @Schema(description = "Időpont", example = "2025-02-15T11:00:15Z")
     private Instant createdAt;

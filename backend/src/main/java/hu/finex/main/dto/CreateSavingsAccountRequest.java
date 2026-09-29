@@ -21,28 +21,22 @@ import lombok.Setter;
 @Schema(description = "Új megtakarítás létrehozásához szükséges adatok")
 public class CreateSavingsAccountRequest {
 
-    @NotNull
-    @Schema(description = "A felhasználó azonosítója", example = "12")
-    private Long userId;
-
     @NotBlank
     @Size(max = 100)
-    @Schema(description = "A megtakarítás neve", example = "Havi megtakarítás")
+    @Schema(description = "A megtakarítás neve", example = "Nyaralás", required = true)
     private String name;
 
     @NotNull
-    @DecimalMin(value = "0.00", message = "A kezdő egyenleg nem lehet negatív.")
-    @Schema(description = "Kezdő egyenleg", example = "50000.00")
-    private BigDecimal initialBalance;
-
-    @NotBlank
-    @Size(max = 3)
-    @Schema(description = "Devizanem", example = "HUF")
-    private String currency;
+    @Schema(description = "A folyószámla azonosítója, amelyről a kezdő összeg érkezik", example = "3", required = true)
+    private Long accountId;
 
     @NotNull
-    @DecimalMin(value = "0.00", message = "A kamatláb nem lehet negatív.")
-    @Schema(description = "Éves kamatláb (%)", example = "2.5")
-    private BigDecimal interestRate;
+    @DecimalMin(value = "0.00", message = "A kezdő összeg nem lehet negatív.")
+    @Schema(description = "Kezdő befizetés (lehet 0 is)", example = "50000.00", required = true)
+    private BigDecimal initialDeposit;
+
+    @DecimalMin(value = "1.00", message = "A célösszeg legalább 1 kell legyen.")
+    @Schema(description = "Opcionális célösszeg", example = "600000.00")
+    private BigDecimal targetAmount;
 }
 

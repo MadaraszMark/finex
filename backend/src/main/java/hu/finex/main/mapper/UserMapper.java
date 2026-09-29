@@ -4,12 +4,16 @@ import org.springframework.stereotype.Component;
 
 import hu.finex.main.dto.CreateUserRequest;
 import hu.finex.main.dto.UpdateUserRequest;
+import hu.finex.main.dto.UserListItemResponse;
 import hu.finex.main.dto.UserResponse;
 import hu.finex.main.model.User;
+import hu.finex.main.model.enums.UserRole;
+import hu.finex.main.model.enums.UserStatus;
 
 @Component
 public class UserMapper {
 
+    // Regisztrációkor mindig USER szerepkör: adminná csak egy másik admin léptethet elő
     public User toEntity(CreateUserRequest request, String passwordHash) {
         return User.builder()
                 .firstName(request.getFirstName())
@@ -17,7 +21,8 @@ public class UserMapper {
                 .email(request.getEmail())
                 .phone(request.getPhone())
                 .passwordHash(passwordHash)
-                .role(request.getRole())
+                .role(UserRole.USER)
+                .status(UserStatus.ACTIVE)
                 .build();
     }
 
@@ -36,8 +41,20 @@ public class UserMapper {
                 .email(user.getEmail())
                 .phone(user.getPhone())
                 .role(user.getRole())
+                .status(user.getStatus())
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
+                .build();
+    }
+
+    public UserListItemResponse toListItem(User user) {
+        return UserListItemResponse.builder()
+                .id(user.getId())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .status(user.getStatus())
+                .createdAt(user.getCreatedAt())
                 .build();
     }
 }

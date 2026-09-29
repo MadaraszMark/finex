@@ -4,18 +4,24 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
-@Testcontainers
+// Valódi PostgreSQL (ugyanaz a főverzió, mint a docker-compose-ban) Docker-konténerben.
+// A séma a Flyway-migrációkból épül fel (demóadatok nélkül), a Hibernate csak ellenőrzi,
+// így a tesztek a valódi megszorításokkal, triggerekkel és függvényekkel futnak.
+// A konténer egyszer indul el a teljes tesztfutásra (singleton), mert a Spring a tesztosztályok között
+// újrahasznosítja a kontextust: osztályonként újrainduló konténernél a kontextus a régi portra mutatna.
+
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 public abstract class PostgresRepositoryTestBase {
 
-    @Container
-    static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
+    static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine")
             .withDatabaseName("finex_test")
             .withUsername("finex")
             .withPassword("finex");
+
+    static {
+        postgres.start();
+    }
 
     @DynamicPropertySource
     static void props(DynamicPropertyRegistry registry) {
@@ -24,8 +30,8 @@ public abstract class PostgresRepositoryTestBase {
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
 
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
-        registry.add("spring.jpa.show-sql", () -> "true");
-        registry.add("spring.jpa.properties.hibernate.format_sql", () -> "true");
+        registry.add("spring.flyway.locations", () -> "classpath:db/migration");
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
+        registry.add("spring.jpa.show-sql", () -> "false");
     }
 }

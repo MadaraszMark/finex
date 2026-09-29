@@ -2,6 +2,8 @@ package hu.finex.main.dto;
 
 import java.time.Instant;
 
+import hu.finex.main.model.enums.UserRole;
+import hu.finex.main.model.enums.UserStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -33,7 +35,10 @@ public class UserResponse {
     private String phone;
 
     @Schema(description = "Szerepkör", example = "USER")
-    private String role;
+    private UserRole role;
+
+    @Schema(description = "Státusz", example = "ACTIVE")
+    private UserStatus status;
 
     @Schema(description = "Létrehozás időpontja", example = "2025-02-12T14:22:10Z")
     private Instant createdAt;

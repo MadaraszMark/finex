@@ -2,8 +2,11 @@ package hu.finex.main.mapper;
 
 import hu.finex.main.dto.CreateUserRequest;
 import hu.finex.main.dto.UpdateUserRequest;
+import hu.finex.main.dto.UserListItemResponse;
 import hu.finex.main.dto.UserResponse;
 import hu.finex.main.model.User;
+import hu.finex.main.model.enums.UserRole;
+import hu.finex.main.model.enums.UserStatus;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -21,7 +24,7 @@ class UserMapperTest {
                 .lastName("Doe")
                 .email("john.doe@example.com")
                 .phone("+3612345678")
-                .role("USER")
+                .password("Secret123")
                 .build();
 
         String passwordHash = "$2a$10$hashedpassword";
@@ -35,7 +38,8 @@ class UserMapperTest {
         assertEquals("john.doe@example.com", user.getEmail());
         assertEquals("+3612345678", user.getPhone());
         assertEquals(passwordHash, user.getPasswordHash());
-        assertEquals("USER", user.getRole());
+        assertEquals(UserRole.USER, user.getRole());
+        assertEquals(UserStatus.ACTIVE, user.getStatus());
     }
 
     @Test
@@ -46,7 +50,7 @@ class UserMapperTest {
                 .lastName("Name")
                 .email("old@email.com")
                 .phone("0000")
-                .role("USER")
+                .role(UserRole.USER)
                 .build();
 
         UpdateUserRequest request = UpdateUserRequest.builder()
@@ -63,7 +67,7 @@ class UserMapperTest {
         assertEquals("Name", user.getLastName());
         assertEquals("new@email.com", user.getEmail());
         assertEquals("1111", user.getPhone());
-        assertEquals("USER", user.getRole());
+        assertEquals(UserRole.USER, user.getRole());
     }
 
     @Test
@@ -77,7 +81,8 @@ class UserMapperTest {
                 .lastName("Kovács")
                 .email("anna.kovacs@example.com")
                 .phone("+36301234567")
-                .role("ADMIN")
+                .role(UserRole.ADMIN)
+                .status(UserStatus.ACTIVE)
                 .createdAt(createdAt)
                 .updatedAt(updatedAt)
                 .build();
@@ -90,8 +95,34 @@ class UserMapperTest {
         assertEquals("Kovács", response.getLastName());
         assertEquals("anna.kovacs@example.com", response.getEmail());
         assertEquals("+36301234567", response.getPhone());
-        assertEquals("ADMIN", response.getRole());
+        assertEquals(UserRole.ADMIN, response.getRole());
+        assertEquals(UserStatus.ACTIVE, response.getStatus());
         assertEquals(createdAt, response.getCreatedAt());
         assertEquals(updatedAt, response.getUpdatedAt());
+    }
+
+    @Test
+    void testToListItem() {
+        Instant createdAt = Instant.parse("2025-02-01T08:00:00Z");
+
+        User user = User.builder()
+                .id(8L)
+                .firstName("Bence")
+                .lastName("Nagy")
+                .email("bence@finex.hu")
+                .role(UserRole.USER)
+                .status(UserStatus.BLOCKED)
+                .createdAt(createdAt)
+                .build();
+
+        UserListItemResponse response = mapper.toListItem(user);
+
+        assertNotNull(response);
+        assertEquals(8L, response.getId());
+        assertEquals("Nagy Bence", response.getFullName());
+        assertEquals("bence@finex.hu", response.getEmail());
+        assertEquals(UserRole.USER, response.getRole());
+        assertEquals(UserStatus.BLOCKED, response.getStatus());
+        assertEquals(createdAt, response.getCreatedAt());
     }
 }

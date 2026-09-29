@@ -1,6 +1,7 @@
 package hu.finex.main.security;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Date;
 
 import javax.crypto.SecretKey;
@@ -8,6 +9,7 @@ import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import hu.finex.main.model.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwtException;
@@ -27,18 +29,31 @@ public class JwtTokenUtil {
         this.expirationMs = expirationMs;
     }
 
-    public String generateToken(String subject) {
+    // A token tárgya (subject) a felhasználó azonosítója, így e-mail-csere után is érvényes marad.
+    // Az e-mail és a szerepkör csak tájékoztató adat (a frontendnek), a jogosultságot a szerver mindig az adatbázisból veszi.
+    public String generateToken(User user) {
         long now = System.currentTimeMillis();
         return Jwts.builder()
-                .setSubject(subject)
+                .setSubject(String.valueOf(user.getId()))
+                .claim("email", user.getEmail())
+                .claim("role", user.getRole().name())
                 .setIssuedAt(new Date(now))
                 .setExpiration(new Date(now + expirationMs))
                 .signWith(key)
                 .compact();
     }
 
-    public String extractEmail(String token) {
-        return parse(token).getBody().getSubject();
+    // null, ha a subject nem felhasználó-azonosító (pl. egy régi, e-mail alapú token)
+    public Long extractUserId(String token) {
+        try {
+            return Long.valueOf(parse(token).getBody().getSubject());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    public Instant extractExpiration(String token) {
+        return parse(token).getBody().getExpiration().toInstant();
     }
 
     public boolean isValid(String token) {

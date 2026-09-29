@@ -21,25 +21,27 @@ class SavingsAccountMapperTest {
     void testToEntity() {
         CreateSavingsAccountRequest request = CreateSavingsAccountRequest.builder()
                 .name("Vésztartalék")
-                .initialBalance(new BigDecimal("10000.00"))
-                .currency("HUF")
-                .interestRate(new BigDecimal("3.50"))
+                .accountId(3L)
+                .initialDeposit(new BigDecimal("10000.00"))
+                .targetAmount(new BigDecimal("500000.00"))
                 .build();
 
         User user = User.builder()
                 .id(11L)
                 .build();
 
-        SavingsAccount entity = mapper.toEntity(request, user);
+        SavingsAccount entity = mapper.toEntity(request, user, "HUF", new BigDecimal("3.50"));
 
         assertNotNull(entity);
         assertNull(entity.getId());
         assertEquals(user, entity.getUser());
         assertEquals("Vésztartalék", entity.getName());
-        assertEquals(new BigDecimal("10000.00"), entity.getBalance());
+        // A kezdő összeg nem az entitásba kerül, hanem befizetésként könyvelődik (service)
+        assertEquals(BigDecimal.ZERO, entity.getBalance());
         assertEquals("HUF", entity.getCurrency());
         assertEquals(new BigDecimal("3.50"), entity.getInterestRate());
-        assertNull(entity.getStatus());
+        assertEquals(new BigDecimal("500000.00"), entity.getTargetAmount());
+        assertEquals(SavingsStatus.ACTIVE, entity.getStatus());
         assertNotNull(entity.getCreatedAt());
         assertNotNull(entity.getUpdatedAt());
     }
@@ -52,22 +54,24 @@ class SavingsAccountMapperTest {
                 .id(50L)
                 .name("Régi név")
                 .interestRate(new BigDecimal("1.00"))
+                .targetAmount(new BigDecimal("100000.00"))
                 .status(SavingsStatus.FROZEN)
                 .updatedAt(oldUpdatedAt)
                 .build();
 
         UpdateSavingsAccountRequest request = UpdateSavingsAccountRequest.builder()
                 .name("Új név")
-                .interestRate(new BigDecimal("2.25"))
-                .status(SavingsStatus.ACTIVE)
+                .targetAmount(null)
                 .build();
 
         mapper.updateEntity(entity, request);
 
         assertEquals(50L, entity.getId());
         assertEquals("Új név", entity.getName());
-        assertEquals(new BigDecimal("2.25"), entity.getInterestRate());
-        assertEquals(SavingsStatus.ACTIVE, entity.getStatus());
+        assertNull(entity.getTargetAmount());
+        // A kamatláb és az állapot nem módosítható ezen a kérésen keresztül
+        assertEquals(new BigDecimal("1.00"), entity.getInterestRate());
+        assertEquals(SavingsStatus.FROZEN, entity.getStatus());
 
         assertNotNull(entity.getUpdatedAt());
         assertTrue(entity.getUpdatedAt().isAfter(oldUpdatedAt));
@@ -89,6 +93,7 @@ class SavingsAccountMapperTest {
                 .balance(new BigDecimal("250000.00"))
                 .currency("EUR")
                 .interestRate(new BigDecimal("4.10"))
+                .targetAmount(new BigDecimal("600000.00"))
                 .status(SavingsStatus.ACTIVE)
                 .createdAt(createdAt)
                 .updatedAt(updatedAt)
@@ -103,9 +108,24 @@ class SavingsAccountMapperTest {
         assertEquals(new BigDecimal("250000.00"), response.getBalance());
         assertEquals("EUR", response.getCurrency());
         assertEquals(new BigDecimal("4.10"), response.getInterestRate());
+        assertEquals(new BigDecimal("600000.00"), response.getTargetAmount());
+        assertEquals(new BigDecimal("41.67"), response.getProgressPercent());
         assertEquals(SavingsStatus.ACTIVE, response.getStatus());
         assertEquals(createdAt, response.getCreatedAt());
         assertEquals(updatedAt, response.getUpdatedAt());
     }
-}
 
+    @Test
+    void testToResponse_withoutTarget_shouldHaveNoProgress() {
+        SavingsAccount entity = SavingsAccount.builder()
+                .id(124L)
+                .user(User.builder().id(7L).build())
+                .balance(new BigDecimal("1000.00"))
+                .build();
+
+        SavingsAccountResponse response = mapper.toResponse(entity);
+
+        assertNull(response.getTargetAmount());
+        assertNull(response.getProgressPercent());
+    }
+}

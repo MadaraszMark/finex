@@ -15,26 +15,27 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Schema(description = "Két bankszámla közötti átutalás kérésének adatai")
+@Schema(description = "Átutalás a bejelentkezett felhasználó számlájáról egy IBAN számlaszámra")
 public class TransferRequest {
 
     @NotNull
-    @Schema(description = "Forrás számla azonosítója", example = "2", required = true)
+    @Schema(description = "Forrás számla azonosítója (a saját számlák egyike)", example = "2", required = true)
     private Long fromAccountId;
 
-    @NotNull
-    @Schema(description = "Cél számla azonosítója", example = "3", required = true)
-    private Long toAccountId;
+    @NotBlank
+    @Size(max = 42)
+    @Schema(description = "A címzett IBAN számlaszáma (szóközökkel is megadható)", example = "HU28 1040 0095 0000 5217 0000 0003", required = true)
+    private String toAccountNumber;
+
+    @NotBlank
+    @Size(max = 150)
+    @Schema(description = "A kedvezményezett neve", example = "Nagy Bence", required = true)
+    private String partnerName;
 
     @NotNull
     @DecimalMin(value = "0.01", message = "Az átutalás összege legalább 0.01 kell legyen.")
-    @Schema(description = "Átutalás összege", example = "15000.00", required = true)
+    @Schema(description = "Átutalás összege (a forrásszámla devizanemében)", example = "15000.00", required = true)
     private BigDecimal amount;
-
-    @NotBlank
-    @Size(max = 3)
-    @Schema(description = "Devizanem (mindkét számlának ebben kell vezetve lennie)", example = "HUF", required = true)
-    private String currency;
 
     @Size(max = 255)
     @Schema(description = "Megjegyzés az átutaláshoz", example = "Közös vacsi")
@@ -43,4 +44,3 @@ public class TransferRequest {
     @Schema(description = "Kategória ID-k, amelyek az átutaláshoz tartoznak", example = "[2, 3]")
     private List<Long> categoryIds;
 }
-

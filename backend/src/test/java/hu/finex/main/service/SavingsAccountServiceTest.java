@@ -1,24 +1,21 @@
 package hu.finex.main.service;
 
+import hu.finex.main.config.FinexProperties;
 import hu.finex.main.dto.*;
 import hu.finex.main.exception.BusinessException;
 import hu.finex.main.exception.NotFoundException;
-import hu.finex.main.mapper.BalanceHistoryMapper;
 import hu.finex.main.mapper.SavingsAccountMapper;
-import hu.finex.main.mapper.TransactionMapper;
-import hu.finex.main.model.Account;
-import hu.finex.main.model.BalanceHistory;
-import hu.finex.main.model.SavingsAccount;
-import hu.finex.main.model.Transaction;
-import hu.finex.main.model.User;
-import hu.finex.main.model.enums.AccountType;
+import hu.finex.main.mapper.SavingsTransactionMapper;
+import hu.finex.main.model.*;
+import hu.finex.main.model.enums.AccountStatus;
+import hu.finex.main.model.enums.NotificationType;
 import hu.finex.main.model.enums.SavingsStatus;
+import hu.finex.main.model.enums.SavingsTransactionType;
 import hu.finex.main.model.enums.TransactionType;
 import hu.finex.main.repository.AccountRepository;
-import hu.finex.main.repository.BalanceHistoryRepository;
 import hu.finex.main.repository.SavingsAccountRepository;
-import hu.finex.main.repository.TransactionRepository;
-import hu.finex.main.repository.UserRepository;
+import hu.finex.main.repository.SavingsTransactionRepository;
+import hu.finex.main.security.CurrentUser;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
@@ -36,684 +33,451 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class SavingsAccountServiceTest {
 
+    private static final String PARTNER_NAME = "FineX megtakarítás";
+
     @Mock private SavingsAccountRepository savingsAccountRepository;
-    @Mock private UserRepository userRepository;
-    @Mock private SavingsAccountMapper mapper;
+    @Mock private SavingsTransactionRepository savingsTransactionRepository;
     @Mock private AccountRepository accountRepository;
-    @Mock private BalanceHistoryRepository balanceHistoryRepository;
-    @Mock private BalanceHistoryMapper balanceHistoryMapper;
-    @Mock private TransactionRepository transactionRepository;
-    @Mock private TransactionMapper transactionMapper;
+    @Mock private SavingsAccountMapper savingsAccountMapper;
+    @Mock private SavingsTransactionMapper savingsTransactionMapper;
+    @Mock private LedgerService ledgerService;
+    @Mock private NotificationService notificationService;
+    @Mock private CurrentUser currentUser;
+    @Spy private FinexProperties finexProperties = new FinexProperties();
 
     @InjectMocks private SavingsAccountService service;
 
     @Test
-    void create_shouldThrowNotFound_whenUserMissing() {
+    void create_shouldCreateSavingsWithBankRate_andMoveInitialDeposit() {
+        User user = User.builder().id(7L).build();
+        when(currentUser.requireEntity()).thenReturn(user);
+        when(savingsAccountRepository.existsByUser_IdAndNameIgnoreCaseAndStatusNot(7L, "Nyaralás", SavingsStatus.CLOSED)).thenReturn(false);
+
+        Account current = account(1L, "HUF", "100000.00", AccountStatus.ACTIVE);
+        lockAccount(7L, current);
+
         CreateSavingsAccountRequest req = CreateSavingsAccountRequest.builder()
-                .userId(1L)
-                .name("S1")
-                .currency("HUF")
-                .initialBalance(new BigDecimal("100.00"))
+                .name("Nyaralás")
+                .accountId(1L)
+                .initialDeposit(new BigDecimal("30000.00"))
+                .targetAmount(new BigDecimal("600000.00"))
                 .build();
 
-        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+        SavingsAccount mapped = savings(null, "HUF", "0", SavingsStatus.ACTIVE);
+        when(savingsAccountMapper.toEntity(req, user, "HUF", new BigDecimal("3.50"))).thenReturn(mapped);
 
-        assertThrows(NotFoundException.class, () -> service.create(req));
+        SavingsAccount saved = savings(20L, "HUF", "0", SavingsStatus.ACTIVE);
+        saved.setName("Nyaralás");
+        when(savingsAccountRepository.save(mapped)).thenReturn(saved);
 
-        verify(userRepository).findById(1L);
-        verifyNoInteractions(savingsAccountRepository, accountRepository, mapper, transactionRepository, balanceHistoryRepository);
-    }
+        SavingsTransaction deposit = SavingsTransaction.builder().type(SavingsTransactionType.DEPOSIT).build();
+        when(savingsTransactionMapper.toEntity(saved, SavingsTransactionType.DEPOSIT, new BigDecimal("30000.00"))).thenReturn(deposit);
 
-    @Test
-    void create_shouldThrowBusinessException_whenDuplicateNameForUser() {
-        CreateSavingsAccountRequest req = CreateSavingsAccountRequest.builder()
-                .userId(1L)
-                .name("S1")
-                .currency("HUF")
-                .initialBalance(new BigDecimal("100.00"))
-                .build();
-
-        when(userRepository.findById(1L)).thenReturn(Optional.of(User.builder().id(1L).build()));
-        when(savingsAccountRepository.existsByUser_IdAndName(1L, "S1")).thenReturn(true);
-
-        assertThrows(BusinessException.class, () -> service.create(req));
-
-        verify(savingsAccountRepository).existsByUser_IdAndName(1L, "S1");
-        verifyNoInteractions(accountRepository, mapper, transactionRepository, balanceHistoryRepository);
-    }
-
-    @Test
-    void create_shouldThrowNotFound_whenNoCurrentAccount() {
-        CreateSavingsAccountRequest req = CreateSavingsAccountRequest.builder()
-                .userId(1L)
-                .name("S1")
-                .currency("HUF")
-                .initialBalance(new BigDecimal("100.00"))
-                .build();
-
-        when(userRepository.findById(1L)).thenReturn(Optional.of(User.builder().id(1L).build()));
-        when(savingsAccountRepository.existsByUser_IdAndName(1L, "S1")).thenReturn(false);
-        when(accountRepository.findFirstByUser_IdAndAccountType(1L, AccountType.CURRENT)).thenReturn(Optional.empty());
-
-        assertThrows(NotFoundException.class, () -> service.create(req));
-
-        verify(accountRepository).findFirstByUser_IdAndAccountType(1L, AccountType.CURRENT);
-        verifyNoInteractions(mapper, transactionRepository, balanceHistoryRepository);
-    }
-
-    @Test
-    void create_shouldThrowBusinessException_whenCurrencyMismatch() {
-        CreateSavingsAccountRequest req = CreateSavingsAccountRequest.builder()
-                .userId(1L)
-                .name("S1")
-                .currency("EUR")
-                .initialBalance(new BigDecimal("100.00"))
-                .build();
-
-        when(userRepository.findById(1L)).thenReturn(Optional.of(User.builder().id(1L).build()));
-        when(savingsAccountRepository.existsByUser_IdAndName(1L, "S1")).thenReturn(false);
-
-        Account current = Account.builder()
-                .id(10L)
-                .currency("HUF")
-                .balance(new BigDecimal("500.00"))
-                .build();
-        when(accountRepository.findFirstByUser_IdAndAccountType(1L, AccountType.CURRENT)).thenReturn(Optional.of(current));
-
-        assertThrows(BusinessException.class, () -> service.create(req));
-
-        verifyNoInteractions(mapper, transactionRepository, balanceHistoryRepository);
-        verify(accountRepository, never()).save(any());
-        verify(savingsAccountRepository, never()).save(any());
-    }
-
-    @Test
-    void create_shouldThrowBusinessException_whenInsufficientFunds() {
-        CreateSavingsAccountRequest req = CreateSavingsAccountRequest.builder()
-                .userId(1L)
-                .name("S1")
-                .currency("HUF")
-                .initialBalance(new BigDecimal("600.00"))
-                .build();
-
-        when(userRepository.findById(1L)).thenReturn(Optional.of(User.builder().id(1L).build()));
-        when(savingsAccountRepository.existsByUser_IdAndName(1L, "S1")).thenReturn(false);
-
-        Account current = Account.builder()
-                .id(10L)
-                .currency("HUF")
-                .balance(new BigDecimal("500.00"))
-                .build();
-        when(accountRepository.findFirstByUser_IdAndAccountType(1L, AccountType.CURRENT)).thenReturn(Optional.of(current));
-
-        assertThrows(BusinessException.class, () -> service.create(req));
-
-        verify(accountRepository, never()).save(any());
-        verify(savingsAccountRepository, never()).save(any());
-        verifyNoInteractions(mapper, transactionRepository, balanceHistoryRepository);
-    }
-
-    @Test
-    void create_shouldDeductFromCurrent_createSavings_saveTxAndBalanceHistory_andReturnResponse() {
-        CreateSavingsAccountRequest req = CreateSavingsAccountRequest.builder()
-                .userId(1L)
-                .name("S1")
-                .currency("HUF")
-                .initialBalance(new BigDecimal("100.00"))
-                .build();
-
-        User user = User.builder().id(1L).build();
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(savingsAccountRepository.existsByUser_IdAndName(1L, "S1")).thenReturn(false);
-
-        Account current = Account.builder()
-                .id(10L)
-                .user(user)
-                .accountNumber("CURR-ACC")
-                .currency("HUF")
-                .balance(new BigDecimal("500.00"))
-                .build();
-        when(accountRepository.findFirstByUser_IdAndAccountType(1L, AccountType.CURRENT)).thenReturn(Optional.of(current));
-
-        when(accountRepository.save(current)).thenAnswer(inv -> inv.getArgument(0));
-
-        SavingsAccount mappedSavings = SavingsAccount.builder()
-                .user(user)
-                .name("S1")
-                .balance(req.getInitialBalance())
-                .currency("HUF")
-                .status(null)
-                .build();
-        when(mapper.toEntity(req, user)).thenReturn(mappedSavings);
-
-        SavingsAccount savedSavings = SavingsAccount.builder()
-                .id(99L)
-                .user(user)
-                .name("S1")
-                .balance(req.getInitialBalance())
-                .currency("HUF")
-                .status(SavingsStatus.ACTIVE)
-                .build();
-        when(savingsAccountRepository.save(any(SavingsAccount.class))).thenReturn(savedSavings);
-
-        when(transactionMapper.toEntity(any(CreateTransactionRequest.class), eq(current)))
-                .thenReturn(Transaction.builder().account(current).build());
-
-        Transaction savedTx = Transaction.builder()
-                .id(77L)
-                .account(current)
-                .message("x")
-                .createdAt(Instant.now())
-                .build();
-        when(transactionRepository.save(any(Transaction.class))).thenReturn(savedTx);
-
-        when(balanceHistoryMapper.toEntity(eq(current), any(BigDecimal.class)))
-                .thenReturn(BalanceHistory.builder().account(current).build());
-        when(balanceHistoryRepository.save(any(BalanceHistory.class)))
-                .thenAnswer(inv -> inv.getArgument(0));
-
-        SavingsAccountResponse expectedResp = SavingsAccountResponse.builder()
-                .id(99L)
-                .userId(1L)
-                .name("S1")
-                .status(SavingsStatus.ACTIVE)
-                .build();
-        when(mapper.toResponse(savedSavings)).thenReturn(expectedResp);
+        SavingsAccountResponse expected = SavingsAccountResponse.builder().id(20L).build();
+        when(savingsAccountMapper.toResponse(saved)).thenReturn(expected);
 
         SavingsAccountResponse resp = service.create(req);
 
-        assertNotNull(resp);
-        assertEquals(99L, resp.getId());
-        assertEquals("S1", resp.getName());
-        assertEquals(SavingsStatus.ACTIVE, resp.getStatus());
-        assertEquals(new BigDecimal("400.00"), current.getBalance());
-
-        ArgumentCaptor<CreateTransactionRequest> txReqCaptor = ArgumentCaptor.forClass(CreateTransactionRequest.class);
-        verify(transactionMapper).toEntity(txReqCaptor.capture(), eq(current));
-        CreateTransactionRequest capturedTxReq = txReqCaptor.getValue();
-        assertEquals(current.getId(), capturedTxReq.getAccountId());
-        assertEquals(TransactionType.OUTCOME, capturedTxReq.getType());
-        assertEquals(req.getInitialBalance(), capturedTxReq.getAmount());
-        assertEquals(current.getCurrency(), capturedTxReq.getCurrency());
-        assertEquals(current.getAccountNumber(), capturedTxReq.getFromAccount());
-
-        verify(balanceHistoryMapper).toEntity(eq(current), eq(new BigDecimal("400.00")));
-        verify(balanceHistoryRepository).save(any(BalanceHistory.class));
-        verify(transactionRepository).save(any(Transaction.class));
-        verify(mapper).toResponse(savedSavings);
+        assertEquals(expected, resp);
+        assertEquals(0, new BigDecimal("30000.00").compareTo(saved.getBalance()));
+        verify(ledgerService).debit(current, TransactionType.OUTCOME, new BigDecimal("30000.00"), PARTNER_NAME, "Megtakarítás indítása: Nyaralás", null, null);
+        verify(savingsTransactionRepository).save(deposit);
     }
 
     @Test
-    void getById_shouldReturnResponse() {
-        SavingsAccount entity = SavingsAccount.builder().id(5L).build();
-        when(savingsAccountRepository.findById(5L)).thenReturn(Optional.of(entity));
+    void create_shouldNotMoveMoney_whenInitialDepositIsZero() {
+        User user = User.builder().id(7L).build();
+        when(currentUser.requireEntity()).thenReturn(user);
+        when(savingsAccountRepository.existsByUser_IdAndNameIgnoreCaseAndStatusNot(7L, "Vésztartalék", SavingsStatus.CLOSED)).thenReturn(false);
+        lockAccount(7L, account(1L, "HUF", "100.00", AccountStatus.ACTIVE));
 
-        SavingsAccountResponse expected = SavingsAccountResponse.builder().id(5L).build();
-        when(mapper.toResponse(entity)).thenReturn(expected);
-
-        SavingsAccountResponse resp = service.getById(5L);
-
-        assertNotNull(resp);
-        assertEquals(5L, resp.getId());
-
-        verify(savingsAccountRepository).findById(5L);
-        verify(mapper).toResponse(entity);
-    }
-
-    @Test
-    void getById_shouldThrowNotFound_whenMissing() {
-        when(savingsAccountRepository.findById(5L)).thenReturn(Optional.empty());
-
-        assertThrows(NotFoundException.class, () -> service.getById(5L));
-
-        verify(savingsAccountRepository).findById(5L);
-        verifyNoInteractions(mapper);
-    }
-
-    @Test
-    void listByUser_shouldThrowNotFound_whenUserMissing() {
-        Pageable pageable = PageRequest.of(0, 10);
-        when(userRepository.findById(1L)).thenReturn(Optional.empty());
-
-        assertThrows(NotFoundException.class, () -> service.listByUser(1L, pageable));
-
-        verify(userRepository).findById(1L);
-        verifyNoInteractions(savingsAccountRepository, mapper);
-    }
-
-    @Test
-    void listByUser_shouldReturnMappedPage() {
-        Pageable pageable = PageRequest.of(0, 2);
-        when(userRepository.findById(1L)).thenReturn(Optional.of(User.builder().id(1L).build()));
-
-        SavingsAccount s1 = SavingsAccount.builder().id(1L).build();
-        SavingsAccount s2 = SavingsAccount.builder().id(2L).build();
-        Page<SavingsAccount> page = new PageImpl<>(List.of(s1, s2), pageable, 2);
-
-        when(savingsAccountRepository.findByUser_IdOrderByCreatedAtDesc(1L, pageable)).thenReturn(page);
-
-        SavingsAccountResponse r1 = SavingsAccountResponse.builder().id(1L).build();
-        SavingsAccountResponse r2 = SavingsAccountResponse.builder().id(2L).build();
-        when(mapper.toResponse(s1)).thenReturn(r1);
-        when(mapper.toResponse(s2)).thenReturn(r2);
-
-        Page<SavingsAccountResponse> resp = service.listByUser(1L, pageable);
-
-        assertEquals(2, resp.getTotalElements());
-        assertSame(r1, resp.getContent().get(0));
-        assertSame(r2, resp.getContent().get(1));
-
-        verify(savingsAccountRepository).findByUser_IdOrderByCreatedAtDesc(1L, pageable);
-        verify(mapper).toResponse(s1);
-        verify(mapper).toResponse(s2);
-    }
-
-    @Test
-    void update_shouldThrowNotFound_whenSavingsMissing() {
-        UpdateSavingsAccountRequest req = UpdateSavingsAccountRequest.builder()
-                .name("X")
-                .status(SavingsStatus.ACTIVE)
+        CreateSavingsAccountRequest req = CreateSavingsAccountRequest.builder()
+                .name("Vésztartalék")
+                .accountId(1L)
+                .initialDeposit(BigDecimal.ZERO)
                 .build();
 
-        when(savingsAccountRepository.findById(1L)).thenReturn(Optional.empty());
+        SavingsAccount mapped = savings(null, "HUF", "0", SavingsStatus.ACTIVE);
+        when(savingsAccountMapper.toEntity(eq(req), eq(user), eq("HUF"), any())).thenReturn(mapped);
+        when(savingsAccountRepository.save(mapped)).thenReturn(mapped);
+        when(savingsAccountMapper.toResponse(mapped)).thenReturn(SavingsAccountResponse.builder().build());
 
-        assertThrows(NotFoundException.class, () -> service.update(1L, req));
+        service.create(req);
 
-        verify(savingsAccountRepository).findById(1L);
-        verifyNoInteractions(mapper);
+        verifyNoInteractions(ledgerService, savingsTransactionRepository);
     }
 
     @Test
-    void update_shouldThrowBusinessException_whenRenamingToExistingName() {
-        User user = User.builder().id(1L).build();
-        SavingsAccount entity = SavingsAccount.builder()
-                .id(10L)
-                .user(user)
-                .name("OLD")
+    void create_shouldThrowBusinessException_whenNameAlreadyExists() {
+        User user = User.builder().id(7L).build();
+        when(currentUser.requireEntity()).thenReturn(user);
+        when(savingsAccountRepository.existsByUser_IdAndNameIgnoreCaseAndStatusNot(7L, "Nyaralás", SavingsStatus.CLOSED)).thenReturn(true);
+
+        CreateSavingsAccountRequest req = CreateSavingsAccountRequest.builder()
+                .name("Nyaralás")
+                .accountId(1L)
+                .initialDeposit(BigDecimal.ZERO)
                 .build();
+
+        assertThrows(BusinessException.class, () -> service.create(req));
+
+        verify(savingsAccountRepository, never()).save(any());
+        verifyNoInteractions(accountRepository, ledgerService);
+    }
+
+    @Test
+    void create_shouldThrowNotFound_whenCurrentAccountIsNotOwn() {
+        User user = User.builder().id(7L).build();
+        when(currentUser.requireEntity()).thenReturn(user);
+        when(savingsAccountRepository.existsByUser_IdAndNameIgnoreCaseAndStatusNot(7L, "Nyaralás", SavingsStatus.CLOSED)).thenReturn(false);
+        when(accountRepository.existsByIdAndUser_Id(9L, 7L)).thenReturn(false);
+
+        CreateSavingsAccountRequest req = CreateSavingsAccountRequest.builder()
+                .name("Nyaralás")
+                .accountId(9L)
+                .initialDeposit(BigDecimal.ZERO)
+                .build();
+
+        assertThrows(NotFoundException.class, () -> service.create(req));
+
+        verify(accountRepository, never()).findByIdForUpdate(any());
+        verify(savingsAccountRepository, never()).save(any());
+    }
+
+    @Test
+    void listMine_shouldReturnNotClosedSavings() {
+        when(currentUser.requireId()).thenReturn(7L);
+
+        SavingsAccount s1 = savings(1L, "HUF", "100.00", SavingsStatus.ACTIVE);
+        when(savingsAccountRepository.findByUser_IdAndStatusNotOrderByCreatedAtAsc(7L, SavingsStatus.CLOSED)).thenReturn(List.of(s1));
+        when(savingsAccountMapper.toResponse(s1)).thenReturn(SavingsAccountResponse.builder().id(1L).build());
+
+        List<SavingsAccountResponse> out = service.listMine();
+
+        assertEquals(1, out.size());
+        assertEquals(1L, out.get(0).getId());
+    }
+
+    @Test
+    void getById_shouldThrowNotFound_whenNotOwn() {
+        when(currentUser.requireId()).thenReturn(7L);
+        when(savingsAccountRepository.findByIdAndUser_Id(1L, 7L)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> service.getById(1L));
+    }
+
+    @Test
+    void update_shouldRenameAndChangeTarget() {
+        when(currentUser.requireId()).thenReturn(7L);
+
+        SavingsAccount entity = savings(1L, "HUF", "100.00", SavingsStatus.ACTIVE);
+        entity.setName("Nyaralás");
+        entity.setUser(User.builder().id(7L).build());
+        when(savingsAccountRepository.findByIdAndUser_Id(1L, 7L)).thenReturn(Optional.of(entity));
+        when(savingsAccountRepository.existsByUser_IdAndNameIgnoreCaseAndStatusNot(7L, "Nyaralás 2026", SavingsStatus.CLOSED)).thenReturn(false);
 
         UpdateSavingsAccountRequest req = UpdateSavingsAccountRequest.builder()
-                .name("NEW")
-                .status(SavingsStatus.ACTIVE)
+                .name("Nyaralás 2026")
+                .targetAmount(new BigDecimal("800000.00"))
                 .build();
+        when(savingsAccountMapper.toResponse(entity)).thenReturn(SavingsAccountResponse.builder().id(1L).name("Nyaralás 2026").build());
 
-        when(savingsAccountRepository.findById(10L)).thenReturn(Optional.of(entity));
-        when(savingsAccountRepository.existsByUser_IdAndName(1L, "NEW")).thenReturn(true);
+        SavingsAccountResponse resp = service.update(1L, req);
 
-        assertThrows(BusinessException.class, () -> service.update(10L, req));
-
-        verify(savingsAccountRepository).findById(10L);
-        verify(savingsAccountRepository).existsByUser_IdAndName(1L, "NEW");
-        verify(mapper, never()).updateEntity(any(), any());
+        assertEquals("Nyaralás 2026", resp.getName());
+        verify(savingsAccountMapper).updateEntity(entity, req);
     }
 
     @Test
-    void update_shouldUpdateAndReturnResponse_whenOk() {
-        User user = User.builder().id(1L).build();
-        SavingsAccount entity = SavingsAccount.builder()
-                .id(10L)
-                .user(user)
-                .name("OLD")
-                .build();
+    void update_shouldAllowChangingOnlyTheLetterCase_ofOwnName() {
+        when(currentUser.requireId()).thenReturn(7L);
 
-        UpdateSavingsAccountRequest req = UpdateSavingsAccountRequest.builder()
-                .name("OLD")
-                .interestRate(new BigDecimal("3.00"))
-                .status(SavingsStatus.FROZEN)
-                .build();
+        SavingsAccount entity = savings(1L, "HUF", "100.00", SavingsStatus.ACTIVE);
+        entity.setName("nyaralás");
+        when(savingsAccountRepository.findByIdAndUser_Id(1L, 7L)).thenReturn(Optional.of(entity));
+        when(savingsAccountMapper.toResponse(entity)).thenReturn(SavingsAccountResponse.builder().id(1L).build());
 
-        when(savingsAccountRepository.findById(10L)).thenReturn(Optional.of(entity));
+        UpdateSavingsAccountRequest req = UpdateSavingsAccountRequest.builder().name("Nyaralás").build();
 
-        SavingsAccountResponse expected = SavingsAccountResponse.builder().id(10L).build();
-        when(mapper.toResponse(entity)).thenReturn(expected);
+        service.update(1L, req);
 
-        SavingsAccountResponse resp = service.update(10L, req);
-
-        assertNotNull(resp);
-        assertEquals(10L, resp.getId());
-
-        verify(mapper).updateEntity(entity, req);
-        verify(mapper).toResponse(entity);
+        verify(savingsAccountRepository, never()).existsByUser_IdAndNameIgnoreCaseAndStatusNot(any(), any(), any());
+        verify(savingsAccountMapper).updateEntity(entity, req);
     }
 
     @Test
-    void depositFromAccount_shouldThrowNotFound_whenSavingsMissing() {
+    void update_shouldThrowBusinessException_whenNameIsTaken() {
+        when(currentUser.requireId()).thenReturn(7L);
+
+        SavingsAccount entity = savings(1L, "HUF", "100.00", SavingsStatus.ACTIVE);
+        entity.setName("Nyaralás");
+        entity.setUser(User.builder().id(7L).build());
+        when(savingsAccountRepository.findByIdAndUser_Id(1L, 7L)).thenReturn(Optional.of(entity));
+        when(savingsAccountRepository.existsByUser_IdAndNameIgnoreCaseAndStatusNot(7L, "Vésztartalék", SavingsStatus.CLOSED)).thenReturn(true);
+
+        UpdateSavingsAccountRequest req = UpdateSavingsAccountRequest.builder().name("Vésztartalék").build();
+
+        assertThrows(BusinessException.class, () -> service.update(1L, req));
+
+        verify(savingsAccountMapper, never()).updateEntity(any(), any());
+    }
+
+    @Test
+    void update_shouldThrowBusinessException_whenClosed() {
+        when(currentUser.requireId()).thenReturn(7L);
+        when(savingsAccountRepository.findByIdAndUser_Id(1L, 7L)).thenReturn(Optional.of(savings(1L, "HUF", "0", SavingsStatus.CLOSED)));
+
+        UpdateSavingsAccountRequest req = UpdateSavingsAccountRequest.builder().name("Új név").build();
+
+        assertThrows(BusinessException.class, () -> service.update(1L, req));
+    }
+
+    @Test
+    void depositFromAccount_shouldDebitAccount_andIncreaseSavings() {
+        when(currentUser.requireId()).thenReturn(7L);
+
+        Account current = account(1L, "HUF", "100000.00", AccountStatus.ACTIVE);
+        SavingsAccount savings = savings(2L, "HUF", "50000.00", SavingsStatus.ACTIVE);
+        lockAccount(7L, current);
+        lockSavings(7L, savings);
+
+        Transaction tx = Transaction.builder().id(55L).message("Havi félretétel").createdAt(Instant.parse("2025-03-10T10:00:00Z")).build();
+        when(ledgerService.debit(current, TransactionType.OUTCOME, new BigDecimal("20000.00"), PARTNER_NAME, "Havi félretétel", null, null)).thenReturn(tx);
+
         SavingsTransferRequest req = SavingsTransferRequest.builder()
                 .accountId(1L)
-                .amount(new BigDecimal("10.00"))
+                .amount(new BigDecimal("20000.00"))
+                .message("Havi félretétel")
                 .build();
 
-        when(savingsAccountRepository.findById(5L)).thenReturn(Optional.empty());
+        SavingsTransferResponse resp = service.depositFromAccount(2L, req);
 
-        assertThrows(NotFoundException.class, () -> service.depositFromAccount(5L, req));
-
-        verify(savingsAccountRepository).findById(5L);
-        verifyNoInteractions(accountRepository, transactionRepository, balanceHistoryRepository);
+        assertEquals(0, new BigDecimal("70000.00").compareTo(savings.getBalance()));
+        assertEquals(2L, resp.getSavingsAccountId());
+        assertEquals(1L, resp.getAccountId());
+        assertEquals(0, new BigDecimal("70000.00").compareTo(resp.getSavingsNewBalance()));
+        assertEquals("Havi félretétel", resp.getMessage());
+        verify(savingsTransactionMapper).toEntity(savings, SavingsTransactionType.DEPOSIT, new BigDecimal("20000.00"));
     }
 
     @Test
-    void depositFromAccount_shouldThrowBusinessException_whenDifferentUsers() {
-        User u1 = User.builder().id(1L).build();
-        User u2 = User.builder().id(2L).build();
+    void depositFromAccount_shouldLockCurrentAccountBeforeSavings() {
+        when(currentUser.requireId()).thenReturn(7L);
 
-        SavingsAccount savings = SavingsAccount.builder()
-                .id(5L).user(u1).currency("HUF").balance(BigDecimal.ZERO).name("S")
-                .build();
-        Account current = Account.builder()
-                .id(10L).user(u2).currency("HUF").balance(new BigDecimal("100.00")).accountNumber("CURR")
-                .build();
+        Account current = account(1L, "HUF", "100000.00", AccountStatus.ACTIVE);
+        SavingsAccount savings = savings(2L, "HUF", "0", SavingsStatus.ACTIVE);
+        lockAccount(7L, current);
+        lockSavings(7L, savings);
+        when(ledgerService.debit(any(), any(), any(), any(), any(), any(), any())).thenReturn(Transaction.builder().build());
 
-        when(savingsAccountRepository.findById(5L)).thenReturn(Optional.of(savings));
-        when(accountRepository.findById(10L)).thenReturn(Optional.of(current));
+        service.depositFromAccount(2L, SavingsTransferRequest.builder().accountId(1L).amount(BigDecimal.TEN).build());
 
-        SavingsTransferRequest req = SavingsTransferRequest.builder()
-                .accountId(10L)
-                .amount(new BigDecimal("10.00"))
-                .build();
-
-        assertThrows(BusinessException.class, () -> service.depositFromAccount(5L, req));
-
-        verify(accountRepository, never()).save(any());
-        verify(savingsAccountRepository, never()).save(any());
-        verifyNoInteractions(transactionRepository, balanceHistoryRepository);
+        InOrder inOrder = inOrder(accountRepository, savingsAccountRepository);
+        inOrder.verify(accountRepository).findByIdForUpdate(1L);
+        inOrder.verify(savingsAccountRepository).findByIdForUpdate(2L);
     }
 
     @Test
-    void depositFromAccount_shouldThrowBusinessException_whenCurrencyMismatch() {
-        User u1 = User.builder().id(1L).build();
+    void depositFromAccount_shouldThrowBusinessException_whenCurrenciesDiffer() {
+        when(currentUser.requireId()).thenReturn(7L);
+        lockAccount(7L, account(1L, "EUR", "100.00", AccountStatus.ACTIVE));
+        lockSavings(7L, savings(2L, "HUF", "0", SavingsStatus.ACTIVE));
 
-        SavingsAccount savings = SavingsAccount.builder()
-                .id(5L).user(u1).currency("EUR").balance(BigDecimal.ZERO).name("S")
-                .build();
-        Account current = Account.builder()
-                .id(10L).user(u1).currency("HUF").balance(new BigDecimal("100.00")).accountNumber("CURR")
-                .build();
+        SavingsTransferRequest req = SavingsTransferRequest.builder().accountId(1L).amount(BigDecimal.TEN).build();
 
-        when(savingsAccountRepository.findById(5L)).thenReturn(Optional.of(savings));
-        when(accountRepository.findById(10L)).thenReturn(Optional.of(current));
+        assertThrows(BusinessException.class, () -> service.depositFromAccount(2L, req));
 
-        SavingsTransferRequest req = SavingsTransferRequest.builder()
-                .accountId(10L)
-                .amount(new BigDecimal("10.00"))
-                .build();
-
-        assertThrows(BusinessException.class, () -> service.depositFromAccount(5L, req));
-
-        verify(accountRepository, never()).save(any());
-        verify(savingsAccountRepository, never()).save(any());
-        verifyNoInteractions(transactionRepository, balanceHistoryRepository);
+        verifyNoInteractions(ledgerService, savingsTransactionRepository);
     }
 
     @Test
-    void depositFromAccount_shouldThrowBusinessException_whenInsufficientFunds() {
-        User u1 = User.builder().id(1L).build();
+    void depositFromAccount_shouldThrowBusinessException_whenSavingsIsFrozen() {
+        when(currentUser.requireId()).thenReturn(7L);
+        lockAccount(7L, account(1L, "HUF", "100.00", AccountStatus.ACTIVE));
+        lockSavings(7L, savings(2L, "HUF", "0", SavingsStatus.FROZEN));
 
-        SavingsAccount savings = SavingsAccount.builder()
-                .id(5L).user(u1).currency("HUF").balance(BigDecimal.ZERO).name("S")
-                .build();
-        Account current = Account.builder()
-                .id(10L).user(u1).currency("HUF").balance(new BigDecimal("5.00")).accountNumber("CURR")
-                .build();
+        SavingsTransferRequest req = SavingsTransferRequest.builder().accountId(1L).amount(BigDecimal.TEN).build();
 
-        when(savingsAccountRepository.findById(5L)).thenReturn(Optional.of(savings));
-        when(accountRepository.findById(10L)).thenReturn(Optional.of(current));
+        assertThrows(BusinessException.class, () -> service.depositFromAccount(2L, req));
 
-        SavingsTransferRequest req = SavingsTransferRequest.builder()
-                .accountId(10L)
-                .amount(new BigDecimal("10.00"))
-                .build();
-
-        assertThrows(BusinessException.class, () -> service.depositFromAccount(5L, req));
-
-        verify(accountRepository, never()).save(any());
-        verify(savingsAccountRepository, never()).save(any());
-        verifyNoInteractions(transactionRepository, balanceHistoryRepository);
+        verifyNoInteractions(ledgerService);
     }
 
     @Test
-    void depositFromAccount_shouldMoveMoney_saveTxAndBalanceHistory_andReturnResponse() {
-        User user = User.builder().id(1L).build();
+    void withdrawToAccount_shouldDecreaseSavings_andCreditAccount() {
+        when(currentUser.requireId()).thenReturn(7L);
 
-        SavingsAccount savings = SavingsAccount.builder()
-                .id(5L)
-                .user(user)
-                .currency("HUF")
-                .balance(new BigDecimal("100.00"))
-                .name("SAV")
-                .build();
+        Account current = account(1L, "HUF", "0.00", AccountStatus.ACTIVE);
+        SavingsAccount savings = savings(2L, "HUF", "50000.00", SavingsStatus.ACTIVE);
+        lockAccount(7L, current);
+        lockSavings(7L, savings);
 
-        Account current = Account.builder()
-                .id(10L)
-                .user(user)
-                .currency("HUF")
-                .balance(new BigDecimal("500.00"))
-                .accountNumber("CURR-ACC")
-                .build();
+        Transaction tx = Transaction.builder().id(56L).message("Megtakarítás kivétele innen: Teszt").build();
+        when(ledgerService.credit(current, TransactionType.INCOME, new BigDecimal("15000.00"), PARTNER_NAME, "Megtakarítás kivétele innen: Teszt", null)).thenReturn(tx);
 
-        when(savingsAccountRepository.findById(5L)).thenReturn(Optional.of(savings));
-        when(accountRepository.findById(10L)).thenReturn(Optional.of(current));
-
-        when(accountRepository.save(current)).thenAnswer(inv -> inv.getArgument(0));
-        when(savingsAccountRepository.save(savings)).thenAnswer(inv -> inv.getArgument(0));
-
-        Transaction txEntity = Transaction.builder().account(current).build();
-        when(transactionMapper.toEntity(any(CreateTransactionRequest.class), eq(current))).thenReturn(txEntity);
-
-        Transaction savedTx = Transaction.builder()
-                .id(77L)
-                .account(current)
-                .message("DEFAULT")
-                .createdAt(Instant.parse("2025-01-01T10:00:00Z"))
-                .build();
-        when(transactionRepository.save(txEntity)).thenReturn(savedTx);
-
-        when(balanceHistoryMapper.toEntity(eq(current), any(BigDecimal.class)))
-                .thenReturn(BalanceHistory.builder().account(current).build());
-        when(balanceHistoryRepository.save(any(BalanceHistory.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        SavingsTransferRequest req = SavingsTransferRequest.builder()
-                .accountId(10L)
-                .amount(new BigDecimal("50.00"))
-                .message(null)
-                .build();
-
-        SavingsTransferResponse resp = service.depositFromAccount(5L, req);
-
-        assertNotNull(resp);
-        assertEquals(5L, resp.getSavingsAccountId());
-        assertEquals(10L, resp.getAccountId());
-        assertEquals(new BigDecimal("150.00"), resp.getSavingsNewBalance());
-        assertEquals(new BigDecimal("450.00"), resp.getAccountNewBalance());
-        assertEquals(savedTx.getMessage(), resp.getMessage());
-        assertEquals(savedTx.getCreatedAt(), resp.getCreatedAt());
-
-        ArgumentCaptor<CreateTransactionRequest> txReqCaptor = ArgumentCaptor.forClass(CreateTransactionRequest.class);
-        verify(transactionMapper).toEntity(txReqCaptor.capture(), eq(current));
-        CreateTransactionRequest capturedTxReq = txReqCaptor.getValue();
-        assertEquals(TransactionType.OUTCOME, capturedTxReq.getType());
-        assertEquals(new BigDecimal("50.00"), capturedTxReq.getAmount());
-        assertEquals("HUF", capturedTxReq.getCurrency());
-        assertEquals("CURR-ACC", capturedTxReq.getFromAccount());
-
-        verify(balanceHistoryMapper).toEntity(eq(current), eq(new BigDecimal("450.00")));
-        verify(balanceHistoryRepository).save(any(BalanceHistory.class));
-    }
-
-    @Test
-    void withdrawToAccount_shouldThrowNotFound_whenSavingsMissing() {
         SavingsTransferRequest req = SavingsTransferRequest.builder()
                 .accountId(1L)
-                .amount(new BigDecimal("10.00"))
+                .amount(new BigDecimal("15000.00"))
                 .build();
 
-        when(savingsAccountRepository.findById(5L)).thenReturn(Optional.empty());
+        SavingsTransferResponse resp = service.withdrawToAccount(2L, req);
 
-        assertThrows(NotFoundException.class, () -> service.withdrawToAccount(5L, req));
-
-        verify(savingsAccountRepository).findById(5L);
-        verifyNoInteractions(accountRepository, transactionRepository, balanceHistoryRepository);
+        assertEquals(0, new BigDecimal("35000.00").compareTo(savings.getBalance()));
+        assertEquals(0, new BigDecimal("35000.00").compareTo(resp.getSavingsNewBalance()));
+        verify(savingsTransactionMapper).toEntity(savings, SavingsTransactionType.WITHDRAWAL, new BigDecimal("15000.00"));
     }
 
     @Test
-    void withdrawToAccount_shouldThrowBusinessException_whenDifferentUsers() {
-        User u1 = User.builder().id(1L).build();
-        User u2 = User.builder().id(2L).build();
+    void withdrawToAccount_shouldThrowBusinessException_whenSavingsBalanceIsTooLow() {
+        when(currentUser.requireId()).thenReturn(7L);
 
-        SavingsAccount savings = SavingsAccount.builder()
-                .id(5L).user(u1).currency("HUF").balance(new BigDecimal("100.00")).name("S")
-                .build();
-        Account current = Account.builder()
-                .id(10L).user(u2).currency("HUF").balance(new BigDecimal("0.00")).accountNumber("CURR")
-                .build();
+        SavingsAccount savings = savings(2L, "HUF", "100.00", SavingsStatus.ACTIVE);
+        lockAccount(7L, account(1L, "HUF", "0.00", AccountStatus.ACTIVE));
+        lockSavings(7L, savings);
 
-        when(savingsAccountRepository.findById(5L)).thenReturn(Optional.of(savings));
-        when(accountRepository.findById(10L)).thenReturn(Optional.of(current));
+        SavingsTransferRequest req = SavingsTransferRequest.builder().accountId(1L).amount(new BigDecimal("100.01")).build();
 
-        SavingsTransferRequest req = SavingsTransferRequest.builder()
-                .accountId(10L)
-                .amount(new BigDecimal("10.00"))
-                .build();
+        assertThrows(BusinessException.class, () -> service.withdrawToAccount(2L, req));
 
-        assertThrows(BusinessException.class, () -> service.withdrawToAccount(5L, req));
-
-        verify(accountRepository, never()).save(any());
-        verify(savingsAccountRepository, never()).save(any());
-        verifyNoInteractions(transactionRepository, balanceHistoryRepository);
+        assertEquals(0, new BigDecimal("100.00").compareTo(savings.getBalance()));
+        verifyNoInteractions(ledgerService, savingsTransactionRepository);
     }
 
     @Test
-    void withdrawToAccount_shouldThrowBusinessException_whenCurrencyMismatch() {
-        User u1 = User.builder().id(1L).build();
+    void close_shouldPayOutWholeBalance_andSetClosed() {
+        when(currentUser.requireId()).thenReturn(7L);
 
-        SavingsAccount savings = SavingsAccount.builder()
-                .id(5L).user(u1).currency("EUR").balance(new BigDecimal("100.00")).name("S")
-                .build();
-        Account current = Account.builder()
-                .id(10L).user(u1).currency("HUF").balance(new BigDecimal("0.00")).accountNumber("CURR")
-                .build();
+        Account current = account(1L, "HUF", "0.00", AccountStatus.ACTIVE);
+        SavingsAccount savings = savings(2L, "HUF", "42000.00", SavingsStatus.ACTIVE);
+        lockAccount(7L, current);
+        lockSavings(7L, savings);
 
-        when(savingsAccountRepository.findById(5L)).thenReturn(Optional.of(savings));
-        when(accountRepository.findById(10L)).thenReturn(Optional.of(current));
+        service.close(2L, 1L);
 
-        SavingsTransferRequest req = SavingsTransferRequest.builder()
-                .accountId(10L)
-                .amount(new BigDecimal("10.00"))
-                .build();
-
-        assertThrows(BusinessException.class, () -> service.withdrawToAccount(5L, req));
-
-        verify(accountRepository, never()).save(any());
-        verify(savingsAccountRepository, never()).save(any());
-        verifyNoInteractions(transactionRepository, balanceHistoryRepository);
+        assertEquals(SavingsStatus.CLOSED, savings.getStatus());
+        assertEquals(0, BigDecimal.ZERO.compareTo(savings.getBalance()));
+        verify(ledgerService).credit(current, TransactionType.INCOME, new BigDecimal("42000.00"), PARTNER_NAME, "Megtakarítás lezárása: Teszt", null);
     }
 
     @Test
-    void withdrawToAccount_shouldThrowBusinessException_whenInsufficientSavingsBalance() {
-        User u1 = User.builder().id(1L).build();
+    void close_shouldNotMoveMoney_whenSavingsIsEmpty() {
+        when(currentUser.requireId()).thenReturn(7L);
 
-        SavingsAccount savings = SavingsAccount.builder()
-                .id(5L).user(u1).currency("HUF").balance(new BigDecimal("5.00")).name("S")
-                .build();
-        Account current = Account.builder()
-                .id(10L).user(u1).currency("HUF").balance(new BigDecimal("0.00")).accountNumber("CURR")
-                .build();
+        SavingsAccount savings = savings(2L, "HUF", "0.00", SavingsStatus.ACTIVE);
+        lockAccount(7L, account(1L, "HUF", "0.00", AccountStatus.ACTIVE));
+        lockSavings(7L, savings);
 
-        when(savingsAccountRepository.findById(5L)).thenReturn(Optional.of(savings));
-        when(accountRepository.findById(10L)).thenReturn(Optional.of(current));
+        service.close(2L, 1L);
 
-        SavingsTransferRequest req = SavingsTransferRequest.builder()
-                .accountId(10L)
-                .amount(new BigDecimal("10.00"))
-                .build();
-
-        assertThrows(BusinessException.class, () -> service.withdrawToAccount(5L, req));
-
-        verify(accountRepository, never()).save(any());
-        verify(savingsAccountRepository, never()).save(any());
-        verifyNoInteractions(transactionRepository, balanceHistoryRepository);
+        assertEquals(SavingsStatus.CLOSED, savings.getStatus());
+        verifyNoInteractions(ledgerService, savingsTransactionRepository);
     }
 
     @Test
-    void withdrawToAccount_shouldMoveMoney_saveTxAndBalanceHistory_andReturnResponse() {
-        User user = User.builder().id(1L).build();
+    void listTransactions_shouldThrowNotFound_whenSavingsIsNotOwn() {
+        when(currentUser.requireId()).thenReturn(7L);
+        when(savingsAccountRepository.existsByIdAndUser_Id(2L, 7L)).thenReturn(false);
 
-        SavingsAccount savings = SavingsAccount.builder()
-                .id(5L)
-                .user(user)
-                .currency("HUF")
-                .balance(new BigDecimal("200.00"))
-                .name("SAV")
-                .build();
+        assertThrows(NotFoundException.class, () -> service.listTransactions(2L, PageRequest.of(0, 20)));
 
-        Account current = Account.builder()
-                .id(10L)
-                .user(user)
-                .currency("HUF")
-                .balance(new BigDecimal("500.00"))
-                .accountNumber("CURR-ACC")
-                .build();
-
-        when(savingsAccountRepository.findById(5L)).thenReturn(Optional.of(savings));
-        when(accountRepository.findById(10L)).thenReturn(Optional.of(current));
-
-        when(savingsAccountRepository.save(savings)).thenAnswer(inv -> inv.getArgument(0));
-        when(accountRepository.save(current)).thenAnswer(inv -> inv.getArgument(0));
-
-        Transaction txEntity = Transaction.builder().account(current).build();
-        when(transactionMapper.toEntity(any(CreateTransactionRequest.class), eq(current))).thenReturn(txEntity);
-
-        Transaction savedTx = Transaction.builder()
-                .id(77L)
-                .account(current)
-                .message("DEFAULT")
-                .createdAt(Instant.parse("2025-01-01T10:00:00Z"))
-                .build();
-        when(transactionRepository.save(txEntity)).thenReturn(savedTx);
-
-        when(balanceHistoryMapper.toEntity(eq(current), any(BigDecimal.class)))
-                .thenReturn(BalanceHistory.builder().account(current).build());
-        when(balanceHistoryRepository.save(any(BalanceHistory.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        SavingsTransferRequest req = SavingsTransferRequest.builder()
-                .accountId(10L)
-                .amount(new BigDecimal("50.00"))
-                .message(null)
-                .build();
-
-        SavingsTransferResponse resp = service.withdrawToAccount(5L, req);
-
-        assertNotNull(resp);
-        assertEquals(5L, resp.getSavingsAccountId());
-        assertEquals(10L, resp.getAccountId());
-        assertEquals(new BigDecimal("150.00"), resp.getSavingsNewBalance());
-        assertEquals(new BigDecimal("550.00"), resp.getAccountNewBalance());
-        assertNull(resp.getMessage());
-        assertEquals(savedTx.getCreatedAt(), resp.getCreatedAt());
-
-        ArgumentCaptor<CreateTransactionRequest> txReqCaptor = ArgumentCaptor.forClass(CreateTransactionRequest.class);
-        verify(transactionMapper).toEntity(txReqCaptor.capture(), eq(current));
-        CreateTransactionRequest capturedTxReq = txReqCaptor.getValue();
-        assertEquals(TransactionType.INCOME, capturedTxReq.getType());
-        assertEquals(new BigDecimal("50.00"), capturedTxReq.getAmount());
-        assertEquals("HUF", capturedTxReq.getCurrency());
-        assertEquals("CURR-ACC", capturedTxReq.getToAccount());
-
-        verify(balanceHistoryMapper).toEntity(eq(current), eq(new BigDecimal("550.00")));
-        verify(balanceHistoryRepository).save(any(BalanceHistory.class));
+        verifyNoInteractions(savingsTransactionRepository);
     }
 
     @Test
-    void delete_shouldSetStatusClosed() {
-        SavingsAccount entity = SavingsAccount.builder()
-                .id(7L)
-                .status(SavingsStatus.ACTIVE)
+    void listTransactions_shouldMapPage() {
+        when(currentUser.requireId()).thenReturn(7L);
+        when(savingsAccountRepository.existsByIdAndUser_Id(2L, 7L)).thenReturn(true);
+
+        Pageable pageable = PageRequest.of(0, 20);
+        SavingsTransaction st = SavingsTransaction.builder().id(9L).build();
+        when(savingsTransactionRepository.findBySavingsAccount_IdOrderByCreatedAtDesc(2L, pageable)).thenReturn(new PageImpl<>(List.of(st), pageable, 1));
+        when(savingsTransactionMapper.toResponse(st)).thenReturn(SavingsTransactionResponse.builder().id(9L).build());
+
+        Page<SavingsTransactionResponse> page = service.listTransactions(2L, pageable);
+
+        assertEquals(1, page.getTotalElements());
+        assertEquals(9L, page.getContent().get(0).getId());
+    }
+
+    @Test
+    void creditMonthlyInterest_shouldCreditOneTwelfthOfYearlyRate_andNotify() {
+        User owner = User.builder().id(7L).build();
+        SavingsAccount savings = savings(2L, "HUF", "120000.00", SavingsStatus.ACTIVE);
+        savings.setUser(owner);
+        savings.setInterestRate(new BigDecimal("3.50"));
+        when(savingsAccountRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(savings));
+        when(savingsTransactionRepository.existsBySavingsAccount_IdAndTypeAndCreatedAtGreaterThanEqual(eq(2L), eq(SavingsTransactionType.INTEREST), any())).thenReturn(false);
+
+        boolean credited = service.creditMonthlyInterest(2L);
+
+        // 120 000 * 3,5% / 12 = 350,00
+        assertTrue(credited);
+        assertEquals(0, new BigDecimal("120350.00").compareTo(savings.getBalance()));
+        verify(savingsTransactionMapper).toEntity(savings, SavingsTransactionType.INTEREST, new BigDecimal("350.00"));
+        verify(notificationService).notify(eq(owner), eq(NotificationType.SAVINGS), eq("Kamatjóváírás"), anyString());
+    }
+
+    @Test
+    void creditMonthlyInterest_shouldSkip_whenAlreadyCreditedThisMonth() {
+        SavingsAccount savings = savings(2L, "HUF", "120000.00", SavingsStatus.ACTIVE);
+        when(savingsAccountRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(savings));
+        when(savingsTransactionRepository.existsBySavingsAccount_IdAndTypeAndCreatedAtGreaterThanEqual(eq(2L), eq(SavingsTransactionType.INTEREST), any())).thenReturn(true);
+
+        assertFalse(service.creditMonthlyInterest(2L));
+
+        assertEquals(0, new BigDecimal("120000.00").compareTo(savings.getBalance()));
+        verify(savingsTransactionRepository, never()).save(any());
+        verifyNoInteractions(notificationService);
+    }
+
+    @Test
+    void creditMonthlyInterest_shouldSkip_whenSavingsIsNotActive() {
+        when(savingsAccountRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(savings(2L, "HUF", "1000.00", SavingsStatus.FROZEN)));
+
+        assertFalse(service.creditMonthlyInterest(2L));
+
+        verifyNoInteractions(savingsTransactionRepository, notificationService);
+    }
+
+    @Test
+    void creditMonthlyInterest_shouldSkip_whenInterestRoundsToZero() {
+        SavingsAccount savings = savings(2L, "HUF", "1.00", SavingsStatus.ACTIVE);
+        savings.setInterestRate(new BigDecimal("3.50"));
+        when(savingsAccountRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(savings));
+        when(savingsTransactionRepository.existsBySavingsAccount_IdAndTypeAndCreatedAtGreaterThanEqual(eq(2L), eq(SavingsTransactionType.INTEREST), any())).thenReturn(false);
+
+        assertFalse(service.creditMonthlyInterest(2L));
+
+        verify(savingsTransactionRepository, never()).save(any());
+    }
+
+    private void lockAccount(Long userId, Account account) {
+        when(accountRepository.existsByIdAndUser_Id(account.getId(), userId)).thenReturn(true);
+        when(accountRepository.findByIdForUpdate(account.getId())).thenReturn(Optional.of(account));
+    }
+
+    private void lockSavings(Long userId, SavingsAccount savings) {
+        when(savingsAccountRepository.existsByIdAndUser_Id(savings.getId(), userId)).thenReturn(true);
+        when(savingsAccountRepository.findByIdForUpdate(savings.getId())).thenReturn(Optional.of(savings));
+    }
+
+    private Account account(Long id, String currency, String balance, AccountStatus status) {
+        return Account.builder()
+                .id(id)
+                .currency(currency)
+                .balance(new BigDecimal(balance))
+                .status(status)
                 .build();
+    }
 
-        when(savingsAccountRepository.findById(7L)).thenReturn(Optional.of(entity));
-
-        service.delete(7L);
-
-        assertEquals(SavingsStatus.CLOSED, entity.getStatus());
-        verify(savingsAccountRepository).findById(7L);
+    private SavingsAccount savings(Long id, String currency, String balance, SavingsStatus status) {
+        return SavingsAccount.builder()
+                .id(id)
+                .name("Teszt")
+                .currency(currency)
+                .balance(new BigDecimal(balance))
+                .interestRate(new BigDecimal("3.50"))
+                .status(status)
+                .build();
     }
 }

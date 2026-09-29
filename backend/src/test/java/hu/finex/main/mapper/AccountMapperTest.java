@@ -4,7 +4,6 @@ import hu.finex.main.dto.AccountListItemResponse;
 import hu.finex.main.dto.AccountResponse;
 import hu.finex.main.dto.CreateAccountRequest;
 import hu.finex.main.dto.UpdateAccountStatusRequest;
-import hu.finex.main.dto.UpdateCardNumberRequest;
 import hu.finex.main.model.Account;
 import hu.finex.main.model.User;
 import hu.finex.main.model.enums.AccountStatus;
@@ -31,11 +30,11 @@ class AccountMapperTest {
         Account account = Account.builder()
                 .id(10L)
                 .user(user)
+                .name("Fő számla")
                 .accountNumber("ACC123")
                 .balance(new BigDecimal("1500.00"))
                 .currency("HUF")
                 .accountType(AccountType.SAVINGS)
-                .cardNumber("CARD999")
                 .status(AccountStatus.ACTIVE)
                 .createdAt(createdAt)
                 .build();
@@ -45,11 +44,11 @@ class AccountMapperTest {
         assertNotNull(response);
         assertEquals(10L, response.getId());
         assertEquals(5L, response.getUserId());
+        assertEquals("Fő számla", response.getName());
         assertEquals("ACC123", response.getAccountNumber());
         assertEquals(new BigDecimal("1500.00"), response.getBalance());
         assertEquals("HUF", response.getCurrency());
         assertEquals(AccountType.SAVINGS, response.getAccountType());
-        assertEquals("CARD999", response.getCardNumber());
         assertEquals(AccountStatus.ACTIVE, response.getStatus());
         assertEquals(createdAt, response.getCreatedAt());
     }
@@ -58,9 +57,11 @@ class AccountMapperTest {
     void testToListItem() {
         Account account = Account.builder()
                 .id(20L)
+                .name("Euró számla")
                 .accountNumber("ACC456")
                 .balance(new BigDecimal("300.00"))
                 .currency("EUR")
+                .accountType(AccountType.CURRENT)
                 .status(AccountStatus.BLOCKED)
                 .build();
 
@@ -68,17 +69,19 @@ class AccountMapperTest {
 
         assertNotNull(response);
         assertEquals(20L, response.getId());
+        assertEquals("Euró számla", response.getName());
         assertEquals("ACC456", response.getAccountNumber());
         assertEquals(new BigDecimal("300.00"), response.getBalance());
         assertEquals("EUR", response.getCurrency());
+        assertEquals(AccountType.CURRENT, response.getAccountType());
         assertEquals(AccountStatus.BLOCKED, response.getStatus());
     }
 
     @Test
     void testToEntity() {
         CreateAccountRequest request = CreateAccountRequest.builder()
+                .name("Dollár számla")
                 .currency("USD")
-                .accountType(AccountType.CURRENT)
                 .build();
 
         User user = User.builder()
@@ -92,28 +95,13 @@ class AccountMapperTest {
         assertNotNull(account);
         assertNull(account.getId());
         assertEquals(user, account.getUser());
+        assertEquals("Dollár számla", account.getName());
         assertEquals("ACC999", account.getAccountNumber());
         assertEquals(BigDecimal.ZERO, account.getBalance());
         assertEquals("USD", account.getCurrency());
         assertEquals(AccountType.CURRENT, account.getAccountType());
-        assertNull(account.getCardNumber());
-        assertNull(account.getStatus());
+        assertEquals(AccountStatus.ACTIVE, account.getStatus());
         assertNotNull(account.getCreatedAt());
-    }
-
-    @Test
-    void testUpdateCardNumber() {
-        Account account = Account.builder()
-                .cardNumber(null)
-                .build();
-
-        UpdateCardNumberRequest request = UpdateCardNumberRequest.builder()
-                .cardNumber("CARD123")
-                .build();
-
-        mapper.updateCardNumber(account, request);
-
-        assertEquals("CARD123", account.getCardNumber());
     }
 
     @Test

@@ -2,7 +2,6 @@ package hu.finex.main.model;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.OffsetDateTime;
 
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -33,7 +32,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "savings_accounts",indexes = {@Index(name = "idx_savings_accounts_user_id", columnList = "user_id"),@Index(name = "idx_savings_accounts_status", columnList = "status")})
+@Table(name = "savings_accounts",indexes = {@Index(name = "idx_savings_accounts_user_id", columnList = "user_id")})
 @EntityListeners(AuditingEntityListener.class)
 @Getter @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -68,13 +67,18 @@ public class SavingsAccount {
     @Column(nullable = false, length = 3)
     private String currency;
 
+    // Éves kamatláb (%), a bank határozza meg nyitáskor
     @NotNull
     @Column(name = "interest_rate", nullable = false, precision = 5, scale = 2)
     private BigDecimal interestRate;
 
+    // Opcionális célösszeg (pl. 600 000 Ft a nyaralásra)
+    @Column(name = "target_amount", precision = 18, scale = 2)
+    private BigDecimal targetAmount;
+
     @NotNull
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     private SavingsStatus status;
 
     @CreatedDate

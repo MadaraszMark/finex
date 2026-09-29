@@ -2,6 +2,7 @@ package hu.finex.main.mapper;
 
 import hu.finex.main.dto.CreateCategoryRequest;
 import hu.finex.main.dto.CategoryResponse;
+import hu.finex.main.dto.UpdateCategoryRequest;
 import hu.finex.main.model.Category;
 import org.junit.jupiter.api.Test;
 
@@ -47,6 +48,26 @@ class CategoryMapperTest {
     }
 
     @Test
+    void testUpdateEntity_fromUpdateRequest() {
+        Category category = Category.builder()
+                .id(6L)
+                .name("Egyéb")
+                .icon("circle")
+                .build();
+
+        UpdateCategoryRequest request = UpdateCategoryRequest.builder()
+                .name("Egyéb kiadás")
+                .icon("circle-ellipsis")
+                .build();
+
+        mapper.updateEntity(category, request);
+
+        assertEquals(6L, category.getId());
+        assertEquals("Egyéb kiadás", category.getName());
+        assertEquals("circle-ellipsis", category.getIcon());
+    }
+
+    @Test
     void testToResponse() {
         Category category = Category.builder()
                 .id(12L)
@@ -62,4 +83,3 @@ class CategoryMapperTest {
         assertEquals("🎬", response.getIcon());
     }
 }
-

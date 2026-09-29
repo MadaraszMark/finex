@@ -21,8 +21,11 @@ public class LoginLogResponse {
     @Schema(description = "A belépési napló egyedi azonosítója", example = "5501")
     private Long id;
 
-    @Schema(description = "A felhasználó azonosítója", example = "42")
+    @Schema(description = "A felhasználó azonosítója (ismeretlen e-mail címnél üres)", example = "42")
     private Long userId;
+
+    @Schema(description = "A belépéskor megadott e-mail cím", example = "bence.kovacs@example.com")
+    private String email;
 
     @Schema(description = "Belépés státusza (SUCCESS vagy FAILED)", example = "FAILED")
     private LoginStatus status;
@@ -33,7 +36,7 @@ public class LoginLogResponse {
     @Schema(description = "Kliens user-agent információ", example = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X)")
     private String userAgent;
 
-    @Schema(description = "Sikertelen belépés oka (ha van)", example = "Invalid password")
+    @Schema(description = "Sikertelen belépés oka (ha van)", example = "Hibás jelszó")
     private String failureReason;
 
     @Schema(description = "A belépési esemény időpontja", example = "2025-02-12T14:22:10Z")

@@ -4,9 +4,12 @@ import hu.finex.main.model.Account;
 import hu.finex.main.model.User;
 import hu.finex.main.model.enums.AccountStatus;
 import hu.finex.main.model.enums.AccountType;
+import hu.finex.main.model.enums.UserRole;
+import hu.finex.main.model.enums.UserStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -16,6 +19,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
+@ActiveProfiles("test")
 class AccountRepositoryTest extends PostgresRepositoryTestBase {
 
     @Autowired private AccountRepository accountRepository;
@@ -123,6 +127,52 @@ class AccountRepositoryTest extends PostgresRepositoryTestBase {
         assertEquals(AccountType.CURRENT, found.get().getAccountType());
     }
 
+    @Test
+    void findByIdAndUser_Id_shouldReturnEmpty_whenAccountBelongsToOtherUser() {
+        User owner = saveUser("owner@a.com");
+        User other = saveUser("other@a.com");
+        Account account = saveAccount(owner, "OWN-1", AccountType.CURRENT, AccountStatus.ACTIVE, "HUF", BigDecimal.TEN);
+
+        assertTrue(accountRepository.findByIdAndUser_Id(account.getId(), owner.getId()).isPresent());
+        assertTrue(accountRepository.findByIdAndUser_Id(account.getId(), other.getId()).isEmpty());
+        assertTrue(accountRepository.existsByIdAndUser_Id(account.getId(), owner.getId()));
+        assertFalse(accountRepository.existsByIdAndUser_Id(account.getId(), other.getId()));
+    }
+
+    @Test
+    void findIdByAccountNumber_shouldReturnOnlyTheId() {
+        User user = saveUser("g@a.com");
+        Account account = saveAccount(user, "ID-ONLY", AccountType.CURRENT, AccountStatus.ACTIVE, "HUF", BigDecimal.ZERO);
+
+        assertEquals(Optional.of(account.getId()), accountRepository.findIdByAccountNumber("ID-ONLY"));
+        assertTrue(accountRepository.findIdByAccountNumber("NOPE").isEmpty());
+    }
+
+    @Test
+    void findByIdForUpdate_shouldReturnAccount() {
+        User user = saveUser("h@a.com");
+        Account account = saveAccount(user, "LOCK-1", AccountType.CURRENT, AccountStatus.ACTIVE, "HUF", new BigDecimal("50.00"));
+
+        Optional<Account> locked = accountRepository.findByIdForUpdate(account.getId());
+
+        assertTrue(locked.isPresent());
+        assertEquals(0, new BigDecimal("50.00").compareTo(locked.get().getBalance()));
+    }
+
+    @Test
+    void sumBalanceByUser_shouldSumNotClosedAccountsInCurrency() {
+        User user = saveUser("i@a.com");
+        saveAccount(user, "SUM-1", AccountType.CURRENT, AccountStatus.ACTIVE, "HUF", new BigDecimal("100.00"));
+        saveAccount(user, "SUM-2", AccountType.CURRENT, AccountStatus.FROZEN, "HUF", new BigDecimal("50.00"));
+        saveAccount(user, "SUM-3", AccountType.CURRENT, AccountStatus.CLOSED, "HUF", BigDecimal.ZERO);
+        saveAccount(user, "SUM-4", AccountType.CURRENT, AccountStatus.ACTIVE, "EUR", new BigDecimal("7.00"));
+
+        BigDecimal sum = accountRepository.sumBalanceByUser(user.getId(), "HUF", AccountStatus.CLOSED);
+
+        assertEquals(0, new BigDecimal("150.00").compareTo(sum));
+        assertEquals(3, accountRepository.countByUser_IdAndStatusNot(user.getId(), AccountStatus.CLOSED));
+    }
+
     private User saveUser(String email) {
         User user = User.builder()
                 .firstName("Test")
@@ -130,7 +180,8 @@ class AccountRepositoryTest extends PostgresRepositoryTestBase {
                 .email(email)
                 .phone("000")
                 .passwordHash("HASH")
-                .role("USER")
+                .role(UserRole.USER)
+                .status(UserStatus.ACTIVE)
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
                 .build();
@@ -147,12 +198,12 @@ class AccountRepositoryTest extends PostgresRepositoryTestBase {
     ) {
         Account account = Account.builder()
                 .user(user)
+                .name("Teszt számla")
                 .accountNumber(accountNumber)
                 .balance(balance)
                 .currency(currency)
                 .accountType(type)
                 .status(status)
-                .cardNumber("4895121234567890")
                 .createdAt(Instant.now())
                 .build();
         return accountRepository.saveAndFlush(account);

@@ -26,6 +26,9 @@ public class TransactionResponse {
     @Schema(description = "A tranzakcióhoz tartozó számla ID-ja", example = "102")
     private Long accountId;
 
+    @Schema(description = "Kártyás fizetésnél a kártya azonosítója", example = "7")
+    private Long cardId;
+
     @Schema(description = "A tranzakció típusa", example = "INCOME")
     private TransactionType type;
 
@@ -35,12 +38,15 @@ public class TransactionResponse {
     @Schema(description = "Megjegyzés", example = "Fizetés a munkahelytől")
     private String message;
 
+    @Schema(description = "A másik fél neve (kedvezményezett, küldő vagy kereskedő)", example = "Netlab Kft.")
+    private String partnerName;
+
     @Schema(description = "Küldő számlaszám", example = "HU42117730161111101800000000")
     private String fromAccount;
 
     @Schema(description = "Fogadó számlaszám", example = "HU10101000001234567890000000")
     private String toAccount;
-    
+
     @Schema(description = "A tranzakcióhoz tartozó kategóriák")
     private List<CategoryResponse> categories;
 

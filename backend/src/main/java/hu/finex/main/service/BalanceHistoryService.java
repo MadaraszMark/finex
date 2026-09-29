@@ -1,21 +1,20 @@
 package hu.finex.main.service;
 
-import hu.finex.main.dto.BalanceHistoryListItemResponse;
-import hu.finex.main.dto.BalanceHistoryResponse;
-import hu.finex.main.exception.NotFoundException;
-import hu.finex.main.mapper.BalanceHistoryMapper;
-import hu.finex.main.model.BalanceHistory;
-import hu.finex.main.repository.AccountRepository;
-import hu.finex.main.repository.BalanceHistoryRepository;
+import java.time.LocalDate;
+import java.util.List;
 
-import lombok.RequiredArgsConstructor;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.OffsetDateTime;
+import hu.finex.main.dto.BalanceHistoryListItemResponse;
+import hu.finex.main.exception.BusinessException;
+import hu.finex.main.exception.NotFoundException;
+import hu.finex.main.mapper.BalanceHistoryMapper;
+import hu.finex.main.repository.AccountRepository;
+import hu.finex.main.repository.BalanceHistoryRepository;
+import hu.finex.main.security.CurrentUser;
+import hu.finex.main.util.DateUtils;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -24,24 +23,25 @@ public class BalanceHistoryService {
     private final BalanceHistoryRepository balanceHistoryRepository;
     private final AccountRepository accountRepository;
     private final BalanceHistoryMapper balanceHistoryMapper;
+    private final CurrentUser currentUser;
 
+    // Egy saját számla egyenlegének alakulása (grafikonhoz); alapértelmezés: az elmúlt 90 nap
     @Transactional(readOnly = true)
-    public BalanceHistoryResponse getById(Long id) {
-        BalanceHistory history = balanceHistoryRepository.findById(id).orElseThrow(() -> new NotFoundException("Múltbéli egyenleg rekord nem található."));
-        return balanceHistoryMapper.toResponse(history);
-    }
+    public List<BalanceHistoryListItemResponse> listByAccount(Long accountId, LocalDate from, LocalDate to) {
+        if (!accountRepository.existsByIdAndUser_Id(accountId, currentUser.requireId())) {
+            throw new NotFoundException("Számla nem található.");
+        }
 
-    @Transactional(readOnly = true)
-    public Page<BalanceHistoryListItemResponse> listByAccount(Long accountId, Pageable pageable) {
-        accountRepository.findById(accountId).orElseThrow(() -> new NotFoundException("Számla nem található."));
+        LocalDate end = to != null ? to : DateUtils.today();
+        LocalDate start = from != null ? from : end.minusDays(90);
 
-        return balanceHistoryRepository.findByAccount_IdOrderByCreatedAtAsc(accountId, pageable).map(balanceHistoryMapper::toListItem);
-    }
+        if (start.isAfter(end)) {
+            throw new BusinessException("A kezdő dátum nem lehet későbbi a záró dátumnál.");
+        }
 
-    @Transactional(readOnly = true)
-    public Page<BalanceHistoryListItemResponse> listByAccountBetween(Long accountId,OffsetDateTime start,OffsetDateTime end,Pageable pageable) {
-        accountRepository.findById(accountId).orElseThrow(() -> new NotFoundException("Számla nem található."));
-
-        return balanceHistoryRepository.findByAccount_IdAndCreatedAtBetweenOrderByCreatedAtAsc(accountId, start, end, pageable).map(balanceHistoryMapper::toListItem);
+        return balanceHistoryRepository.findByAccount_IdAndCreatedAtBetweenOrderByCreatedAtAsc(accountId, DateUtils.startOfDay(start), DateUtils.startOfDay(end.plusDays(1)))
+                .stream()
+                .map(balanceHistoryMapper::toListItem)
+                .toList();
     }
 }

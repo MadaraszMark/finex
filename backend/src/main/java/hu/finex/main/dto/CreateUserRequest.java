@@ -3,6 +3,7 @@ package hu.finex.main.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
@@ -11,7 +12,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Schema(description = "Új felhasználó létrehozásához szükséges adatok")
+@Schema(description = "Új felhasználó regisztrációjához szükséges adatok (a szerepkör mindig USER)")
 public class CreateUserRequest {
 
     @NotBlank
@@ -35,13 +36,9 @@ public class CreateUserRequest {
     private String phone;
 
     @NotBlank
-    @Size(min = 6, max = 255)
-    @Schema(description = "Jelszó (plaintext, backend hash-eli)", example = "TitkosJelszo123", required = true)
+    @Size(min = 8, max = 100, message = "A jelszó legalább 8 karakter legyen.")
+    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$", message = "A jelszóban betűnek és számnak is lennie kell.")
+    @Schema(description = "Jelszó (plaintext, backend hash-eli). Legalább 8 karakter, betű és szám.", example = "TitkosJelszo123", required = true)
     private String password;
-
-    @NotBlank
-    @Size(max = 32)
-    @Schema(description = "Szerepkör (USER vagy ADMIN)", example = "USER", required = true)
-    private String role;
 }
 

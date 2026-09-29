@@ -1,6 +1,7 @@
 package hu.finex.main.repository;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,7 +17,10 @@ public interface BalanceHistoryRepository extends JpaRepository<BalanceHistory, 
     Page<BalanceHistory> findByAccount_IdOrderByCreatedAtAsc(Long accountId, Pageable pageable);
 
     // Időintervallumra szűrés (grafikonokhoz, dashboardhoz)
-    Page<BalanceHistory> findByAccount_IdAndCreatedAtBetweenOrderByCreatedAtAsc(Long accountId,OffsetDateTime start,OffsetDateTime end,Pageable pageable);
+    Page<BalanceHistory> findByAccount_IdAndCreatedAtBetweenOrderByCreatedAtAsc(Long accountId,Instant start,Instant end,Pageable pageable);
 
-    boolean existsByAccount_IdAndCreatedAtAfter(Long accountId, OffsetDateTime time);
+    // Grafikonhoz: az időszak összes pontja lapozás nélkül
+    List<BalanceHistory> findByAccount_IdAndCreatedAtBetweenOrderByCreatedAtAsc(Long accountId, Instant start, Instant end);
+
+    boolean existsByAccount_IdAndCreatedAtAfter(Long accountId, Instant time);
 }

@@ -1,13 +1,22 @@
 package hu.finex.main.service;
 
+import hu.finex.main.config.FinexProperties;
 import hu.finex.main.dto.*;
 import hu.finex.main.exception.BusinessException;
 import hu.finex.main.exception.NotFoundException;
-import hu.finex.main.mapper.BalanceHistoryMapper;
+import hu.finex.main.mapper.CategoryMapper;
+import hu.finex.main.mapper.TransactionCategoryMapper;
 import hu.finex.main.mapper.TransactionMapper;
 import hu.finex.main.model.*;
+import hu.finex.main.model.enums.AccountStatus;
+import hu.finex.main.model.enums.NotificationType;
 import hu.finex.main.model.enums.TransactionType;
-import hu.finex.main.repository.*;
+import hu.finex.main.repository.AccountRepository;
+import hu.finex.main.repository.CategoryRepository;
+import hu.finex.main.repository.TransactionCategoryRepository;
+import hu.finex.main.repository.TransactionRepository;
+import hu.finex.main.security.CurrentUser;
+import hu.finex.main.util.DateUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
@@ -16,8 +25,10 @@ import org.springframework.data.domain.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -25,418 +36,424 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class TransactionServiceTest {
 
+    private static final String ANNA_IBAN = "HU15117730161111101800000001";
+    private static final String ANNA_EUR_IBAN = "HU85117730161111101800000002";
+    private static final String BENCE_IBAN = "HU28104000950000521700000003";
+    private static final String OTHER_IBAN = "HU50120100070000123400000004";
+    private static final String LANDLORD_IBAN = "HU66109180010000048900240017";
+
     @Mock private AccountRepository accountRepository;
     @Mock private TransactionRepository transactionRepository;
-    @Mock private BalanceHistoryRepository balanceHistoryRepository;
     @Mock private TransactionMapper transactionMapper;
-    @Mock private BalanceHistoryMapper balanceHistoryMapper;
     @Mock private TransactionCategoryRepository transactionCategoryRepository;
+    @Mock private TransactionCategoryMapper transactionCategoryMapper;
     @Mock private CategoryRepository categoryRepository;
+    @Mock private CategoryMapper categoryMapper;
+    @Mock private LedgerService ledgerService;
+    @Mock private NotificationService notificationService;
+    @Mock private CurrentUser currentUser;
+    @Spy private FinexProperties finexProperties = new FinexProperties();
 
     @InjectMocks private TransactionService service;
 
     @Test
-    void create_shouldThrowNotFound_whenAccountMissing() {
-        CreateTransactionRequest req = CreateTransactionRequest.builder()
-                .accountId(1L)
-                .type(TransactionType.INCOME)
-                .amount(new BigDecimal("10.00"))
-                .currency("HUF")
-                .build();
+    void getById_shouldReturnOwnTransactionWithCategories() {
+        when(currentUser.requireId()).thenReturn(7L);
 
-        when(accountRepository.findById(1L)).thenReturn(Optional.empty());
+        Transaction tx = Transaction.builder().id(99L).build();
+        when(transactionRepository.findByIdAndAccount_User_Id(99L, 7L)).thenReturn(Optional.of(tx));
 
-        assertThrows(NotFoundException.class, () -> service.create(req));
+        Category food = Category.builder().id(1L).name("Élelmiszer").build();
+        when(transactionCategoryRepository.findByTransaction_IdIn(List.of(99L))).thenReturn(List.of(TransactionCategory.builder().transaction(tx).category(food).build()));
 
-        verify(accountRepository).findById(1L);
-        verifyNoInteractions(balanceHistoryRepository, transactionRepository, transactionMapper, balanceHistoryMapper, transactionCategoryRepository, categoryRepository);
+        CategoryResponse foodResp = CategoryResponse.builder().id(1L).name("Élelmiszer").build();
+        when(categoryMapper.toResponse(food)).thenReturn(foodResp);
+
+        TransactionResponse expected = TransactionResponse.builder().id(99L).categories(List.of(foodResp)).build();
+        when(transactionMapper.toResponse(tx, List.of(foodResp))).thenReturn(expected);
+
+        TransactionResponse resp = service.getById(99L);
+
+        assertEquals(expected, resp);
     }
 
     @Test
-    void create_shouldThrowBusinessException_whenCurrencyMismatch() {
-        Account account = Account.builder()
-                .id(1L)
-                .currency("HUF")
-                .balance(new BigDecimal("100.00"))
-                .build();
+    void getById_shouldThrowNotFound_whenTransactionBelongsToOtherUser() {
+        when(currentUser.requireId()).thenReturn(7L);
+        when(transactionRepository.findByIdAndAccount_User_Id(99L, 7L)).thenReturn(Optional.empty());
 
-        CreateTransactionRequest req = CreateTransactionRequest.builder()
-                .accountId(1L)
-                .type(TransactionType.INCOME)
-                .amount(new BigDecimal("10.00"))
-                .currency("EUR")
-                .build();
+        assertThrows(NotFoundException.class, () -> service.getById(99L));
 
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
-
-        assertThrows(BusinessException.class, () -> service.create(req));
-
-        verify(accountRepository).findById(1L);
-        verifyNoInteractions(balanceHistoryRepository, transactionRepository, transactionMapper, balanceHistoryMapper, transactionCategoryRepository, categoryRepository);
+        verifyNoInteractions(transactionMapper, transactionCategoryRepository);
     }
 
     @Test
-    void create_shouldIncreaseBalance_andSaveHistoryAndTx_andReturnResponse_whenIncome() {
-        Account account = Account.builder()
-                .id(1L)
-                .currency("HUF")
-                .balance(new BigDecimal("100.00"))
+    void search_shouldNormalizeFilters_andLoadCategoriesWithOneQuery() {
+        when(currentUser.requireId()).thenReturn(7L);
+        when(accountRepository.existsByIdAndUser_Id(3L, 7L)).thenReturn(true);
+
+        TransactionSearchRequest filter = TransactionSearchRequest.builder()
+                .accountId(3L)
+                .from(LocalDate.of(2025, 3, 1))
+                .to(LocalDate.of(2025, 3, 31))
+                .search("  Tesco ")
                 .build();
-
-        CreateTransactionRequest req = CreateTransactionRequest.builder()
-                .accountId(1L)
-                .type(TransactionType.INCOME)
-                .amount(new BigDecimal("10.00"))
-                .currency("HUF")
-                .message("income")
-                .categoryIds(null)
-                .build();
-
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
-
-        BalanceHistory history = BalanceHistory.builder().account(account).balance(new BigDecimal("110.00")).build();
-        when(balanceHistoryMapper.toEntity(account, new BigDecimal("110.00"))).thenReturn(history);
-        when(balanceHistoryRepository.save(history)).thenReturn(history);
-
-        Transaction txEntity = Transaction.builder().account(account).build();
-        when(transactionMapper.toEntity(req, account)).thenReturn(txEntity);
-
-        Transaction savedTx = Transaction.builder()
-                .id(10L)
-                .account(account)
-                .type(TransactionType.INCOME)
-                .amount(new BigDecimal("10.00"))
-                .currency("HUF")
-                .message("income")
-                .createdAt(Instant.parse("2025-01-01T10:00:00Z"))
-                .build();
-        when(transactionRepository.save(txEntity)).thenReturn(savedTx);
-
-        when(transactionCategoryRepository.findByTransaction_Id(10L)).thenReturn(List.of());
-
-        TransactionResponse mappedResp = TransactionResponse.builder()
-                .id(10L)
-                .accountId(1L)
-                .type(TransactionType.INCOME)
-                .amount(new BigDecimal("10.00"))
-                .currency("HUF")
-                .message("income")
-                .createdAt(savedTx.getCreatedAt())
-                .build();
-        when(transactionMapper.toResponse(savedTx)).thenReturn(mappedResp);
-
-        TransactionResponse resp = service.create(req);
-
-        assertNotNull(resp);
-        assertEquals(10L, resp.getId());
-        assertEquals(new BigDecimal("110.00"), account.getBalance());
-        assertNotNull(resp.getCategories());
-        assertEquals(0, resp.getCategories().size());
-
-        verify(balanceHistoryMapper).toEntity(account, new BigDecimal("110.00"));
-        verify(balanceHistoryRepository).save(history);
-        verify(transactionRepository).save(txEntity);
-        verify(transactionMapper).toResponse(savedTx);
-        verify(transactionCategoryRepository).findByTransaction_Id(10L);
-        verifyNoInteractions(categoryRepository);
-    }
-
-    @Test
-    void create_shouldThrowBusinessException_whenInsufficientFundsForOutcome() {
-        Account account = Account.builder()
-                .id(1L)
-                .currency("HUF")
-                .balance(new BigDecimal("50.00"))
-                .build();
-
-        CreateTransactionRequest req = CreateTransactionRequest.builder()
-                .accountId(1L)
-                .type(TransactionType.OUTCOME)
-                .amount(new BigDecimal("100.00"))
-                .currency("HUF")
-                .build();
-
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
-
-        assertThrows(BusinessException.class, () -> service.create(req));
-
-        assertEquals(new BigDecimal("50.00"), account.getBalance());
-        verifyNoInteractions(balanceHistoryRepository, transactionRepository, transactionMapper, balanceHistoryMapper, transactionCategoryRepository, categoryRepository);
-    }
-
-    @Test
-    void create_shouldDecreaseBalance_andSaveHistoryAndTx_andSaveCategories_whenOutcomeWithCategories() {
-        Account account = Account.builder()
-                .id(1L)
-                .currency("HUF")
-                .balance(new BigDecimal("100.00"))
-                .accountNumber("ACC-1")
-                .build();
-
-        List<Long> categoryIds = List.of(7L, 8L);
-
-        CreateTransactionRequest req = CreateTransactionRequest.builder()
-                .accountId(1L)
-                .type(TransactionType.OUTCOME)
-                .amount(new BigDecimal("30.00"))
-                .currency("HUF")
-                .message("buy")
-                .categoryIds(categoryIds)
-                .fromAccount("ACC-1")
-                .build();
-
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
-
-        BalanceHistory history = BalanceHistory.builder().account(account).balance(new BigDecimal("70.00")).build();
-        when(balanceHistoryMapper.toEntity(account, new BigDecimal("70.00"))).thenReturn(history);
-        when(balanceHistoryRepository.save(history)).thenReturn(history);
-
-        Transaction txEntity = Transaction.builder().account(account).build();
-        when(transactionMapper.toEntity(req, account)).thenReturn(txEntity);
-
-        Transaction savedTx = Transaction.builder()
-                .id(10L)
-                .account(account)
-                .type(TransactionType.OUTCOME)
-                .amount(new BigDecimal("30.00"))
-                .currency("HUF")
-                .message("buy")
-                .createdAt(Instant.parse("2025-01-01T10:00:00Z"))
-                .build();
-        when(transactionRepository.save(txEntity)).thenReturn(savedTx);
-
-        when(categoryRepository.existsById(7L)).thenReturn(true);
-        when(categoryRepository.existsById(8L)).thenReturn(true);
-
-        Category c7 = Category.builder().id(7L).name("Food").icon("🍔").build();
-        Category c8 = Category.builder().id(8L).name("Transport").icon("🚗").build();
-        when(categoryRepository.findById(7L)).thenReturn(Optional.of(c7));
-        when(categoryRepository.findById(8L)).thenReturn(Optional.of(c8));
-
-        when(transactionCategoryRepository.save(any(TransactionCategory.class)))
-                .thenAnswer(inv -> inv.getArgument(0));
-
-        TransactionCategory link1 = TransactionCategory.builder().transaction(savedTx).category(c7).build();
-        TransactionCategory link2 = TransactionCategory.builder().transaction(savedTx).category(c8).build();
-        when(transactionCategoryRepository.findByTransaction_Id(10L)).thenReturn(List.of(link1, link2));
-
-        TransactionResponse mappedResp = TransactionResponse.builder()
-                .id(10L)
-                .accountId(1L)
-                .type(TransactionType.OUTCOME)
-                .amount(new BigDecimal("30.00"))
-                .currency("HUF")
-                .message("buy")
-                .createdAt(savedTx.getCreatedAt())
-                .build();
-        when(transactionMapper.toResponse(savedTx)).thenReturn(mappedResp);
-
-        TransactionResponse resp = service.create(req);
-
-        assertNotNull(resp);
-        assertEquals(10L, resp.getId());
-        assertEquals(new BigDecimal("70.00"), account.getBalance());
-        assertNotNull(resp.getCategories());
-        assertEquals(2, resp.getCategories().size());
-        assertEquals(7L, resp.getCategories().get(0).getId());
-        assertEquals(8L, resp.getCategories().get(1).getId());
-
-        verify(categoryRepository).existsById(7L);
-        verify(categoryRepository).existsById(8L);
-        verify(categoryRepository).findById(7L);
-        verify(categoryRepository).findById(8L);
-
-        ArgumentCaptor<TransactionCategory> tcCaptor = ArgumentCaptor.forClass(TransactionCategory.class);
-        verify(transactionCategoryRepository, times(2)).save(tcCaptor.capture());
-        List<TransactionCategory> savedLinks = tcCaptor.getAllValues();
-        assertEquals(savedTx, savedLinks.get(0).getTransaction());
-        assertEquals(savedTx, savedLinks.get(1).getTransaction());
-
-        verify(transactionCategoryRepository).findByTransaction_Id(10L);
-    }
-
-    @Test
-    void create_shouldThrowNotFound_whenCategoryMissing_inSaveCategories() {
-        Account account = Account.builder()
-                .id(1L)
-                .currency("HUF")
-                .balance(new BigDecimal("100.00"))
-                .build();
-
-        CreateTransactionRequest req = CreateTransactionRequest.builder()
-                .accountId(1L)
-                .type(TransactionType.INCOME)
-                .amount(new BigDecimal("10.00"))
-                .currency("HUF")
-                .categoryIds(List.of(99L))
-                .build();
-
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
-        when(categoryRepository.existsById(99L)).thenReturn(false);
-
-        assertThrows(NotFoundException.class, () -> service.create(req));
-
-        verify(categoryRepository).existsById(99L);
-        verify(categoryRepository, never()).findById(anyLong());
-        verify(transactionCategoryRepository, never()).save(any());
-    }
-
-    @Test
-    void getById_shouldThrowNotFound_whenMissing() {
-        when(transactionRepository.findById(5L)).thenReturn(Optional.empty());
-        assertThrows(NotFoundException.class, () -> service.getById(5L));
-    }
-
-    @Test
-    void getById_shouldReturnResponseWithCategories() {
-        Account account = Account.builder().id(1L).build();
-        Transaction tx = Transaction.builder()
-                .id(10L)
-                .account(account)
-                .createdAt(Instant.parse("2025-01-01T10:00:00Z"))
-                .build();
-
-        when(transactionRepository.findById(10L)).thenReturn(Optional.of(tx));
-
-        Category c1 = Category.builder().id(1L).name("Food").icon("🍔").build();
-        Category c2 = Category.builder().id(2L).name("Transport").icon("🚗").build();
-        TransactionCategory link1 = TransactionCategory.builder().transaction(tx).category(c1).build();
-        TransactionCategory link2 = TransactionCategory.builder().transaction(tx).category(c2).build();
-        when(transactionCategoryRepository.findByTransaction_Id(10L)).thenReturn(List.of(link1, link2));
-
-        TransactionResponse mapped = TransactionResponse.builder().id(10L).accountId(1L).build();
-        when(transactionMapper.toResponse(tx)).thenReturn(mapped);
-
-        TransactionResponse resp = service.getById(10L);
-
-        assertNotNull(resp);
-        assertEquals(10L, resp.getId());
-        assertNotNull(resp.getCategories());
-        assertEquals(2, resp.getCategories().size());
-        assertEquals(1L, resp.getCategories().get(0).getId());
-        assertEquals(2L, resp.getCategories().get(1).getId());
-
-        verify(transactionRepository).findById(10L);
-        verify(transactionCategoryRepository).findByTransaction_Id(10L);
-        verify(transactionMapper).toResponse(tx);
-    }
-
-    @Test
-    void listByAccount_shouldThrowNotFound_whenAccountMissing() {
-        Pageable pageable = PageRequest.of(0, 10);
-        when(accountRepository.findById(5L)).thenReturn(Optional.empty());
-
-        assertThrows(NotFoundException.class, () -> service.listByAccount(5L, pageable));
-
-        verify(accountRepository).findById(5L);
-        verifyNoInteractions(transactionRepository, transactionMapper);
-    }
-
-    @Test
-    void listByAccount_shouldReturnMappedPage() {
-        Pageable pageable = PageRequest.of(0, 2);
-        when(accountRepository.findById(5L)).thenReturn(Optional.of(Account.builder().id(5L).build()));
+        Pageable pageable = PageRequest.of(0, 20);
 
         Transaction t1 = Transaction.builder().id(1L).build();
         Transaction t2 = Transaction.builder().id(2L).build();
-        Page<Transaction> page = new PageImpl<>(List.of(t1, t2), pageable, 2);
 
-        when(transactionRepository.findByAccount_IdOrderByCreatedAtDesc(5L, pageable)).thenReturn(page);
+        // A záró nap is benne van: a felső határ a következő nap kezdete (budapesti idő szerint)
+        when(transactionRepository.search(7L, 3L, null, DateUtils.startOfDay(LocalDate.of(2025, 3, 1)), DateUtils.startOfDay(LocalDate.of(2025, 4, 1)),
+                null, null, "%tesco%", null, pageable)).thenReturn(new PageImpl<>(List.of(t1, t2), pageable, 2));
 
-        TransactionListItemResponse r1 = TransactionListItemResponse.builder().id(1L).build();
-        TransactionListItemResponse r2 = TransactionListItemResponse.builder().id(2L).build();
-        when(transactionMapper.toListItem(t1)).thenReturn(r1);
-        when(transactionMapper.toListItem(t2)).thenReturn(r2);
+        Category food = Category.builder().id(1L).build();
+        when(transactionCategoryRepository.findByTransaction_IdIn(List.of(1L, 2L))).thenReturn(List.of(TransactionCategory.builder().transaction(t1).category(food).build()));
 
-        Page<TransactionListItemResponse> resp = service.listByAccount(5L, pageable);
+        CategoryResponse foodResp = CategoryResponse.builder().id(1L).build();
+        when(categoryMapper.toResponse(food)).thenReturn(foodResp);
 
-        assertEquals(2, resp.getTotalElements());
-        assertSame(r1, resp.getContent().get(0));
-        assertSame(r2, resp.getContent().get(1));
+        when(transactionMapper.toListItem(t1, List.of(foodResp))).thenReturn(TransactionListItemResponse.builder().id(1L).categories(List.of(foodResp)).build());
+        when(transactionMapper.toListItem(t2, List.of())).thenReturn(TransactionListItemResponse.builder().id(2L).categories(List.of()).build());
 
-        verify(transactionRepository).findByAccount_IdOrderByCreatedAtDesc(5L, pageable);
-        verify(transactionMapper).toListItem(t1);
-        verify(transactionMapper).toListItem(t2);
+        Page<TransactionListItemResponse> page = service.search(filter, pageable);
+
+        assertEquals(2, page.getTotalElements());
+        assertEquals(1, page.getContent().get(0).getCategories().size());
+        assertTrue(page.getContent().get(1).getCategories().isEmpty());
+        verify(transactionCategoryRepository, times(1)).findByTransaction_IdIn(anyCollection());
     }
 
     @Test
-    void transfer_shouldThrowNotFound_whenFromMissing() {
-        TransferRequest req = TransferRequest.builder()
-                .fromAccountId(1L)
-                .toAccountId(2L)
-                .currency("HUF")
-                .amount(new BigDecimal("10.00"))
-                .build();
+    void search_shouldThrowNotFound_whenFilteringForOtherUsersAccount() {
+        when(currentUser.requireId()).thenReturn(7L);
+        when(accountRepository.existsByIdAndUser_Id(3L, 7L)).thenReturn(false);
 
-        when(accountRepository.findById(1L)).thenReturn(Optional.empty());
+        TransactionSearchRequest filter = TransactionSearchRequest.builder().accountId(3L).build();
 
-        assertThrows(NotFoundException.class, () -> service.transfer(req));
+        assertThrows(NotFoundException.class, () -> service.search(filter, PageRequest.of(0, 20)));
 
-        verify(accountRepository).findById(1L);
-        verifyNoMoreInteractions(accountRepository);
-        verifyNoInteractions(transactionRepository, balanceHistoryRepository);
+        verifyNoInteractions(transactionRepository);
     }
 
     @Test
-    void transfer_shouldThrowNotFound_whenToMissing() {
-        TransferRequest req = TransferRequest.builder()
-                .fromAccountId(1L)
-                .toAccountId(2L)
-                .currency("HUF")
-                .amount(new BigDecimal("10.00"))
+    void search_shouldThrowBusinessException_whenFromIsAfterTo() {
+        when(currentUser.requireId()).thenReturn(7L);
+
+        TransactionSearchRequest filter = TransactionSearchRequest.builder()
+                .from(LocalDate.of(2025, 4, 1))
+                .to(LocalDate.of(2025, 3, 1))
                 .build();
 
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(Account.builder().id(1L).build()));
-        when(accountRepository.findById(2L)).thenReturn(Optional.empty());
+        assertThrows(BusinessException.class, () -> service.search(filter, PageRequest.of(0, 20)));
 
-        assertThrows(NotFoundException.class, () -> service.transfer(req));
-
-        verify(accountRepository).findById(1L);
-        verify(accountRepository).findById(2L);
-        verifyNoInteractions(transactionRepository, balanceHistoryRepository);
+        verifyNoInteractions(transactionRepository);
     }
 
-
     @Test
-    void transfer_shouldThrowBusinessException_whenCurrencyMismatch() {
+    void transfer_shouldDebitAndCredit_andNotifyRecipient_whenTargetIsFinexAccount() {
+        User anna = user(7L, "Anna", "Kovács");
+        User bence = user(8L, "Bence", "Nagy");
+        when(currentUser.requireEntity()).thenReturn(anna);
+
+        when(accountRepository.existsByIdAndUser_Id(1L, 7L)).thenReturn(true);
+        when(accountRepository.findIdByAccountNumber(BENCE_IBAN)).thenReturn(Optional.of(3L));
+
+        Account from = activeAccount(1L, anna, ANNA_IBAN, "HUF", "100000.00");
+        Account to = activeAccount(3L, bence, BENCE_IBAN, "HUF", "0.00");
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(from));
+        when(accountRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(to));
+        when(transactionRepository.sumAmountByAccountAndTypeSince(eq(1L), eq(TransactionType.TRANSFER_OUT), any())).thenReturn(BigDecimal.ZERO);
+
+        Transaction outgoing = Transaction.builder().id(100L).createdAt(Instant.parse("2025-03-10T10:00:00Z")).build();
+        when(ledgerService.debit(from, TransactionType.TRANSFER_OUT, new BigDecimal("5000.00"), "Nagy Bence", "Pizza", BENCE_IBAN, null)).thenReturn(outgoing);
+
         TransferRequest req = TransferRequest.builder()
                 .fromAccountId(1L)
-                .toAccountId(2L)
-                .currency("HUF")
-                .amount(new BigDecimal("10.00"))
+                .toAccountNumber("hu28 1040 0095 0000 5217 0000 0003")
+                .partnerName("Nagy Bence")
+                .amount(new BigDecimal("5000.00"))
+                .message("Pizza")
                 .build();
 
-        Account from = Account.builder().id(1L).currency("EUR").build();
-        Account to = Account.builder().id(2L).currency("HUF").build();
+        TransferResponse resp = service.transfer(req);
 
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(from));
-        when(accountRepository.findById(2L)).thenReturn(Optional.of(to));
+        assertEquals(100L, resp.getTransactionId());
+        assertEquals(1L, resp.getFromAccountId());
+        assertEquals(BENCE_IBAN, resp.getToAccountNumber());
+        assertEquals("HUF", resp.getCurrency());
+        assertTrue(resp.isInternal());
+        assertTrue(resp.getCategories().isEmpty());
+        assertEquals(Instant.parse("2025-03-10T10:00:00Z"), resp.getCreatedAt());
+
+        verify(ledgerService).credit(to, TransactionType.TRANSFER_IN, new BigDecimal("5000.00"), "Kovács Anna", "Pizza", ANNA_IBAN);
+        verify(notificationService).notify(eq(bence), eq(NotificationType.TRANSACTION), eq("Beérkező utalás"), contains("Kovács Anna"));
+        verifyNoInteractions(transactionCategoryRepository);
+    }
+
+    @Test
+    void transfer_shouldOnlyDebit_andSaveCategories_whenTargetIsExternalAccount() {
+        User anna = user(7L, "Anna", "Kovács");
+        when(currentUser.requireEntity()).thenReturn(anna);
+
+        when(accountRepository.existsByIdAndUser_Id(1L, 7L)).thenReturn(true);
+        when(accountRepository.findIdByAccountNumber(LANDLORD_IBAN)).thenReturn(Optional.empty());
+
+        Account from = activeAccount(1L, anna, ANNA_IBAN, "HUF", "500000.00");
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(from));
+        when(transactionRepository.sumAmountByAccountAndTypeSince(eq(1L), eq(TransactionType.TRANSFER_OUT), any())).thenReturn(BigDecimal.ZERO);
+
+        // A duplikált kategória-azonosító csak egyszer számít
+        Category housing = Category.builder().id(5L).name("Lakhatás").build();
+        when(categoryRepository.findAllById(Set.of(5L))).thenReturn(List.of(housing));
+
+        Transaction outgoing = Transaction.builder().id(101L).build();
+        when(ledgerService.debit(from, TransactionType.TRANSFER_OUT, new BigDecimal("220000.00"), "Tóth Gábor", "Albérlet", LANDLORD_IBAN, null)).thenReturn(outgoing);
+
+        TransactionCategory link = TransactionCategory.builder().transaction(outgoing).category(housing).build();
+        when(transactionCategoryMapper.toEntity(outgoing, housing)).thenReturn(link);
+
+        CategoryResponse housingResp = CategoryResponse.builder().id(5L).name("Lakhatás").build();
+        when(categoryMapper.toResponse(housing)).thenReturn(housingResp);
+
+        TransferRequest req = TransferRequest.builder()
+                .fromAccountId(1L)
+                .toAccountNumber(LANDLORD_IBAN)
+                .partnerName("Tóth Gábor")
+                .amount(new BigDecimal("220000.00"))
+                .message("Albérlet")
+                .categoryIds(List.of(5L, 5L))
+                .build();
+
+        TransferResponse resp = service.transfer(req);
+
+        assertFalse(resp.isInternal());
+        assertEquals(List.of(housingResp), resp.getCategories());
+        verify(transactionCategoryRepository).save(link);
+        verify(ledgerService, never()).credit(any(), any(), any(), any(), any(), any());
+        verifyNoInteractions(notificationService);
+    }
+
+    @Test
+    void transfer_shouldNotNotify_whenMovingBetweenOwnAccounts() {
+        User anna = user(7L, "Anna", "Kovács");
+        when(currentUser.requireEntity()).thenReturn(anna);
+
+        when(accountRepository.existsByIdAndUser_Id(1L, 7L)).thenReturn(true);
+        when(accountRepository.findIdByAccountNumber(OTHER_IBAN)).thenReturn(Optional.of(4L));
+
+        Account from = activeAccount(1L, anna, ANNA_IBAN, "HUF", "10000.00");
+        Account to = activeAccount(4L, anna, OTHER_IBAN, "HUF", "0.00");
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(from));
+        when(accountRepository.findByIdForUpdate(4L)).thenReturn(Optional.of(to));
+        when(transactionRepository.sumAmountByAccountAndTypeSince(eq(1L), eq(TransactionType.TRANSFER_OUT), any())).thenReturn(BigDecimal.ZERO);
+        when(ledgerService.debit(any(), any(), any(), any(), any(), any(), any())).thenReturn(Transaction.builder().id(102L).build());
+
+        TransferRequest req = TransferRequest.builder()
+                .fromAccountId(1L)
+                .toAccountNumber(OTHER_IBAN)
+                .partnerName("Saját számla")
+                .amount(new BigDecimal("1000.00"))
+                .build();
+
+        TransferResponse resp = service.transfer(req);
+
+        assertTrue(resp.isInternal());
+        verify(ledgerService).credit(to, TransactionType.TRANSFER_IN, new BigDecimal("1000.00"), "Kovács Anna", null, ANNA_IBAN);
+        verifyNoInteractions(notificationService);
+    }
+
+    @Test
+    void transfer_shouldLockAccountsInIdOrder_toAvoidDeadlock() {
+        User anna = user(7L, "Anna", "Kovács");
+        User bence = user(8L, "Bence", "Nagy");
+        when(currentUser.requireEntity()).thenReturn(anna);
+
+        // A forrás azonosítója nagyobb, mint a célé: ilyenkor a célszámla zárolódik előbb
+        when(accountRepository.existsByIdAndUser_Id(5L, 7L)).thenReturn(true);
+        when(accountRepository.findIdByAccountNumber(BENCE_IBAN)).thenReturn(Optional.of(3L));
+
+        Account from = activeAccount(5L, anna, ANNA_IBAN, "HUF", "10000.00");
+        Account to = activeAccount(3L, bence, BENCE_IBAN, "HUF", "0.00");
+        when(accountRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(from));
+        when(accountRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(to));
+        when(transactionRepository.sumAmountByAccountAndTypeSince(eq(5L), eq(TransactionType.TRANSFER_OUT), any())).thenReturn(BigDecimal.ZERO);
+        when(ledgerService.debit(any(), any(), any(), any(), any(), any(), any())).thenReturn(Transaction.builder().id(103L).build());
+
+        TransferRequest req = TransferRequest.builder()
+                .fromAccountId(5L)
+                .toAccountNumber(BENCE_IBAN)
+                .partnerName("Nagy Bence")
+                .amount(new BigDecimal("1000.00"))
+                .build();
+
+        service.transfer(req);
+
+        InOrder inOrder = inOrder(accountRepository);
+        inOrder.verify(accountRepository).findByIdForUpdate(3L);
+        inOrder.verify(accountRepository).findByIdForUpdate(5L);
+    }
+
+    @Test
+    void transfer_shouldThrowBusinessException_whenIbanIsInvalid() {
+        when(currentUser.requireEntity()).thenReturn(user(7L, "Anna", "Kovács"));
+
+        TransferRequest req = TransferRequest.builder()
+                .fromAccountId(1L)
+                .toAccountNumber("HU15117730161111101800000002")
+                .partnerName("Hibás")
+                .amount(BigDecimal.TEN)
+                .build();
 
         assertThrows(BusinessException.class, () -> service.transfer(req));
 
-        verifyNoInteractions(transactionRepository, balanceHistoryRepository);
+        verifyNoInteractions(accountRepository, ledgerService);
     }
 
     @Test
-    void transfer_shouldThrowBusinessException_whenInsufficientFunds() {
+    void transfer_shouldThrowNotFound_whenSourceAccountIsNotOwn() {
+        when(currentUser.requireEntity()).thenReturn(user(7L, "Anna", "Kovács"));
+        when(accountRepository.existsByIdAndUser_Id(3L, 7L)).thenReturn(false);
+
         TransferRequest req = TransferRequest.builder()
-                .fromAccountId(1L)
-                .toAccountId(2L)
-                .currency("HUF")
-                .amount(new BigDecimal("10.00"))
+                .fromAccountId(3L)
+                .toAccountNumber(ANNA_IBAN)
+                .partnerName("Kovács Anna")
+                .amount(BigDecimal.TEN)
                 .build();
 
-        Account from = Account.builder().id(1L).currency("HUF").balance(new BigDecimal("5.00")).build();
-        Account to = Account.builder().id(2L).currency("HUF").balance(new BigDecimal("0.00")).build();
+        assertThrows(NotFoundException.class, () -> service.transfer(req));
 
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(from));
-        when(accountRepository.findById(2L)).thenReturn(Optional.of(to));
+        verify(accountRepository, never()).findByIdForUpdate(any());
+        verifyNoInteractions(ledgerService);
+    }
+
+    @Test
+    void transfer_shouldThrowBusinessException_whenSourceAndTargetAreTheSame() {
+        when(currentUser.requireEntity()).thenReturn(user(7L, "Anna", "Kovács"));
+        when(accountRepository.existsByIdAndUser_Id(1L, 7L)).thenReturn(true);
+        when(accountRepository.findIdByAccountNumber(ANNA_IBAN)).thenReturn(Optional.of(1L));
+
+        TransferRequest req = TransferRequest.builder()
+                .fromAccountId(1L)
+                .toAccountNumber(ANNA_IBAN)
+                .partnerName("Kovács Anna")
+                .amount(BigDecimal.TEN)
+                .build();
 
         assertThrows(BusinessException.class, () -> service.transfer(req));
 
-        verifyNoInteractions(transactionRepository, balanceHistoryRepository);
+        verify(accountRepository, never()).findByIdForUpdate(any());
     }
 
-    
-    
+    @Test
+    void transfer_shouldThrowBusinessException_whenCurrenciesDiffer() {
+        User anna = user(7L, "Anna", "Kovács");
+        when(currentUser.requireEntity()).thenReturn(anna);
+        when(accountRepository.existsByIdAndUser_Id(1L, 7L)).thenReturn(true);
+        when(accountRepository.findIdByAccountNumber(ANNA_EUR_IBAN)).thenReturn(Optional.of(2L));
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(activeAccount(1L, anna, ANNA_IBAN, "HUF", "10000.00")));
+        when(accountRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(activeAccount(2L, anna, ANNA_EUR_IBAN, "EUR", "0.00")));
+
+        TransferRequest req = TransferRequest.builder()
+                .fromAccountId(1L)
+                .toAccountNumber(ANNA_EUR_IBAN)
+                .partnerName("Euró számla")
+                .amount(BigDecimal.TEN)
+                .build();
+
+        assertThrows(BusinessException.class, () -> service.transfer(req));
+
+        verifyNoInteractions(ledgerService);
+    }
+
+    @Test
+    void transfer_shouldThrowBusinessException_whenRecipientAccountIsNotActive() {
+        User anna = user(7L, "Anna", "Kovács");
+        when(currentUser.requireEntity()).thenReturn(anna);
+        when(accountRepository.existsByIdAndUser_Id(1L, 7L)).thenReturn(true);
+        when(accountRepository.findIdByAccountNumber(BENCE_IBAN)).thenReturn(Optional.of(3L));
+
+        Account to = activeAccount(3L, user(8L, "Bence", "Nagy"), BENCE_IBAN, "HUF", "0.00");
+        to.setStatus(AccountStatus.FROZEN);
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(activeAccount(1L, anna, ANNA_IBAN, "HUF", "10000.00")));
+        when(accountRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(to));
+
+        TransferRequest req = TransferRequest.builder()
+                .fromAccountId(1L)
+                .toAccountNumber(BENCE_IBAN)
+                .partnerName("Nagy Bence")
+                .amount(BigDecimal.TEN)
+                .build();
+
+        assertThrows(BusinessException.class, () -> service.transfer(req));
+
+        verifyNoInteractions(ledgerService);
+    }
+
+    @Test
+    void transfer_shouldThrowBusinessException_whenDailyLimitWouldBeExceeded() {
+        User anna = user(7L, "Anna", "Kovács");
+        when(currentUser.requireEntity()).thenReturn(anna);
+        when(accountRepository.existsByIdAndUser_Id(1L, 7L)).thenReturn(true);
+        when(accountRepository.findIdByAccountNumber(LANDLORD_IBAN)).thenReturn(Optional.empty());
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(activeAccount(1L, anna, ANNA_IBAN, "HUF", "9000000.00")));
+
+        // Ma már 4 990 000 Ft ment ki, a limit 5 000 000 Ft
+        when(transactionRepository.sumAmountByAccountAndTypeSince(eq(1L), eq(TransactionType.TRANSFER_OUT), any())).thenReturn(new BigDecimal("4990000.00"));
+
+        TransferRequest req = TransferRequest.builder()
+                .fromAccountId(1L)
+                .toAccountNumber(LANDLORD_IBAN)
+                .partnerName("Tóth Gábor")
+                .amount(new BigDecimal("20000.00"))
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.transfer(req));
+
+        assertTrue(ex.getMessage().contains("napi utalási limit"));
+        verifyNoInteractions(ledgerService);
+    }
+
+    @Test
+    void transfer_shouldThrowNotFound_whenCategoryIsMissing() {
+        User anna = user(7L, "Anna", "Kovács");
+        when(currentUser.requireEntity()).thenReturn(anna);
+        when(accountRepository.existsByIdAndUser_Id(1L, 7L)).thenReturn(true);
+        when(accountRepository.findIdByAccountNumber(LANDLORD_IBAN)).thenReturn(Optional.empty());
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(activeAccount(1L, anna, ANNA_IBAN, "HUF", "10000.00")));
+        when(transactionRepository.sumAmountByAccountAndTypeSince(eq(1L), eq(TransactionType.TRANSFER_OUT), any())).thenReturn(BigDecimal.ZERO);
+        when(categoryRepository.findAllById(Set.of(99L))).thenReturn(List.of());
+
+        TransferRequest req = TransferRequest.builder()
+                .fromAccountId(1L)
+                .toAccountNumber(LANDLORD_IBAN)
+                .partnerName("Tóth Gábor")
+                .amount(BigDecimal.TEN)
+                .categoryIds(List.of(99L))
+                .build();
+
+        assertThrows(NotFoundException.class, () -> service.transfer(req));
+
+        verifyNoInteractions(ledgerService);
+    }
+
+    private User user(Long id, String firstName, String lastName) {
+        return User.builder()
+                .id(id)
+                .firstName(firstName)
+                .lastName(lastName)
+                .build();
+    }
+
+    private Account activeAccount(Long id, User user, String accountNumber, String currency, String balance) {
+        return Account.builder()
+                .id(id)
+                .user(user)
+                .accountNumber(accountNumber)
+                .currency(currency)
+                .balance(new BigDecimal(balance))
+                .status(AccountStatus.ACTIVE)
+                .build();
+    }
 }

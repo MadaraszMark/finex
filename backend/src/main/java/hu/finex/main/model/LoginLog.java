@@ -18,6 +18,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
@@ -29,7 +30,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "login_logs",indexes = {@Index(name = "idx_login_logs_user_id", columnList = "user_id"),@Index(name = "idx_login_logs_created_at", columnList = "created_at")})
+@Table(name = "login_logs",indexes = {@Index(name = "idx_login_logs_user_created", columnList = "user_id, created_at"),@Index(name = "idx_login_logs_email_created", columnList = "email, created_at"),@Index(name = "idx_login_logs_created_at", columnList = "created_at")})
 @EntityListeners(AuditingEntityListener.class)
 @Getter @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -43,10 +44,16 @@ public class LoginLog {
     @EqualsAndHashCode.Include
     private Long id;
 
-    @NotNull
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
+    // Ismeretlen e-mail címmel érkező próbálkozásnál üres
+    @ManyToOne
+    @JoinColumn(name = "user_id")
     private User user;
+
+    // A belépéskor megadott e-mail cím (akkor is, ha nincs ilyen felhasználó)
+    @NotBlank
+    @Size(max = 255)
+    @Column(nullable = false, length = 255)
+    private String email;
 
     @NotNull
     @Enumerated(EnumType.STRING)

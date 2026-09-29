@@ -2,11 +2,13 @@ package hu.finex.main.service;
 
 import hu.finex.main.dto.CategoryResponse;
 import hu.finex.main.dto.CreateCategoryRequest;
+import hu.finex.main.dto.UpdateCategoryRequest;
 import hu.finex.main.exception.BusinessException;
 import hu.finex.main.exception.NotFoundException;
 import hu.finex.main.mapper.CategoryMapper;
 import hu.finex.main.model.Category;
 import hu.finex.main.repository.CategoryRepository;
+import hu.finex.main.repository.TransactionCategoryRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
@@ -22,6 +24,7 @@ import static org.mockito.Mockito.*;
 class CategoryServiceTest {
 
     @Mock private CategoryRepository categoryRepository;
+    @Mock private TransactionCategoryRepository transactionCategoryRepository;
     @Mock private CategoryMapper categoryMapper;
 
     @InjectMocks private CategoryService service;
@@ -115,7 +118,7 @@ class CategoryServiceTest {
     void listAll_shouldMapAll() {
         Category c1 = Category.builder().id(1L).name("A").build();
         Category c2 = Category.builder().id(2L).name("B").build();
-        when(categoryRepository.findAll()).thenReturn(List.of(c1, c2));
+        when(categoryRepository.findAllByOrderByNameAsc()).thenReturn(List.of(c1, c2));
 
         CategoryResponse r1 = CategoryResponse.builder().id(1L).name("A").build();
         CategoryResponse r2 = CategoryResponse.builder().id(2L).name("B").build();
@@ -129,7 +132,7 @@ class CategoryServiceTest {
         assertEquals(1L, out.get(0).getId());
         assertEquals(2L, out.get(1).getId());
 
-        verify(categoryRepository).findAll();
+        verify(categoryRepository).findAllByOrderByNameAsc();
         verify(categoryMapper).toResponse(c1);
         verify(categoryMapper).toResponse(c2);
     }
@@ -148,11 +151,68 @@ class CategoryServiceTest {
     void delete_shouldDelete_whenFound() {
         Category category = Category.builder().id(7L).name("X").build();
         when(categoryRepository.findById(7L)).thenReturn(Optional.of(category));
+        when(transactionCategoryRepository.existsByCategory_Id(7L)).thenReturn(false);
 
         service.delete(7L);
 
         verify(categoryRepository).findById(7L);
         verify(categoryRepository).delete(category);
         verifyNoInteractions(categoryMapper);
+    }
+
+    @Test
+    void delete_shouldThrowBusinessException_whenCategoryIsInUse() {
+        Category category = Category.builder().id(7L).name("X").build();
+        when(categoryRepository.findById(7L)).thenReturn(Optional.of(category));
+        when(transactionCategoryRepository.existsByCategory_Id(7L)).thenReturn(true);
+
+        assertThrows(BusinessException.class, () -> service.delete(7L));
+
+        verify(categoryRepository, never()).delete(any());
+    }
+
+    @Test
+    void update_shouldRenameCategory_whenNameIsFree() {
+        Category category = Category.builder().id(7L).name("Egyéb").icon("circle").build();
+        when(categoryRepository.findById(7L)).thenReturn(Optional.of(category));
+        when(categoryRepository.existsByNameIgnoreCaseAndIdNot("Egyéb kiadás", 7L)).thenReturn(false);
+
+        UpdateCategoryRequest request = UpdateCategoryRequest.builder()
+                .name("Egyéb kiadás")
+                .icon("circle-ellipsis")
+                .build();
+
+        CategoryResponse expected = CategoryResponse.builder().id(7L).name("Egyéb kiadás").build();
+        when(categoryMapper.toResponse(category)).thenReturn(expected);
+
+        CategoryResponse resp = service.update(7L, request);
+
+        assertEquals(expected, resp);
+        verify(categoryMapper).updateEntity(category, request);
+    }
+
+    @Test
+    void update_shouldThrowBusinessException_whenNameBelongsToOtherCategory() {
+        Category category = Category.builder().id(7L).name("Egyéb").build();
+        when(categoryRepository.findById(7L)).thenReturn(Optional.of(category));
+        when(categoryRepository.existsByNameIgnoreCaseAndIdNot("Élelmiszer", 7L)).thenReturn(true);
+
+        UpdateCategoryRequest request = UpdateCategoryRequest.builder()
+                .name("Élelmiszer")
+                .icon("x")
+                .build();
+
+        assertThrows(BusinessException.class, () -> service.update(7L, request));
+
+        verify(categoryMapper, never()).updateEntity(any(Category.class), any(UpdateCategoryRequest.class));
+    }
+
+    @Test
+    void update_shouldThrowNotFound_whenMissing() {
+        when(categoryRepository.findById(7L)).thenReturn(Optional.empty());
+
+        UpdateCategoryRequest request = UpdateCategoryRequest.builder().name("X").icon("x").build();
+
+        assertThrows(NotFoundException.class, () -> service.update(7L, request));
     }
 }

@@ -16,7 +16,10 @@ import hu.finex.main.model.TransactionCategory;
 import hu.finex.main.repository.CategoryRepository;
 import hu.finex.main.repository.TransactionCategoryRepository;
 import hu.finex.main.repository.TransactionRepository;
+import hu.finex.main.security.CurrentUser;
 import lombok.RequiredArgsConstructor;
+
+// A tranzakciók kategorizálása: a felhasználó csak a saját tranzakcióihoz rendelhet kategóriát
 
 @Service
 @RequiredArgsConstructor
@@ -26,10 +29,11 @@ public class TransactionCategoryService {
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
     private final TransactionCategoryMapper transactionCategoryMapper;
+    private final CurrentUser currentUser;
 
     @Transactional
     public TransactionCategoryResponse assignCategory(Long transactionId, Long categoryId) {
-        Transaction transaction = transactionRepository.findById(transactionId).orElseThrow(() -> new NotFoundException("Tranzakció nem található."));
+        Transaction transaction = transactionRepository.findByIdAndAccount_User_Id(transactionId, currentUser.requireId()).orElseThrow(() -> new NotFoundException("Tranzakció nem található."));
         Category category = categoryRepository.findById(categoryId).orElseThrow(() -> new NotFoundException("Kategória nem található."));
 
         boolean exists = transactionCategoryRepository.existsByTransaction_IdAndCategory_Id(transactionId, categoryId);
@@ -46,7 +50,7 @@ public class TransactionCategoryService {
 
     @Transactional(readOnly = true)
     public List<TransactionCategoryListItemResponse> listByTransaction(Long transactionId) {
-        if (!transactionRepository.existsById(transactionId)) {
+        if (!transactionRepository.existsByIdAndAccount_User_Id(transactionId, currentUser.requireId())) {
             throw new NotFoundException("Tranzakció nem található.");
         }
 
@@ -55,20 +59,10 @@ public class TransactionCategoryService {
         return items.stream().map(transactionCategoryMapper::toListItem).toList();
     }
 
-    @Transactional(readOnly = true)
-    public List<TransactionCategoryResponse> listByCategory(Long categoryId) {
-        if (!categoryRepository.existsById(categoryId)) {
-            throw new NotFoundException("Kategória nem található.");
-        }
-
-        List<TransactionCategory> items =transactionCategoryRepository.findByCategory_Id(categoryId);
-
-        return items.stream().map(transactionCategoryMapper::toResponse).toList();
-    }
-
+    // Csak a kapcsolat törlődik, maga a (könyvelt) tranzakció nem
     @Transactional
     public void deleteRelation(Long id) {
-        TransactionCategory link = transactionCategoryRepository.findById(id).orElseThrow(() -> new NotFoundException("Kapcsolat nem található."));
+        TransactionCategory link = transactionCategoryRepository.findByIdAndTransaction_Account_User_Id(id, currentUser.requireId()).orElseThrow(() -> new NotFoundException("Kapcsolat nem található."));
 
         transactionCategoryRepository.delete(link);
     }

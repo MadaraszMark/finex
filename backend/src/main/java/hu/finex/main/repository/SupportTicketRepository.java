@@ -1,5 +1,7 @@
 package hu.finex.main.repository;
 
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -22,4 +24,13 @@ public interface SupportTicketRepository extends JpaRepository<SupportTicket, Lo
 
     // Létezik-e ticket adott userhez és adott státusszal? (pl. ne nyisson új duplikáltat)
     boolean existsByUser_IdAndStatus(Long userId, TicketStatus status);
+
+    // Csak akkor adja vissza a ticketet, ha a megadott felhasználóé (jogosultság-ellenőrzés)
+    Optional<SupportTicket> findByIdAndUser_Id(Long id, Long userId);
+
+    // Admin: összes ticket, a legújabb elöl
+    Page<SupportTicket> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    // Admin statisztika: le nem zárt ticketek
+    long countByStatusNot(TicketStatus status);
 }

@@ -1,22 +1,22 @@
 package hu.finex.main.service;
 
 import hu.finex.main.dto.BalanceHistoryListItemResponse;
-import hu.finex.main.dto.BalanceHistoryResponse;
+import hu.finex.main.exception.BusinessException;
 import hu.finex.main.exception.NotFoundException;
 import hu.finex.main.mapper.BalanceHistoryMapper;
-import hu.finex.main.model.Account;
 import hu.finex.main.model.BalanceHistory;
 import hu.finex.main.repository.AccountRepository;
 import hu.finex.main.repository.BalanceHistoryRepository;
+import hu.finex.main.security.CurrentUser;
+import hu.finex.main.util.DateUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.*;
 
-import java.time.OffsetDateTime;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -27,123 +27,66 @@ class BalanceHistoryServiceTest {
     @Mock private BalanceHistoryRepository balanceHistoryRepository;
     @Mock private AccountRepository accountRepository;
     @Mock private BalanceHistoryMapper balanceHistoryMapper;
+    @Mock private CurrentUser currentUser;
 
     @InjectMocks private BalanceHistoryService service;
 
     @Test
-    void getById_shouldReturnResponse() {
-        BalanceHistory history = BalanceHistory.builder().id(10L).build();
-        when(balanceHistoryRepository.findById(10L)).thenReturn(Optional.of(history));
+    void listByAccount_shouldThrowNotFound_whenAccountIsNotOwn() {
+        when(currentUser.requireId()).thenReturn(7L);
+        when(accountRepository.existsByIdAndUser_Id(1L, 7L)).thenReturn(false);
 
-        BalanceHistoryResponse expected = BalanceHistoryResponse.builder().id(10L).build();
-        when(balanceHistoryMapper.toResponse(history)).thenReturn(expected);
+        assertThrows(NotFoundException.class, () -> service.listByAccount(1L, null, null));
 
-        BalanceHistoryResponse resp = service.getById(10L);
-
-        assertNotNull(resp);
-        assertEquals(10L, resp.getId());
-
-        verify(balanceHistoryRepository).findById(10L);
-        verify(balanceHistoryMapper).toResponse(history);
-    }
-
-    @Test
-    void getById_shouldThrowNotFound_whenMissing() {
-        when(balanceHistoryRepository.findById(10L)).thenReturn(Optional.empty());
-
-        assertThrows(NotFoundException.class, () -> service.getById(10L));
-
-        verify(balanceHistoryRepository).findById(10L);
-        verifyNoInteractions(balanceHistoryMapper);
-    }
-
-    @Test
-    void listByAccount_shouldThrowNotFound_whenAccountMissing() {
-        Pageable pageable = PageRequest.of(0, 10);
-        when(accountRepository.findById(5L)).thenReturn(Optional.empty());
-
-        assertThrows(NotFoundException.class, () -> service.listByAccount(5L, pageable));
-
-        verify(accountRepository).findById(5L);
         verifyNoInteractions(balanceHistoryRepository, balanceHistoryMapper);
     }
 
     @Test
-    void listByAccount_shouldReturnMappedPage() {
-        Pageable pageable = PageRequest.of(0, 2);
+    void listByAccount_shouldReturnMappedItems_forGivenPeriod() {
+        when(currentUser.requireId()).thenReturn(7L);
+        when(accountRepository.existsByIdAndUser_Id(1L, 7L)).thenReturn(true);
 
-        when(accountRepository.findById(5L)).thenReturn(Optional.of(Account.builder().id(5L).build()));
+        LocalDate from = LocalDate.of(2025, 3, 1);
+        LocalDate to = LocalDate.of(2025, 3, 31);
 
-        BalanceHistory h1 = BalanceHistory.builder().id(1L).build();
-        BalanceHistory h2 = BalanceHistory.builder().id(2L).build();
-        Page<BalanceHistory> page = new PageImpl<>(List.of(h1, h2), pageable, 2);
+        BalanceHistory h1 = BalanceHistory.builder().id(1L).balance(new BigDecimal("100.00")).build();
+        BalanceHistory h2 = BalanceHistory.builder().id(2L).balance(new BigDecimal("80.00")).build();
 
-        when(balanceHistoryRepository.findByAccount_IdOrderByCreatedAtAsc(5L, pageable)).thenReturn(page);
+        // A záró nap is benne van: a felső határ a következő nap kezdete
+        when(balanceHistoryRepository.findByAccount_IdAndCreatedAtBetweenOrderByCreatedAtAsc(1L, DateUtils.startOfDay(from), DateUtils.startOfDay(LocalDate.of(2025, 4, 1))))
+                .thenReturn(List.of(h1, h2));
 
-        BalanceHistoryListItemResponse r1 = BalanceHistoryListItemResponse.builder().build();
-        BalanceHistoryListItemResponse r2 = BalanceHistoryListItemResponse.builder().build();
+        BalanceHistoryListItemResponse r1 = BalanceHistoryListItemResponse.builder().balance(new BigDecimal("100.00")).build();
+        BalanceHistoryListItemResponse r2 = BalanceHistoryListItemResponse.builder().balance(new BigDecimal("80.00")).build();
         when(balanceHistoryMapper.toListItem(h1)).thenReturn(r1);
         when(balanceHistoryMapper.toListItem(h2)).thenReturn(r2);
 
-        Page<BalanceHistoryListItemResponse> resp = service.listByAccount(5L, pageable);
+        List<BalanceHistoryListItemResponse> out = service.listByAccount(1L, from, to);
 
-        assertNotNull(resp);
-        assertEquals(2, resp.getTotalElements());
-        assertEquals(2, resp.getContent().size());
-        assertSame(r1, resp.getContent().get(0));
-        assertSame(r2, resp.getContent().get(1));
-
-        verify(accountRepository).findById(5L);
-        verify(balanceHistoryRepository).findByAccount_IdOrderByCreatedAtAsc(5L, pageable);
-        verify(balanceHistoryMapper).toListItem(h1);
-        verify(balanceHistoryMapper).toListItem(h2);
+        assertEquals(List.of(r1, r2), out);
     }
 
     @Test
-    void listByAccountBetween_shouldThrowNotFound_whenAccountMissing() {
-        Pageable pageable = PageRequest.of(0, 10);
-        OffsetDateTime start = OffsetDateTime.parse("2025-01-01T00:00:00+00:00");
-        OffsetDateTime end = OffsetDateTime.parse("2025-02-01T00:00:00+00:00");
+    void listByAccount_shouldDefaultToLast90Days() {
+        when(currentUser.requireId()).thenReturn(7L);
+        when(accountRepository.existsByIdAndUser_Id(1L, 7L)).thenReturn(true);
 
-        when(accountRepository.findById(5L)).thenReturn(Optional.empty());
+        LocalDate today = DateUtils.today();
+        when(balanceHistoryRepository.findByAccount_IdAndCreatedAtBetweenOrderByCreatedAtAsc(1L, DateUtils.startOfDay(today.minusDays(90)), DateUtils.startOfDay(today.plusDays(1))))
+                .thenReturn(List.of());
 
-        assertThrows(NotFoundException.class, () -> service.listByAccountBetween(5L, start, end, pageable));
+        List<BalanceHistoryListItemResponse> out = service.listByAccount(1L, null, null);
 
-        verify(accountRepository).findById(5L);
-        verifyNoInteractions(balanceHistoryRepository, balanceHistoryMapper);
+        assertTrue(out.isEmpty());
     }
 
     @Test
-    void listByAccountBetween_shouldReturnMappedPage() {
-        Pageable pageable = PageRequest.of(0, 2);
-        OffsetDateTime start = OffsetDateTime.parse("2025-01-01T00:00:00+00:00");
-        OffsetDateTime end = OffsetDateTime.parse("2025-02-01T00:00:00+00:00");
+    void listByAccount_shouldThrowBusinessException_whenFromIsAfterTo() {
+        when(currentUser.requireId()).thenReturn(7L);
+        when(accountRepository.existsByIdAndUser_Id(1L, 7L)).thenReturn(true);
 
-        when(accountRepository.findById(5L)).thenReturn(Optional.of(Account.builder().id(5L).build()));
+        assertThrows(BusinessException.class, () -> service.listByAccount(1L, LocalDate.of(2025, 4, 1), LocalDate.of(2025, 3, 1)));
 
-        BalanceHistory h1 = BalanceHistory.builder().id(1L).build();
-        BalanceHistory h2 = BalanceHistory.builder().id(2L).build();
-        Page<BalanceHistory> page = new PageImpl<>(List.of(h1, h2), pageable, 2);
-
-        when(balanceHistoryRepository.findByAccount_IdAndCreatedAtBetweenOrderByCreatedAtAsc(5L, start, end, pageable))
-                .thenReturn(page);
-
-        BalanceHistoryListItemResponse r1 = BalanceHistoryListItemResponse.builder().build();
-        BalanceHistoryListItemResponse r2 = BalanceHistoryListItemResponse.builder().build();
-        when(balanceHistoryMapper.toListItem(h1)).thenReturn(r1);
-        when(balanceHistoryMapper.toListItem(h2)).thenReturn(r2);
-
-        Page<BalanceHistoryListItemResponse> resp = service.listByAccountBetween(5L, start, end, pageable);
-
-        assertNotNull(resp);
-        assertEquals(2, resp.getTotalElements());
-        assertEquals(2, resp.getContent().size());
-        assertSame(r1, resp.getContent().get(0));
-        assertSame(r2, resp.getContent().get(1));
-
-        verify(accountRepository).findById(5L);
-        verify(balanceHistoryRepository).findByAccount_IdAndCreatedAtBetweenOrderByCreatedAtAsc(5L, start, end, pageable);
-        verify(balanceHistoryMapper).toListItem(h1);
-        verify(balanceHistoryMapper).toListItem(h2);
+        verifyNoInteractions(balanceHistoryRepository);
     }
 }

@@ -23,6 +23,7 @@ import hu.finex.main.dto.AuthResponse;
 import hu.finex.main.dto.CreateUserRequest;
 import hu.finex.main.dto.LoginRequest;
 import hu.finex.main.dto.UserResponse;
+import hu.finex.main.exception.BusinessException;
 import hu.finex.main.service.AuthService;
 
 @ActiveProfiles("test")
@@ -49,12 +50,17 @@ class AuthControllerTest {
                 .email("bence.kovacs@example.com")
                 .phone("+36301234567")
                 .password("TitkosJelszo123")
-                .role("USER")
                 .build();
 
-        UserResponse resp = UserResponse.builder()
+        UserResponse user = UserResponse.builder()
                 .id(1L)
                 .email("bence.kovacs@example.com")
+                .build();
+
+        // Regisztráció után rögtön be is van jelentkezve: a válaszban token is van
+        AuthResponse resp = AuthResponse.builder()
+                .token("jwt-token-here")
+                .user(user)
                 .build();
 
         when(authService.register(any(CreateUserRequest.class))).thenReturn(resp);
@@ -64,8 +70,25 @@ class AuthControllerTest {
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isCreated())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.email").value("bence.kovacs@example.com"));
+                .andExpect(jsonPath("$.token").value("jwt-token-here"))
+                .andExpect(jsonPath("$.user.id").value(1))
+                .andExpect(jsonPath("$.user.email").value("bence.kovacs@example.com"));
+    }
+
+    @Test
+    void register_shouldReturn400_whenPasswordHasNoDigit() throws Exception {
+        CreateUserRequest req = CreateUserRequest.builder()
+                .firstName("Bence")
+                .lastName("Kovács")
+                .email("bence.kovacs@example.com")
+                .password("CsakBetukből")
+                .build();
+
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.violations[0].field").value("password"));
     }
 
     @Test
@@ -85,7 +108,6 @@ class AuthControllerTest {
                 .lastName("Kovács")
                 .email("not-an-email")
                 .password("TitkosJelszo123")
-                .role("USER")
                 .build();
 
         mockMvc.perform(post("/auth/register")
@@ -116,6 +138,22 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.token").value("jwt-token-here"));
+    }
+
+    @Test
+    void login_shouldReturn400_withGenericMessage_whenCredentialsAreWrong() throws Exception {
+        LoginRequest req = LoginRequest.builder()
+                .email("bence.kovacs@example.com")
+                .password("RosszJelszo1")
+                .build();
+
+        when(authService.login(any(LoginRequest.class), any(), any())).thenThrow(new BusinessException("Hibás email vagy jelszó."));
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Hibás email vagy jelszó."));
     }
 
     @Test

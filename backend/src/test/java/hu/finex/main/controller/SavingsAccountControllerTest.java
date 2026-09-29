@@ -2,7 +2,8 @@ package hu.finex.main.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -18,7 +19,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -30,10 +30,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import hu.finex.main.dto.CreateSavingsAccountRequest;
 import hu.finex.main.dto.SavingsAccountResponse;
+import hu.finex.main.dto.SavingsTransactionResponse;
 import hu.finex.main.dto.SavingsTransferRequest;
 import hu.finex.main.dto.SavingsTransferResponse;
 import hu.finex.main.dto.UpdateSavingsAccountRequest;
 import hu.finex.main.model.enums.SavingsStatus;
+import hu.finex.main.model.enums.SavingsTransactionType;
 import hu.finex.main.service.SavingsAccountService;
 
 @ActiveProfiles("test")
@@ -56,92 +58,87 @@ class SavingsAccountControllerTest {
         return SavingsAccountResponse.builder()
                 .id(5L)
                 .userId(12L)
-                .name("Havi megtakarítás")
-                .balance(new BigDecimal("83000.00"))
+                .name("Nyaralás")
+                .balance(new BigDecimal("250000.00"))
                 .currency("HUF")
-                .interestRate(new BigDecimal("2.5"))
+                .interestRate(new BigDecimal("3.50"))
+                .targetAmount(new BigDecimal("600000.00"))
+                .progressPercent(new BigDecimal("41.67"))
                 .status(SavingsStatus.ACTIVE)
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
+                .build();
+    }
+
+    private SavingsTransferResponse sampleTransfer() {
+        return SavingsTransferResponse.builder()
+                .savingsAccountId(5L)
+                .accountId(1L)
+                .savingsNewBalance(new BigDecimal("270000.00"))
+                .accountNewBalance(new BigDecimal("80000.00"))
+                .message("Havi félretétel")
+                .createdAt(Instant.parse("2025-03-10T10:00:00Z"))
                 .build();
     }
 
     @Test
-    void create_shouldReturn200() throws Exception {
+    void listMine_shouldReturn200_andList() throws Exception {
+        when(savingsAccountService.listMine()).thenReturn(List.of(sampleResponse()));
+
+        mockMvc.perform(get("/savings"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Nyaralás"))
+                .andExpect(jsonPath("$[0].progressPercent").value(41.67));
+    }
+
+    @Test
+    void create_shouldReturn201() throws Exception {
         CreateSavingsAccountRequest req = CreateSavingsAccountRequest.builder()
-                .userId(12L)
-                .name("Havi megtakarítás")
-                .initialBalance(new BigDecimal("50000"))
-                .currency("HUF")
-                .interestRate(new BigDecimal("2.5"))
+                .name("Nyaralás")
+                .accountId(1L)
+                .initialDeposit(new BigDecimal("30000.00"))
+                .targetAmount(new BigDecimal("600000.00"))
                 .build();
 
-        when(savingsAccountService.create(any())).thenReturn(sampleResponse());
+        when(savingsAccountService.create(any(CreateSavingsAccountRequest.class))).thenReturn(sampleResponse());
 
         mockMvc.perform(post("/savings")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Havi megtakarítás"));
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(5));
+    }
+
+    @Test
+    void create_shouldReturn400_whenInitialDepositIsNegative() throws Exception {
+        CreateSavingsAccountRequest req = CreateSavingsAccountRequest.builder()
+                .name("Nyaralás")
+                .accountId(1L)
+                .initialDeposit(new BigDecimal("-1"))
+                .build();
+
+        mockMvc.perform(post("/savings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.violations[0].field").value("initialDeposit"));
+
+        verifyNoInteractions(savingsAccountService);
     }
 
     @Test
     void getById_shouldReturn200() throws Exception {
         when(savingsAccountService.getById(5L)).thenReturn(sampleResponse());
 
-        mockMvc.perform(get("/savings/5"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(5));
-    }
-
-    @Test
-    void listByUser_shouldReturn200_andPage() throws Exception {
-        Page<SavingsAccountResponse> page =
-                new PageImpl<>(List.of(sampleResponse()), PageRequest.of(0, 10), 1);
-
-        when(savingsAccountService.listByUser(eq(12L), any(Pageable.class)))
-                .thenReturn(page);
-
-        mockMvc.perform(get("/savings/user/12")
-                        .param("page", "0")
-                        .param("size", "10"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content.length()").value(1));
-    }
-
-    @Test
-    void listByUserAndStatus_shouldReturn200() throws Exception {
-        Page<SavingsAccountResponse> page =
-                new PageImpl<>(List.of(sampleResponse()), PageRequest.of(0, 10), 1);
-
-        when(savingsAccountService.listByUserAndStatus(eq(12L), eq(SavingsStatus.ACTIVE), any()))
-                .thenReturn(page);
-
-        mockMvc.perform(get("/savings/user/12/status/ACTIVE"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].status").value("ACTIVE"));
-    }
-
-    @Test
-    void listAboveBalance_shouldReturn200() throws Exception {
-        Page<SavingsAccountResponse> page =
-                new PageImpl<>(List.of(sampleResponse()), PageRequest.of(0, 10), 1);
-
-        when(savingsAccountService.listAboveBalance(eq(12L), eq(new BigDecimal("10000")), any()))
-                .thenReturn(page);
-
-        mockMvc.perform(get("/savings/user/12/min-balance/10000"))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/savings/5")).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(5));
     }
 
     @Test
     void update_shouldReturn200() throws Exception {
         UpdateSavingsAccountRequest req = UpdateSavingsAccountRequest.builder()
-                .name("Új név")
+                .name("Nyaralás 2026")
+                .targetAmount(new BigDecimal("800000.00"))
                 .build();
 
-        when(savingsAccountService.update(eq(5L), any()))
-                .thenReturn(sampleResponse());
+        when(savingsAccountService.update(eq(5L), any(UpdateSavingsAccountRequest.class))).thenReturn(sampleResponse());
 
         mockMvc.perform(put("/savings/5")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -152,42 +149,65 @@ class SavingsAccountControllerTest {
     @Test
     void depositFromAccount_shouldReturn200() throws Exception {
         SavingsTransferRequest req = SavingsTransferRequest.builder()
-                .accountId(3L)
-                .amount(new BigDecimal("10000"))
-                .message("Topup")
+                .accountId(1L)
+                .amount(new BigDecimal("20000.00"))
+                .message("Havi félretétel")
                 .build();
 
-        when(savingsAccountService.depositFromAccount(eq(5L), any()))
-                .thenReturn(SavingsTransferResponse.builder().build());
+        when(savingsAccountService.depositFromAccount(eq(5L), any(SavingsTransferRequest.class))).thenReturn(sampleTransfer());
 
         mockMvc.perform(post("/savings/5/deposit-from-account")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.savingsNewBalance").value(270000.00));
     }
 
     @Test
     void withdrawToAccount_shouldReturn200() throws Exception {
         SavingsTransferRequest req = SavingsTransferRequest.builder()
-                .accountId(3L)
-                .amount(new BigDecimal("5000"))
-                .message("Withdraw")
+                .accountId(1L)
+                .amount(new BigDecimal("15000.00"))
                 .build();
 
-        when(savingsAccountService.withdrawToAccount(eq(5L), any()))
-                .thenReturn(SavingsTransferResponse.builder().build());
+        when(savingsAccountService.withdrawToAccount(eq(5L), any(SavingsTransferRequest.class))).thenReturn(sampleTransfer());
 
         mockMvc.perform(post("/savings/5/withdraw-to-account")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accountId").value(1));
     }
 
     @Test
-    void delete_shouldReturn204() throws Exception {
-        doNothing().when(savingsAccountService).delete(5L);
+    void listTransactions_shouldReturn200_andPage() throws Exception {
+        SavingsTransactionResponse item = SavingsTransactionResponse.builder()
+                .id(9L)
+                .type(SavingsTransactionType.INTEREST)
+                .amount(new BigDecimal("729.17"))
+                .balanceAfter(new BigDecimal("250729.17"))
+                .build();
 
-        mockMvc.perform(delete("/savings/5"))
+        when(savingsAccountService.listTransactions(eq(5L), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(item), PageRequest.of(0, 20), 1));
+
+        mockMvc.perform(get("/savings/5/transactions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].type").value("INTEREST"));
+    }
+
+    @Test
+    void close_shouldReturn204_andPayOutToGivenAccount() throws Exception {
+        mockMvc.perform(delete("/savings/5").param("accountId", "1"))
                 .andExpect(status().isNoContent());
+
+        verify(savingsAccountService).close(5L, 1L);
+    }
+
+    @Test
+    void close_shouldReturn400_whenAccountIdIsMissing() throws Exception {
+        mockMvc.perform(delete("/savings/5"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(savingsAccountService);
     }
 }

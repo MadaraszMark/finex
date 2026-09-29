@@ -2,10 +2,9 @@ package hu.finex.main.dto;
 
 import java.math.BigDecimal;
 
-import hu.finex.main.model.enums.SavingsStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,18 +17,15 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Schema(description = "Megtakarítás módosítási adatai")
+@Schema(description = "Megtakarítás módosítási adatai (a kamatlábat a bank határozza meg)")
 public class UpdateSavingsAccountRequest {
 
+    @NotBlank
     @Size(max = 100)
-    @Schema(description = "A megtakarítás új neve", example = "Lakás célú megtakarítás")
+    @Schema(description = "A megtakarítás új neve", example = "Lakás célú megtakarítás", required = true)
     private String name;
 
-    @DecimalMin(value = "0.00", message = "A kamatláb nem lehet negatív.")
-    @Schema(description = "Új kamatláb (%)", example = "3.2")
-    private BigDecimal interestRate;
-
-    @NotNull
-    @Schema(description = "Megtakarítás új státusza", example = "ACTIVE")
-    private SavingsStatus status;
+    @DecimalMin(value = "1.00", message = "A célösszeg legalább 1 kell legyen.")
+    @Schema(description = "Új célösszeg (üresen hagyva nincs cél)", example = "1500000.00")
+    private BigDecimal targetAmount;
 }
