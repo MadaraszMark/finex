@@ -1,7 +1,13 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/plus-jakarta-sans';
 
-/* FineX színpaletta – a docs/images koncepcióképek lila árnyalatai (használat: bg-brand-500, text-brand-700, …) */
+/* Sötét mód: a <html> elem "dark" osztálya kapcsolja be (lásd theme/themeStore.ts és index.html) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
+  --font-sans: 'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, sans-serif;
+
+  /* FineX lila – a docs/images koncepcióképek árnyalatai (bg-brand-500, text-brand-700, …) */
   --color-brand-50: #f6f2ff;
   --color-brand-100: #ede5ff;
   --color-brand-200: #dccdff;
@@ -12,10 +18,294 @@
   --color-brand-700: #6836b0;
   --color-brand-800: #552d8e;
   --color-brand-900: #462873;
+  --color-brand-950: #2a1650;
+
+  /* A koncepciókép csengőjének sárga jelzőpontja */
+  --color-accent: #facc15;
+
+  --shadow-card: 0 1px 2px rgb(28 21 48 / 0.04), 0 12px 32px -20px rgb(28 21 48 / 0.25);
+  --shadow-glow: 0 14px 30px -12px rgb(124 69 209 / 0.65);
+
+  --animate-float: float 9s ease-in-out infinite;
+  --animate-fade-up: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-aurora-1: aurora-1 22s ease-in-out infinite alternate;
+  --animate-aurora-2: aurora-2 26s ease-in-out infinite alternate;
+  --animate-aurora-3: aurora-3 30s ease-in-out infinite alternate;
+  --animate-shine: shine 6s ease-in-out infinite;
+  --animate-gradient-x: gradient-x 8s ease-in-out infinite;
+  --animate-spin-slow: spin-slow 60s linear infinite;
+  --animate-pulse-ring: pulse-ring 2.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-12px);
+    }
+  }
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* A belépő oldalak hátterének lassan úszó fényfoltjai */
+  @keyframes aurora-1 {
+    from {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    to {
+      transform: translate3d(14vw, 10vh, 0) scale(1.2);
+    }
+  }
+
+  @keyframes aurora-2 {
+    from {
+      transform: translate3d(0, 0, 0) scale(1.1);
+    }
+    to {
+      transform: translate3d(-12vw, -8vh, 0) scale(0.9);
+    }
+  }
+
+  @keyframes aurora-3 {
+    from {
+      transform: translate3d(0, 0, 0) scale(0.9);
+    }
+    to {
+      transform: translate3d(10vw, -12vh, 0) scale(1.15);
+    }
+  }
+
+  /* Időnként végigfutó fényvillanás (bankkártya) */
+  @keyframes shine {
+    0%,
+    55% {
+      transform: translateX(-120%) skewX(-20deg);
+    }
+    100% {
+      transform: translateX(420%) skewX(-20deg);
+    }
+  }
+
+  /* Lassan hullámzó színátmenet (kiemelt címsor) */
+  @keyframes gradient-x {
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  @keyframes spin-slow {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Ikon körül lassan kitáguló és elhalványuló gyűrű ("lélegzés") */
+  @keyframes pulse-ring {
+    from {
+      transform: scale(1);
+      opacity: 0.7;
+    }
+    to {
+      transform: scale(1.45);
+      opacity: 0;
+    }
+  }
+}
+
+/* Szemantikus színek világos és sötét értékkel. A komponensek ezeket használják (bg-card, text-muted-foreground, …),
+   így a sötét módhoz nem kell mindenhova külön dark: előtag. */
+:root {
+  --background: #f7f5fc;
+  --foreground: #1c1530;
+  --card: #ffffff;
+  --muted: #f1edf9;
+  --muted-foreground: #6e6585;
+  --border: #e8e2f4;
+  --primary: #7c45d1;
+  --primary-foreground: #ffffff;
+  --ring: #a878f5;
+  --success: #059669;
+  --danger: #e11d48;
+  --warning: #d97706;
+}
+
+.dark {
+  --background: #0d0a16;
+  --foreground: #f2eefb;
+  --card: #16121f;
+  --muted: #211b30;
+  --muted-foreground: #a69dbd;
+  --border: #2c2542;
+  --primary: #b58af7;
+  --primary-foreground: #160d2b;
+  --ring: #c3a6ff;
+  --success: #34d399;
+  --danger: #fb7185;
+  --warning: #fbbf24;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+}
+
+/* A márka színátmenete: világosabb lila jobb felül, mélyebb ibolya bal alul (mint a koncepcióképeken) */
+@utility bg-brand-gradient {
+  background-image:
+    radial-gradient(90% 70% at 100% 0%, rgb(255 255 255 / 0.18), transparent 60%),
+    linear-gradient(135deg, var(--color-brand-400) 0%, var(--color-brand-500) 42%, var(--color-brand-700) 100%);
+}
+
+@utility text-brand-gradient {
+  background-image: linear-gradient(135deg, var(--color-brand-400), var(--color-brand-700));
+  background-clip: text;
+  color: transparent;
+}
+
+/* Az oldalfejléc lila sávjának alja: az utolsó 8rem-en lágyan (nem egyenletesen) olvad bele az oldal hátterébe,
+   így nem látszik éles határ ott, ahol az elhalványulás elkezdődik */
+@utility mask-fade-bottom {
+  mask-image: linear-gradient(
+    to bottom,
+    black calc(100% - 8rem),
+    rgb(0 0 0 / 0.8) calc(100% - 6rem),
+    rgb(0 0 0 / 0.45) calc(100% - 3.5rem),
+    rgb(0 0 0 / 0.15) calc(100% - 1.5rem),
+    transparent
+  );
+}
+
+/* Mobilon a lenti menüsor ne lógjon rá a telefon kezdőképernyő-csíkjára */
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 @layer base {
-  body {
-    @apply bg-slate-100 text-slate-800 antialiased;
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-border);
   }
+
+  /* Vékony, a témához illő görgetősáv (sötét módban se világítson) */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+
+  ::selection {
+    background-color: var(--color-brand-300);
+    color: var(--color-brand-950);
+  }
+
+  /* Témaváltáskor egy pillanatra kikapcsoljuk az átmeneteket, hogy ne "folyjanak át" a színek */
+  .theme-switching,
+  .theme-switching * {
+    transition: none !important;
+  }
+}
+
+@layer components {
+  /* Natív <dialog> ki- és beúszó animációja (a böngésző kezeli a fókuszt, az Escape-et és a háttér letiltását) */
+  .finex-dialog {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+    transition:
+      opacity 0.2s ease,
+      transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+      overlay 0.25s allow-discrete,
+      display 0.25s allow-discrete;
+  }
+
+  .finex-dialog[open] {
+    opacity: 1;
+    transform: none;
+  }
+
+  @starting-style {
+    .finex-dialog[open] {
+      opacity: 0;
+      transform: translateY(12px) scale(0.98);
+    }
+  }
+
+  .finex-dialog.finex-sheet {
+    transform: translateY(100%);
+  }
+
+  .finex-dialog.finex-sheet[open] {
+    transform: none;
+  }
+
+  @starting-style {
+    .finex-dialog.finex-sheet[open] {
+      transform: translateY(100%);
+    }
+  }
+
+  .finex-dialog::backdrop {
+    background-color: rgb(13 10 22 / 0);
+    backdrop-filter: blur(0);
+    transition:
+      background-color 0.25s ease,
+      backdrop-filter 0.25s ease,
+      overlay 0.25s allow-discrete,
+      display 0.25s allow-discrete;
+  }
+
+  .finex-dialog[open]::backdrop {
+    background-color: rgb(13 10 22 / 0.55);
+    backdrop-filter: blur(4px);
+  }
+
+  @starting-style {
+    .finex-dialog[open]::backdrop {
+      background-color: rgb(13 10 22 / 0);
+      backdrop-filter: blur(0);
+    }
+  }
+}
+
+/* Értesítő buborékok (sonner) a FineX betűtípusával és színeivel */
+html [data-sonner-toaster] {
+  font-family: var(--font-sans);
+  --border-radius: 1rem;
+}
+
+html [data-sonner-toaster][data-sonner-theme] {
+  --normal-bg: var(--card);
+  --normal-border: var(--border);
+  --normal-text: var(--foreground);
 }

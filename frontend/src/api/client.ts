@@ -1,6 +1,6 @@
 import axios from 'axios'
-import { authStore } from '../auth/authStore'
-import { endSession } from '../auth/session'
+import { endSession } from '../session/session'
+import { sessionStore } from '../session/sessionStore'
 import type { ApiError } from './types'
 
 // Minden backend-hívás ezen a példányon megy át. A /api előtagú kéréseket
@@ -9,42 +9,57 @@ export const api = axios.create({ baseURL: '/api' })
 
 // A bejelentkezéskor kapott JWT token minden kérés fejlécébe bekerül
 api.interceptors.request.use((config) => {
-  const token = authStore.getToken()
+  const token = sessionStore.getToken()
   if (token) {
     config.headers.set('Authorization', `Bearer ${token}`)
   }
   return config
 })
 
-// Lejárt vagy érvénytelen tokennél (401) a munkamenet véget ér, és a felhasználó a belépő oldalra kerül
+// 401: lejárt vagy érvénytelen token, illetve közben letiltott felhasználó → a munkamenet véget ér,
+// a felhasználó a belépő oldalra kerül (a belépés után oda tér vissza, ahol volt)
 api.interceptors.response.use(
   (response) => response,
   (error: unknown) => {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
-      endSession()
+      endSession('expired')
     }
     return Promise.reject(error)
   },
 )
 
-// Felhasználónak megjeleníthető hibaüzenet a backend ApiError válaszából
+function getApiError(error: unknown): ApiError | null {
+  if (!axios.isAxiosError<ApiError>(error) || !error.response) {
+    return null
+  }
+  const { data } = error.response
+  return data && typeof data === 'object' ? data : null
+}
+
+// Felhasználónak megjeleníthető hibaüzenet a backend ApiError válaszából (GlobalExceptionHandler)
 export function getErrorMessage(error: unknown): string {
-  if (!axios.isAxiosError<ApiError>(error)) {
+  if (!axios.isAxiosError(error)) {
     return 'Ismeretlen hiba történt.'
   }
   if (!error.response) {
-    return 'A szerver nem érhető el.'
+    return 'A szerver nem érhető el. Ellenőrizd az internetkapcsolatot.'
   }
 
-  const { status, data } = error.response
+  const apiError = getApiError(error)
   // Ha a Vite proxy nem éri el a backendet, üres 500-as választ ad
-  if (!data || typeof data !== 'object') {
-    return status >= 500
-      ? 'A backend nem érhető el. Fut a Spring Boot alkalmazás?'
-      : `Hiba történt (HTTP ${status}).`
+  if (!apiError) {
+    return error.response.status >= 500
+      ? 'A szerver jelenleg nem érhető el. Próbáld újra később.'
+      : `Hiba történt (HTTP ${error.response.status}).`
   }
-  if (data.violations?.length) {
-    return data.violations.map((violation) => violation.message).join(' ')
+  if (apiError.violations?.length) {
+    return apiError.violations.map((violation) => violation.message).join(' ')
   }
-  return data.message || `Hiba történt (HTTP ${status}).`
+  return apiError.message || `Hiba történt (HTTP ${error.response.status}).`
+}
+
+// A backend validációs hibái mezőnként (MethodArgumentNotValidException → violations), űrlapmezőkhöz
+export function getFieldErrors(error: unknown): Record<string, string> {
+  const violations = getApiError(error)?.violations ?? []
+  return Object.fromEntries(violations.map((violation) => [violation.field, violation.message]))
 }

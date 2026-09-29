@@ -1,10 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
   <defs>
     <linearGradient id="finex" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#a878f5" />
-      <stop offset="1" stop-color="#6836b0" />
+      <stop offset="0" stop-color="#b58af7" />
+      <stop offset="0.5" stop-color="#8a4fe0" />
+      <stop offset="1" stop-color="#5f33b5" />
     </linearGradient>
   </defs>
-  <rect width="64" height="64" rx="16" fill="url(#finex)" />
-  <path d="M22 16h22v7H30v7h12v7H30v11h-8z" fill="#fff" />
+  <rect width="48" height="48" rx="14" fill="url(#finex)" />
+  <circle cx="24" cy="24" r="11.5" fill="none" stroke="#fff" stroke-width="3" />
+  <path d="M19 24.5l3.5 3.5 6.5-7" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
 </svg>
