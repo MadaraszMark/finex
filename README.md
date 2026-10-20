@@ -9,7 +9,7 @@ Spring Boot REST API és React webes felület: felhasználók, bankszámlák, ba
 | [`backend/`](backend) | Spring Boot REST API (Java 17, Maven) | Eclipse / Spring Tool Suite |
 | [`frontend/`](frontend) | React + TypeScript webes felület (Vite, Tailwind CSS) | VS Code |
 | [`database/`](database) | PostgreSQL (Docker Compose), a séma és a demóadatok leírása | Docker Desktop, pgAdmin |
-| [`docs/`](docs) | Dokumentáció, UI koncepcióképek | – |
+| [`docs/`](docs) | [Telepítési útmutató](docs/TELEPITES.md), UI koncepcióképek | – |
 
 ---
 
@@ -41,7 +41,8 @@ Spring Boot REST API és React webes felület: felhasználók, bankszámlák, ba
 
 ## 🚀 Indítás (fejlesztői környezet)
 
-Szükséges: Docker Desktop, JDK 17 vagy újabb, Node.js 22.12 vagy újabb.
+Szükséges: Git, Docker Desktop, JDK 21 (17 vagy újabb), Node.js 24 LTS (legalább 22.12).
+Új gépen lépésről lépésre (letöltések, Eclipse, hibaelhárítás): **[`docs/TELEPITES.md`](docs/TELEPITES.md)**.
 
 1. **Adatbázis** – a `database` mappában:
    ```bash
@@ -80,6 +81,7 @@ A projekt célja, hogy **valós banki funkciókat** modellezzek és gyakoroljak 
 - Auditing (`createdAt`, `updatedAt`)
 - Globális exception handling
 - Ütemezett feladatok (havi kamatjóváírás, rendszeres átutalások)
+- Az üzleti szabályok paraméterei egy helyen (`finex.*`: napi utalási limit, nyitható számlák száma, kamatláb, kártyalimitek); a frontend a `GET /settings` végpontról olvassa őket, nincs saját másolata
 
 ### Biztonság
 - JWT alapú autentikáció
@@ -134,21 +136,23 @@ A projekt célja, hogy **valós banki funkciókat** modellezzek és gyakoroljak 
 
 ## 🖥️ Webes felület (React)
 
-A frontend öt részben készül. A még el nem készült oldalak helyén egy „Hamarosan” oldal mutatja, mi fog ott szerepelni.
+A frontend öt részben készült:
 
 - [x] **1. Alapok** – design system (lila márkaszín, világos / sötét / rendszer téma), animált belépés és regisztráció, alkalmazáskeret (oldalsáv, felső sáv, mobilos alsó menü), munkamenet-kezelés (JWT, lejáratkor automatikus kiléptetés), szerepkör alapú útvonalvédelem
-- [ ] **2. Főoldal, számlák, bankkártyák**
-- [ ] **3. Pénzmozgás** – tranzakciók, utalás lépésről lépésre, kedvezményezettek, rendszeres átutalások
-- [ ] **4. Tervezés** – megtakarítások, statisztikák
-- [ ] **5. Fiók és adminisztráció** – értesítések, profil és biztonság, ügyfélszolgálat, admin felület
+- [x] **2. Főoldal, számlák, bankkártyák** – egyenlegösszesítő és havi bevétel/kiadás grafikon, számlanyitás és -lezárás, számlaadatlap egyenleggrafikonnal és kivonattal (futó egyenleg), kártyatiltás, napi limit, online fizetés, demó kártyás fizetés
+- [x] **3. Pénzmozgás** – kereshető, szűrhető tranzakciólista (a szűrés a címsorban marad) tételadatlappal és kategorizálással, utalás lépésről lépésre nyugtával, kedvezményezettek, rendszeres átutalások
+- [x] **4. Tervezés** – megtakarítási célok körkörös haladásjelzővel (befizetés, kivét, mozgások, havi kamat, lezárás), statisztika időszak- és pénznemválasztóval (bevétel, kiadás, megtakarítási arány, havi grafikon, költés kategóriánként, legnagyobb kiadások)
+- [x] **5. Fiók és adminisztráció** – értesítések (szűrés, napok szerint csoportosítva, olvasottnak jelölés), profil és biztonság (személyes adatok, jelszócsere, belépési előzmények, téma), ügyfélszolgálat csevegő nézetben, admin felület (áttekintés és ütemezett feladatok kézi indítása, felhasználók, számlák, ticketek, belépési napló, kategóriák)
+
+Mindenhol elérhető: **Ctrl + K** parancspaletta (oldalak, számlák, kedvezményezettek, gyorsműveletek keresése), mobilon alulról nyíló és lehúzással bezárható ablakok, a kattintás helyéről körben szétterülő témaváltás.
 
 A kód felépítése (`frontend/src`):
 
 | Mappa | Tartalom |
 |---|---|
 | `app/` | Útvonalak, az alkalmazás kerete (oldalsáv, fejléc, alsó menü), menüszerkezet |
-| `features/` | Oldalak funkciónként (belépés, főoldal, hibaoldalak, …) |
-| `components/` | Újrahasznosítható UI-elemek (`ui/`) és márkaelemek (`brand/`) |
+| `features/` | Oldalak funkciónként (`pages/`, `components/`, `queries.ts`, `schemas.ts`): számlák, kártyák, utalás, statisztika, admin, … |
+| `components/` | Újrahasznosítható UI-elemek (`ui/`), márkaelemek (`brand/`), töltés közbeni vázak (`skeletons/`), grafikonelemek (`charts/`) |
 | `api/` | Backend-hívások és a DTO-k TypeScript típusai |
 | `session/` | Munkamenet (token, lejárat) és útvonalvédők |
 | `theme/` | Világos / sötét mód |
@@ -158,7 +162,7 @@ A kód felépítése (`frontend/src`):
 
 ## 🧪 Tesztelés
 
-- 429 automatizált backend teszt – futtatás a `backend` mappában: `./mvnw test` (a Testcontainers miatt a Dockernek futnia kell)
+- 431 automatizált backend teszt – futtatás a `backend` mappában: `./mvnw test` (a Testcontainers miatt a Dockernek futnia kell)
 - Unit tesztek (mapperek, service-ek Mockitóval)
 - Controller slice tesztek (@WebMvcTest)
 - Repository és adatbázis-szabály tesztek **Testcontainers + PostgreSQL** segítségével
@@ -169,9 +173,6 @@ A kód felépítése (`frontend/src`):
 ---
 
 ## 🚧 Tervezett funkciók
-
-### Webes felület
-- A frontend 2–5. része (lásd fent)
 
 ### Megtakarítások
 - Automatikus havi megtakarítás
