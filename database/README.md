@@ -18,7 +18,8 @@ docker compose up -d
 | Konténer | `finex-postgres` |
 | Adatok (volume) | `finex_finex-pgdata` |
 
-> A gépen fut egy natív PostgreSQL 18 is az **5433**-as porton (pgAdminnal). Az alkalmazás azt nem használja.
+> Ha a gépen natív PostgreSQL is fut, az ne az **5432**-es porton legyen (az eredeti fejlesztői gépen az 5433-ason
+> fut, pgAdminnal), különben ütközik a konténerrel. Az alkalmazás csak a Dockeres adatbázist használja.
 
 ## Séma: Flyway-migrációk
 
