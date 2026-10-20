@@ -1,5 +1,6 @@
 import { QueryClient } from '@tanstack/react-query'
 import axios from 'axios'
+import { queryKeys } from '../api/queryKeys'
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -13,3 +14,13 @@ export const queryClient = new QueryClient({
     },
   },
 })
+
+// Pénzmozgás (befizetés, kártyás fizetés, utalás, megtakarítás) után minden érintett adat frissül: egyenlegek,
+// kivonatok, egyenlegtörténet, a kártyák mai költése, tranzakciók, megtakarítások, statisztikák és az értesítések
+export function invalidateMoneyQueries() {
+  return Promise.all(
+    [queryKeys.accounts, queryKeys.cards, queryKeys.transactions, queryKeys.savings, queryKeys.statistics, queryKeys.notifications].map((queryKey) =>
+      queryClient.invalidateQueries({ queryKey }),
+    ),
+  )
+}

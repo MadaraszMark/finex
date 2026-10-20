@@ -2,7 +2,8 @@ import { Monitor, Moon, Sun } from 'lucide-react'
 import IconButton from '../components/ui/IconButton'
 import type { IconButtonTone } from '../components/ui/buttonStyles'
 import SegmentedControl, { type SegmentedOption } from '../components/ui/SegmentedControl'
-import { themeStore, type ThemePreference } from './themeStore'
+import type { ThemePreference } from './themeStore'
+import { changeTheme, elementCenter } from './themeTransition'
 import { useTheme } from './useTheme'
 
 const themeOptions: SegmentedOption<ThemePreference>[] = [
@@ -11,7 +12,8 @@ const themeOptions: SegmentedOption<ThemePreference>[] = [
   { value: 'system', label: 'Rendszer', icon: <Monitor /> },
 ]
 
-// Háromállású témaválasztó a menükbe (a "Rendszer" az operációs rendszer beállítását követi)
+// Háromállású témaválasztó a menükbe (a "Rendszer" az operációs rendszer beállítását követi).
+// Az új téma a megnyomott gombtól induló körben terül szét.
 export function ThemeSwitcher({ className }: { className?: string }) {
   const { preference } = useTheme()
 
@@ -20,7 +22,7 @@ export function ThemeSwitcher({ className }: { className?: string }) {
       label="Megjelenés"
       value={preference}
       options={themeOptions}
-      onChange={(value) => themeStore.setPreference(value)}
+      onChange={(value) => changeTheme(value, elementCenter(document.activeElement))}
       className={className}
     />
   )
@@ -32,7 +34,11 @@ export function ThemeToggleButton({ tone }: { tone?: IconButtonTone }) {
   const isDark = resolved === 'dark'
 
   return (
-    <IconButton label={isDark ? 'Váltás világos módra' : 'Váltás sötét módra'} tone={tone} onClick={() => themeStore.setPreference(isDark ? 'light' : 'dark')}>
+    <IconButton
+      label={isDark ? 'Váltás világos módra' : 'Váltás sötét módra'}
+      tone={tone}
+      onClick={(event) => changeTheme(isDark ? 'light' : 'dark', elementCenter(event.currentTarget))}
+    >
       {isDark ? <Sun /> : <Moon />}
     </IconButton>
   )

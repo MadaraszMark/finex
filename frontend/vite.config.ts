@@ -28,6 +28,12 @@ export default defineConfig({
             { name: 'router', test: /[\\/]node_modules[\\/]react-router[\\/]/ },
             { name: 'data', test: /[\\/]node_modules[\\/](@tanstack|axios)[\\/]/ },
             { name: 'motion', test: /[\\/]node_modules[\\/](motion|framer-motion|motion-dom|motion-utils)[\\/]/ },
+            { name: 'forms', test: /[\\/]node_modules[\\/](zod|react-hook-form|@hookform)[\\/]/ },
+            // A grafikonkönyvtár és a függőségei csak a grafikonos oldalakon töltődnek le
+            {
+              name: 'charts',
+              test: /[\\/]node_modules[\\/](recharts|victory-vendor|d3-[^\\/]+|internmap|@reduxjs|react-redux|redux|immer|reselect|decimal\.js-light|eventemitter3|es-toolkit|tiny-invariant|use-sync-external-store)[\\/]/,
+            },
           ],
         },
       },

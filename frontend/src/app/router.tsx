@@ -1,51 +1,55 @@
 import type { ComponentType } from 'react'
-import { createBrowserRouter, type RouteObject } from 'react-router'
-import ComingSoonPage from '../features/placeholder/ComingSoonPage'
-import { plannedPages } from '../features/placeholder/plannedPages'
-import type { RouteHandle } from '../hooks/useRouteTitle'
+import { createBrowserRouter } from 'react-router'
+import { PageSkeleton, SkeletonCard } from '../components/skeletons/SkeletonKit'
+import { AccountDetailSkeleton, AccountsSkeleton } from '../features/accounts/components/AccountSkeletons'
+import { AdminRouteSkeleton } from '../features/admin/components/AdminSkeletons'
+import { AuthSkeleton, WelcomeSkeleton } from '../features/auth/components/AuthSkeletons'
+import BeneficiariesSkeleton from '../features/beneficiaries/components/BeneficiariesSkeleton'
+import CardsSkeleton from '../features/cards/components/CardsSkeleton'
+import HomeSkeleton from '../features/home/components/HomeSkeleton'
+import NotificationsSkeleton from '../features/notifications/components/NotificationsSkeleton'
+import ProfileSkeleton from '../features/profile/components/ProfileSkeleton'
+import SavingsSkeleton from '../features/savings/components/SavingsSkeleton'
+import StandingOrdersSkeleton from '../features/standing-orders/components/StandingOrdersSkeleton'
+import StatisticsSkeleton from '../features/statistics/components/StatisticsSkeleton'
+import SupportSkeleton from '../features/support/components/SupportSkeleton'
+import TransactionsSkeleton from '../features/transactions/components/TransactionsSkeleton'
+import TransferSkeleton from '../features/transfer/components/TransferSkeleton'
 import { GuestOnly, RequireAdmin, RequireAuth } from '../session/guards'
 import AppLayout from './layout/AppLayout'
-import { findNavItem } from './navigation'
 import RootLayout from './RootLayout'
 import RouteErrorPage from './RouteErrorPage'
-import SplashScreen from './SplashScreen'
 
 // Az oldalak kódja csak akkor töltődik le, amikor a felhasználó először megnyitja őket (külön fájl minden oldalnak)
 function page(load: () => Promise<{ default: ComponentType }>) {
   return async () => ({ Component: (await load()).default })
 }
 
-// Még el nem készült oldal: a menü címével, ikonjával és a tervezett tartalommal (features/placeholder).
-// Útvonal nélkül a szülő alapoldala (index) lesz.
-function planned(fullPath: string, routePath?: string): RouteObject {
-  const item = findNavItem(fullPath)
-  const plan = plannedPages[fullPath]
-  if (!item || !plan) {
-    throw new Error(`Hiányzó menüpont vagy terv: ${fullPath}`)
-  }
-
-  const route = {
-    element: <ComingSoonPage title={item.label} icon={item.icon} {...plan} />,
-    handle: { title: item.label } satisfies RouteHandle,
-  }
-  return routePath === undefined ? { index: true, ...route } : { path: routePath, ...route }
-}
+// Első betöltéskor, amíg az oldal kódja letöltődik, a helyén az oldal váza látszik (hydrateFallbackElement): pörgő
+// töltésjelző helyett ugyanabban az elrendezésben, mint az elkészült oldal. A belső oldalaknál a valódi oldalsáv és
+// fejléc már látszik, csak a tartalom helyén van váz.
 
 export const router = createBrowserRouter([
   {
     element: <RootLayout />,
     errorElement: <RouteErrorPage />,
-    // Az első oldal kódjának letöltése alatt látszik
-    hydrateFallbackElement: <SplashScreen />,
+    // Tartalék, ha egy útvonalnak nincs saját váza (mindegyiknek van): üres háttér, töltésjelző nélkül
+    hydrateFallbackElement: <div className="min-h-dvh bg-background" />,
     children: [
       // Csak kijelentkezve (bejelentkezett felhasználót továbbirányít)
       {
         element: <GuestOnly />,
         children: [
-          { path: 'welcome', lazy: page(() => import('../features/auth/pages/WelcomePage')), handle: { title: 'Üdvözlünk' } },
+          {
+            path: 'welcome',
+            lazy: page(() => import('../features/auth/pages/WelcomePage')),
+            handle: { title: 'Üdvözlünk' },
+            hydrateFallbackElement: <WelcomeSkeleton />,
+          },
           // A belépés és a regisztráció közös kerete: váltáskor a háttér helyben marad, csak az űrlap cserélődik
           {
             lazy: page(() => import('../features/auth/AuthLayout')),
+            hydrateFallbackElement: <AuthSkeleton />,
             children: [
               { path: 'login', lazy: page(() => import('../features/auth/pages/LoginPage')), handle: { title: 'Bejelentkezés' } },
               { path: 'register', lazy: page(() => import('../features/auth/pages/RegisterPage')), handle: { title: 'Regisztráció' } },
@@ -61,35 +65,197 @@ export const router = createBrowserRouter([
           {
             element: <AppLayout />,
             children: [
-              { index: true, lazy: page(() => import('../features/home/HomePage')), handle: { title: 'Főoldal' } },
+              {
+                index: true,
+                lazy: page(() => import('../features/home/HomePage')),
+                handle: { title: 'Főoldal' },
+                hydrateFallbackElement: (
+                  <PageSkeleton header={{ eyebrow: true }}>
+                    <HomeSkeleton />
+                  </PageSkeleton>
+                ),
+              },
 
-              planned('/accounts', 'accounts'),
-              planned('/cards', 'cards'),
-              planned('/transfer', 'transfer'),
-              planned('/transactions', 'transactions'),
-              planned('/beneficiaries', 'beneficiaries'),
-              planned('/standing-orders', 'standing-orders'),
-              planned('/savings', 'savings'),
-              planned('/statistics', 'statistics'),
-              planned('/notifications', 'notifications'),
-              planned('/support', 'support'),
-              planned('/profile', 'profile'),
+              {
+                path: 'accounts',
+                children: [
+                  {
+                    index: true,
+                    lazy: page(() => import('../features/accounts/pages/AccountsPage')),
+                    handle: { title: 'Számlák' },
+                    hydrateFallbackElement: (
+                      <PageSkeleton header={{ action: true }}>
+                        <AccountsSkeleton />
+                      </PageSkeleton>
+                    ),
+                  },
+                  {
+                    path: ':accountId',
+                    lazy: page(() => import('../features/accounts/pages/AccountDetailPage')),
+                    handle: { title: 'Számlaadatlap' },
+                    hydrateFallbackElement: (
+                      <PageSkeleton header={{ eyebrow: true, description: false, action: true }}>
+                        <AccountDetailSkeleton />
+                      </PageSkeleton>
+                    ),
+                  },
+                ],
+              },
+              {
+                path: 'cards',
+                lazy: page(() => import('../features/cards/pages/CardsPage')),
+                handle: { title: 'Kártyák' },
+                hydrateFallbackElement: (
+                  <PageSkeleton>
+                    <CardsSkeleton />
+                  </PageSkeleton>
+                ),
+              },
+              {
+                path: 'transfer',
+                lazy: page(() => import('../features/transfer/pages/TransferPage')),
+                handle: { title: 'Utalás' },
+                hydrateFallbackElement: (
+                  <PageSkeleton>
+                    <TransferSkeleton />
+                  </PageSkeleton>
+                ),
+              },
+              {
+                path: 'transactions',
+                lazy: page(() => import('../features/transactions/pages/TransactionsPage')),
+                handle: { title: 'Tranzakciók' },
+                hydrateFallbackElement: (
+                  <PageSkeleton header={{ action: true }}>
+                    <TransactionsSkeleton />
+                  </PageSkeleton>
+                ),
+              },
+              {
+                path: 'beneficiaries',
+                lazy: page(() => import('../features/beneficiaries/pages/BeneficiariesPage')),
+                handle: { title: 'Kedvezményezettek' },
+                hydrateFallbackElement: (
+                  <PageSkeleton header={{ action: true }}>
+                    <BeneficiariesSkeleton />
+                  </PageSkeleton>
+                ),
+              },
+              {
+                path: 'standing-orders',
+                lazy: page(() => import('../features/standing-orders/pages/StandingOrdersPage')),
+                handle: { title: 'Rendszeres átutalások' },
+                hydrateFallbackElement: (
+                  <PageSkeleton header={{ action: true }}>
+                    <StandingOrdersSkeleton />
+                  </PageSkeleton>
+                ),
+              },
+              {
+                path: 'savings',
+                lazy: page(() => import('../features/savings/pages/SavingsPage')),
+                handle: { title: 'Megtakarítások' },
+                hydrateFallbackElement: (
+                  <PageSkeleton header={{ action: true }}>
+                    <SavingsSkeleton />
+                  </PageSkeleton>
+                ),
+              },
+              {
+                path: 'statistics',
+                lazy: page(() => import('../features/statistics/pages/StatisticsPage')),
+                handle: { title: 'Statisztika' },
+                hydrateFallbackElement: (
+                  <PageSkeleton>
+                    <StatisticsSkeleton />
+                  </PageSkeleton>
+                ),
+              },
+              {
+                path: 'notifications',
+                lazy: page(() => import('../features/notifications/pages/NotificationsPage')),
+                handle: { title: 'Értesítések' },
+                hydrateFallbackElement: (
+                  <PageSkeleton>
+                    <NotificationsSkeleton />
+                  </PageSkeleton>
+                ),
+              },
+              {
+                path: 'support',
+                lazy: page(() => import('../features/support/pages/SupportPage')),
+                handle: { title: 'Ügyfélszolgálat' },
+                hydrateFallbackElement: (
+                  <PageSkeleton header={{ action: true }}>
+                    <SupportSkeleton />
+                  </PageSkeleton>
+                ),
+              },
+              {
+                path: 'profile',
+                lazy: page(() => import('../features/profile/pages/ProfilePage')),
+                handle: { title: 'Profil és biztonság' },
+                hydrateFallbackElement: (
+                  <PageSkeleton header={{ eyebrow: true }}>
+                    <ProfileSkeleton />
+                  </PageSkeleton>
+                ),
+              },
 
               // Adminisztráció: csak ADMIN szerepkörrel (a backend /admin/** végpontjai is ezt követelik meg)
               {
                 path: 'admin',
                 element: <RequireAdmin />,
                 children: [
-                  planned('/admin'),
-                  planned('/admin/users', 'users'),
-                  planned('/admin/accounts', 'accounts'),
-                  planned('/admin/support-tickets', 'support-tickets'),
-                  planned('/admin/login-logs', 'login-logs'),
-                  planned('/admin/categories', 'categories'),
+                  {
+                    index: true,
+                    lazy: page(() => import('../features/admin/pages/AdminDashboardPage')),
+                    handle: { title: 'Admin áttekintés' },
+                    hydrateFallbackElement: <AdminRouteSkeleton pathname="/admin" />,
+                  },
+                  {
+                    path: 'users',
+                    lazy: page(() => import('../features/admin/pages/AdminUsersPage')),
+                    handle: { title: 'Felhasználók' },
+                    hydrateFallbackElement: <AdminRouteSkeleton pathname="/admin/users" />,
+                  },
+                  {
+                    path: 'accounts',
+                    lazy: page(() => import('../features/admin/pages/AdminAccountsPage')),
+                    handle: { title: 'Számlák kezelése' },
+                    hydrateFallbackElement: <AdminRouteSkeleton pathname="/admin/accounts" />,
+                  },
+                  {
+                    path: 'support-tickets',
+                    lazy: page(() => import('../features/admin/pages/AdminTicketsPage')),
+                    handle: { title: 'Ticketek' },
+                    hydrateFallbackElement: <AdminRouteSkeleton pathname="/admin/support-tickets" />,
+                  },
+                  {
+                    path: 'login-logs',
+                    lazy: page(() => import('../features/admin/pages/AdminLoginLogsPage')),
+                    handle: { title: 'Belépési napló' },
+                    hydrateFallbackElement: <AdminRouteSkeleton pathname="/admin/login-logs" />,
+                  },
+                  {
+                    path: 'categories',
+                    lazy: page(() => import('../features/admin/pages/AdminCategoriesPage')),
+                    handle: { title: 'Kategóriák' },
+                    hydrateFallbackElement: <AdminRouteSkeleton pathname="/admin/categories" />,
+                  },
                 ],
               },
 
-              { path: '*', lazy: page(() => import('../features/errors/NotFoundPage')), handle: { title: 'Nem található' } },
+              {
+                path: '*',
+                lazy: page(() => import('../features/errors/NotFoundPage')),
+                handle: { title: 'Nem található' },
+                hydrateFallbackElement: (
+                  <PageSkeleton>
+                    <SkeletonCard className="h-72" />
+                  </PageSkeleton>
+                ),
+              },
             ],
           },
         ],

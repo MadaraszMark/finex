@@ -1,52 +1,107 @@
-import { useQuery } from '@tanstack/react-query'
+import { ArrowRight } from 'lucide-react'
 import { motion, useTransform } from 'motion/react'
-import { getMyCards } from '../../api/cards'
-import { queryKeys } from '../../api/queryKeys'
+import { Link } from 'react-router'
 import FinexCard from '../../components/brand/FinexCard'
+import { Card, CardHeader } from '../../components/ui/Card'
+import Meter from '../../components/ui/Meter'
+import Skeleton from '../../components/ui/Skeleton'
 import { usePointerParallax } from '../../hooks/usePointerParallax'
 import { cn } from '../../lib/cn'
-import { formatCardExpiry, formatMaskedCard } from '../../lib/format'
-import { useCurrentUser } from '../../session/useCurrentUser'
+import { formatCardExpiry, formatMaskedCard, formatMoney } from '../../lib/format'
+import { accountTheme } from '../accounts/accountTheme'
+import { useAccounts } from '../accounts/queries'
+import { useCards } from '../cards/queries'
 
-// A felhasználó (első aktív) bankkártyája lebegő, az egér mozgására térben megdőlő grafikaként
+// A főoldal kártyablokkja: az első aktív bankkártya lebegő, az egér mozgására térben megdőlő grafikaként,
+// alatta a mai költés a napi limithez képest. Ha a sor magasabb (a mellette álló lista miatt), a kártyagrafika a
+// szabad hely közepére kerül, a költésjelző pedig a kártya aljára.
 export default function CardSpotlight({ className }: { className?: string }) {
-  const { data: user } = useCurrentUser()
-  const { data: cards } = useQuery({ queryKey: queryKeys.cards, queryFn: getMyCards })
-  const card = cards?.find((item) => item.status === 'ACTIVE') ?? cards?.[0]
+  const { data: cards } = useCards()
+  const { data: accounts } = useAccounts()
+  const card = cards?.find((item) => item.status === 'ACTIVE') ?? cards?.find((item) => item.status !== 'CANCELLED')
+  const account = accounts?.find((item) => item.id === card?.accountId)
 
   const pointer = usePointerParallax()
   const rotateX = useTransform(pointer.y, (value) => value * -14)
   const rotateY = useTransform(pointer.x, (value) => value * 18)
 
-  const holderName = card?.holderName ?? (user ? `${user.lastName} ${user.firstName}`.toLocaleUpperCase('hu') : '')
-  const maskedNumber = card ? formatMaskedCard(card.maskedNumber) : '•••• •••• •••• ••••'
-  const expiry = card ? formatCardExpiry(card.expiryDate) : '••/••'
-
   return (
-    <div
-      role="img"
-      aria-label={card ? `Bankkártyád: ${maskedNumber}, lejárat: ${expiry}` : 'Bankkártyád'}
-      className={cn('relative mx-auto w-full max-w-[22rem] [perspective:1200px]', className)}
-    >
-      {/* Mögötte egy elfordított, áttetsző "második kártya", mint a belépő oldalon */}
-      <motion.div
-        style={{ rotateX, rotateY }}
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15, duration: 0.6 }}
-        className="absolute inset-x-8 -top-4 h-52 -rotate-6 rounded-[1.75rem] border border-white/20 bg-brand-900/30 dark:bg-brand-700/25"
+    <Card className={cn('flex flex-col p-5 sm:p-6', className)}>
+      <CardHeader
+        title="Bankkártyád"
+        description={account?.name}
+        action={
+          card && (
+            <Link
+              to={`/cards?card=${card.id}`}
+              className="group inline-flex items-center gap-1 rounded-lg text-sm font-semibold text-primary focus-visible:ring-4 focus-visible:ring-ring/40 focus-visible:outline-none"
+            >
+              Kezelés
+              <ArrowRight aria-hidden className="size-4 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          )
+        }
       />
-      <motion.div
-        style={{ rotateX, rotateY }}
-        initial={{ opacity: 0, y: 40, rotate: -8 }}
-        animate={{ opacity: 1, y: 0, rotate: 0 }}
-        transition={{ delay: 0.25, type: 'spring', stiffness: 80, damping: 14 }}
-        className="relative h-56"
-      >
-        <div className="size-full motion-safe:animate-float">
-          <FinexCard variant="solid" holderName={holderName} maskedNumber={maskedNumber} expiry={expiry} />
-        </div>
-      </motion.div>
-    </div>
+
+      {!cards || !accounts ? (
+        <Skeleton className="mx-auto mt-6 h-56 max-w-[22rem] rounded-[1.75rem]" />
+      ) : !card ? (
+        <p className="mt-6 text-sm text-muted-foreground">Nincs aktív bankkártyád.</p>
+      ) : (
+        <>
+          <div className="flex flex-1 flex-col justify-center">
+            <div
+              role="img"
+              aria-label={`Bankkártyád: ${formatMaskedCard(card.maskedNumber)}, lejárat: ${formatCardExpiry(card.expiryDate)}`}
+              className="relative mx-auto mt-7 w-full max-w-[22rem] [perspective:1200px]"
+            >
+              {/* Mögötte egy elfordított, áttetsző "második kártya", mint a belépő oldalon */}
+              <motion.div
+                style={{ rotateX, rotateY }}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15, duration: 0.6 }}
+                className="absolute inset-x-8 -top-4 h-52 -rotate-6 rounded-[1.75rem] border border-white/20 bg-brand-900/30 dark:bg-brand-700/25"
+              />
+              <motion.div
+                style={{ rotateX, rotateY }}
+                initial={{ opacity: 0, y: 40, rotate: -8 }}
+                animate={{ opacity: 1, y: 0, rotate: 0 }}
+                transition={{ delay: 0.25, type: 'spring', stiffness: 80, damping: 14 }}
+                className="relative h-56"
+              >
+                <div className="size-full motion-safe:animate-float">
+                  <FinexCard
+                    variant="solid"
+                    holderName={card.holderName}
+                    maskedNumber={formatMaskedCard(card.maskedNumber)}
+                    expiry={formatCardExpiry(card.expiryDate)}
+                    status={card.status}
+                    className={account ? accountTheme({ currency: account.currency, status: 'ACTIVE' }).surface : undefined}
+                  />
+                </div>
+              </motion.div>
+            </div>
+          </div>
+
+          <div className="mt-8">
+            <div className="flex items-baseline justify-between gap-3 text-sm">
+              <span className="font-medium text-muted-foreground">Mai költés</span>
+              <span className="text-muted-foreground">
+                <span className="font-bold text-foreground">{formatMoney(card.spentToday, account?.currency ?? 'HUF')}</span> /{' '}
+                {formatMoney(card.dailyLimit, account?.currency ?? 'HUF')}
+              </span>
+            </div>
+            <Meter
+              className="mt-2.5"
+              label="Mai költés a napi limithez képest"
+              value={card.spentToday}
+              max={card.dailyLimit}
+              valueText={`${formatMoney(card.spentToday, account?.currency ?? 'HUF')} a ${formatMoney(card.dailyLimit, account?.currency ?? 'HUF')} napi limitből`}
+            />
+          </div>
+        </>
+      )}
+    </Card>
   )
 }

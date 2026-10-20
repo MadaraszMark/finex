@@ -36,9 +36,10 @@ Bejelentkezéskor a backend JWT tokent ad. Ezt a frontend eltárolja, és minden
 
 | Mappa | Tartalom |
 |---|---|
-| `src/api` | Backend-hívások és a DTO-knak megfelelő típusok |
-| `src/auth` | Token tárolása, be- és kijelentkezés |
-| `src/components` | Újrahasználható felületelemek |
-| `src/hooks` | Saját React hookok |
-| `src/lib` | Segédfüggvények (formázás, lekérdezés-kliens) |
-| `src/pages` | Oldalak (belépés, főoldal) |
+| `src/app` | Útvonalak (oldalanként külön betöltődő kód), az alkalmazás kerete (oldalsáv, fejléc, alsó menü), Ctrl+K parancspaletta |
+| `src/api` | Backend-hívások (controllerenként egy fájl), a DTO-knak megfelelő típusok, React Query kulcsok |
+| `src/features` | Oldalak funkciónként: `pages/`, `components/` (az oldal betöltés közbeni vázával), `queries.ts`, `schemas.ts` |
+| `src/components` | Újrahasználható felületelemek (`ui/`), márkaelemek (`brand/`), vázak (`skeletons/`), grafikonelemek (`charts/`) |
+| `src/session` | Token tárolása, lejárat figyelése, útvonalvédők (bejelentkezett / vendég / admin) |
+| `src/theme` | Világos / sötét / rendszer téma |
+| `src/hooks`, `src/lib` | Saját React hookok, segédfüggvények (formázás, dátumok, IBAN, animációk) |

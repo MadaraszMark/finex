@@ -1,6 +1,8 @@
 import { motion } from 'motion/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router'
+import { useSpotlight } from '../../hooks/useSpotlight'
+import CommandPalette from '../CommandPalette'
 import AmbientBackground from './AmbientBackground'
 import BottomNav from './BottomNav'
 import MenuSheet from './MenuSheet'
@@ -9,9 +11,23 @@ import TopBar from './TopBar'
 
 // A bejelentkezés utáni oldalak kerete: asztali nézetben oldalsáv, mobilon alsó menüsor, felül a fejléc.
 // Az oldalak tetején a lila fejlécsávot a PageHeader rajzolja; a tartalmi oszlop vízszintesen levágja (overflow-x-clip).
+// Innen nyílik a gyorskereső (Ctrl/⌘ + K), és itt figyel a kártyák egérkövető fénye is.
 export default function AppLayout() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const location = useLocation()
+  useSpotlight()
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setSearchOpen((open) => !open)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   return (
     <div className="relative isolate min-h-dvh lg:flex">
@@ -32,7 +48,7 @@ export default function AppLayout() {
           aria-hidden
           className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-16 bg-[linear-gradient(135deg,#a878f5_0%,#8a4fe0_45%,#5f33b5_100%)] lg:h-20 dark:bg-[linear-gradient(135deg,#231440_0%,#150c2a_50%,#0d0a16_100%)]"
         />
-        <TopBar />
+        <TopBar onOpenSearch={() => setSearchOpen(true)} />
         <main id="main" tabIndex={-1} className="flex-1 px-4 pt-6 pb-32 outline-none sm:px-6 lg:px-10 lg:pt-8 lg:pb-12">
           {/* Oldalváltáskor az új oldal finoman a helyére csúszik (a cím és a kártyák saját animációval úsznak be) */}
           <motion.div
@@ -49,6 +65,7 @@ export default function AppLayout() {
 
       <BottomNav onOpenMenu={() => setMenuOpen(true)} />
       <MenuSheet open={menuOpen} onClose={() => setMenuOpen(false)} />
+      <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   )
 }
