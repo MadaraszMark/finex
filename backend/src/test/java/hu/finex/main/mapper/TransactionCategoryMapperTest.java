@@ -70,12 +70,14 @@ class TransactionCategoryMapperTest {
                 .build();
 
         TransactionCategory tc = TransactionCategory.builder()
+                .id(41L)
                 .category(category)
                 .build();
 
         TransactionCategoryListItemResponse response = mapper.toListItem(tc);
 
         assertNotNull(response);
+        assertEquals(41L, response.getId());
         assertEquals(12L, response.getCategoryId());
         assertEquals("Entertainment", response.getCategoryName());
         assertEquals("🎬", response.getCategoryIcon());

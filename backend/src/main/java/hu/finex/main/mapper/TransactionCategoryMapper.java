@@ -30,6 +30,7 @@ public class TransactionCategoryMapper {
 
     public TransactionCategoryListItemResponse toListItem(TransactionCategory tc) {
         return TransactionCategoryListItemResponse.builder()
+                .id(tc.getId())
                 .categoryId(tc.getCategory().getId())
                 .categoryName(tc.getCategory().getName())
                 .categoryIcon(tc.getCategory().getIcon())
