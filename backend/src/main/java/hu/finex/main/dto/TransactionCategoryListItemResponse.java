@@ -11,6 +11,9 @@ import lombok.*;
 @Schema(description = "Tranzakcióhoz tartozó kategória egyszerűsített adatai")
 public class TransactionCategoryListItemResponse {
 
+    @Schema(description = "A tranzakció és a kategória kapcsolatának azonosítója (ezzel törölhető a hozzárendelés)", example = "41")
+    private Long id;
+
     @Schema(description = "A kategória azonosítója", example = "3")
     private Long categoryId;
 
