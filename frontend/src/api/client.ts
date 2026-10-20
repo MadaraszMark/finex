@@ -58,6 +58,11 @@ export function getErrorMessage(error: unknown): string {
   return apiError.message || `Hiba történt (HTTP ${error.response.status}).`
 }
 
+// 404: a kért erőforrás nem létezik, vagy nem a bejelentkezett felhasználóé (a backend ilyenkor sem árulja el, hogy létezik)
+export function isNotFoundError(error: unknown): boolean {
+  return axios.isAxiosError(error) && error.response?.status === 404
+}
+
 // A backend validációs hibái mezőnként (MethodArgumentNotValidException → violations), űrlapmezőkhöz
 export function getFieldErrors(error: unknown): Record<string, string> {
   const violations = getApiError(error)?.violations ?? []

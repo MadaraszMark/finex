@@ -98,7 +98,3 @@ export const mobileTabs: { left: NavItem[]; primary: NavItem; right: NavItem[] }
 export function visibleSections(isAdmin: boolean): NavSection[] {
   return navSections.filter((section) => !section.adminOnly || isAdmin)
 }
-
-export function findNavItem(path: string): NavItem | undefined {
-  return navSections.flatMap((section) => section.items).find((item) => item.to === path)
-}

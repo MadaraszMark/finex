@@ -1,4 +1,4 @@
-import { LogOut } from 'lucide-react'
+import { LayoutGrid, LogOut } from 'lucide-react'
 import { NavLink } from 'react-router'
 import Avatar from '../../components/ui/Avatar'
 import Button from '../../components/ui/Button'
@@ -15,7 +15,7 @@ export default function MenuSheet({ open, onClose }: { open: boolean; onClose: (
   const sections = visibleSections(user?.role === 'ADMIN')
 
   return (
-    <Dialog open={open} onClose={onClose} title="Menü" variant="sheet">
+    <Dialog open={open} onClose={onClose} title="Menü" icon={<LayoutGrid />}>
       <div className="flex items-center gap-3 rounded-2xl bg-muted/70 p-3">
         <Avatar lastName={user?.lastName} firstName={user?.firstName} />
         <div className="min-w-0">
@@ -24,7 +24,7 @@ export default function MenuSheet({ open, onClose }: { open: boolean; onClose: (
         </div>
       </div>
 
-      <nav aria-label="Összes oldal" className="mt-2 max-h-[50dvh] overflow-y-auto [scrollbar-width:thin]">
+      <nav aria-label="Összes oldal" className="mt-2">
         {sections.map((section) => (
           <div key={section.title} className="mt-4">
             <p className="px-1 pb-2 text-[11px] font-bold tracking-wider text-muted-foreground uppercase">{section.title}</p>

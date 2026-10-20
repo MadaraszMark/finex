@@ -76,7 +76,7 @@ export default function RegisterPage() {
       </motion.div>
 
       <form noValidate onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5">
-        <motion.div variants={staggerItem} className="grid gap-5 sm:grid-cols-2">
+        <motion.div variants={staggerItem} className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <TextField label="Vezetéknév" autoComplete="family-name" placeholder="Kovács" error={errors.lastName?.message} {...register('lastName')} />
           <TextField label="Keresztnév" autoComplete="given-name" placeholder="Anna" error={errors.firstName?.message} {...register('firstName')} />
         </motion.div>

@@ -1,5 +1,5 @@
 import { Navigate, Outlet, useLocation, type Location } from 'react-router'
-import PageLoader from '../components/ui/PageLoader'
+import { AdminRouteSkeleton } from '../features/admin/components/AdminSkeletons'
 import ForbiddenPage from '../features/errors/ForbiddenPage'
 import { useCurrentUser } from './useCurrentUser'
 import { useSessionState } from './useSession'
@@ -42,12 +42,14 @@ export function GuestOnly() {
   return <Outlet />
 }
 
-// Csak ADMIN szerepkörrel (a szerepkört a GET /users/me válaszából ismerjük)
+// Csak ADMIN szerepkörrel (a szerepkört a GET /users/me válaszából ismerjük). Amíg ez betöltődik, a kért admin oldal
+// váza látszik (töltésjelző helyett).
 export function RequireAdmin() {
   const { data: user, isPending, isError } = useCurrentUser()
+  const location = useLocation()
 
   if (isPending) {
-    return <PageLoader />
+    return <AdminRouteSkeleton pathname={location.pathname} />
   }
   if (isError || user.role !== 'ADMIN') {
     return <ForbiddenPage />

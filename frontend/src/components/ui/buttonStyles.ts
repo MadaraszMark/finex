@@ -29,7 +29,7 @@ const variants: Record<ButtonVariant, string> = {
   secondary: 'bg-muted text-foreground hover:bg-brand-100 dark:hover:bg-brand-950',
   outline: 'border border-border bg-card text-foreground hover:border-brand-300 hover:text-primary',
   ghost: 'text-muted-foreground hover:bg-muted hover:text-foreground',
-  danger: 'bg-danger text-white hover:brightness-110',
+  danger: 'bg-danger-solid text-white hover:brightness-110',
   // Lila háttéren: áttetsző, üveghatású (nyitóképernyő "Bejelentkezés")
   glass: 'border border-white/45 bg-white/15 text-white backdrop-blur-md hover:bg-white/25',
   // Lila háttéren: sötét ibolya (nyitóképernyő "Regisztráció")

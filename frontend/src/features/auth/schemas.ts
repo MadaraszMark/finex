@@ -17,22 +17,29 @@ export const passwordRules = [
   { id: 'digit', label: 'Tartalmaz számot', test: (value: string) => /\d/.test(value) },
 ] as const
 
+// A személyes adatok és az új jelszó szabályai közösek a regisztrációval és a profil oldallal
+export const personalDataFields = {
+  lastName: z.string().trim().min(1, 'Add meg a vezetékneved.').max(100, 'Legfeljebb 100 karakter lehet.'),
+  firstName: z.string().trim().min(1, 'Add meg a keresztneved.').max(100, 'Legfeljebb 100 karakter lehet.'),
+  email: z.email('Érvényes e-mail címet adj meg.').max(255, 'Legfeljebb 255 karakter lehet.'),
+  phone: z
+    .string()
+    .trim()
+    .max(30, 'Legfeljebb 30 karakter lehet.')
+    .regex(/^[+\d\s()-]*$/, 'Csak számjegyet, szóközt és + ( ) - jelet tartalmazhat.'),
+}
+
+export const newPasswordField = z
+  .string()
+  .min(8, 'A jelszó legalább 8 karakter legyen.')
+  .max(100, 'A jelszó legfeljebb 100 karakter lehet.')
+  .regex(/[A-Za-z]/, 'A jelszóban betűnek is lennie kell.')
+  .regex(/\d/, 'A jelszóban számnak is lennie kell.')
+
 export const registerSchema = z
   .object({
-    lastName: z.string().trim().min(1, 'Add meg a vezetékneved.').max(100, 'Legfeljebb 100 karakter lehet.'),
-    firstName: z.string().trim().min(1, 'Add meg a keresztneved.').max(100, 'Legfeljebb 100 karakter lehet.'),
-    email: z.email('Érvényes e-mail címet adj meg.').max(255, 'Legfeljebb 255 karakter lehet.'),
-    phone: z
-      .string()
-      .trim()
-      .max(30, 'Legfeljebb 30 karakter lehet.')
-      .regex(/^[+\d\s()-]*$/, 'Csak számjegyet, szóközt és + ( ) - jelet tartalmazhat.'),
-    password: z
-      .string()
-      .min(8, 'A jelszó legalább 8 karakter legyen.')
-      .max(100, 'A jelszó legfeljebb 100 karakter lehet.')
-      .regex(/[A-Za-z]/, 'A jelszóban betűnek is lennie kell.')
-      .regex(/\d/, 'A jelszóban számnak is lennie kell.'),
+    ...personalDataFields,
+    password: newPasswordField,
     passwordConfirm: z.string().min(1, 'Írd be újra a jelszót.'),
   })
   .refine((values) => values.password === values.passwordConfirm, {

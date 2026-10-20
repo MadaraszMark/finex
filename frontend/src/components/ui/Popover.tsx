@@ -66,12 +66,12 @@ export default function Popover({ trigger, label, children, align = 'end', trigg
         {open && (
           <motion.div
             id={panelId}
-            initial={{ opacity: 0, y: -6, scale: 0.97 }}
+            initial={{ opacity: 0, y: -8, scale: 0.94 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.97 }}
-            transition={{ duration: 0.16, ease: 'easeOut' }}
+            exit={{ opacity: 0, y: -6, scale: 0.97, transition: { duration: 0.12 } }}
+            transition={{ type: 'spring', stiffness: 460, damping: 30 }}
             className={cn(
-              'absolute top-full z-50 mt-2 rounded-3xl border border-border bg-card/95 p-2 text-foreground shadow-xl backdrop-blur-xl',
+              'absolute top-full z-50 mt-2 rounded-3xl border border-white/60 bg-card/90 p-2 text-foreground shadow-[0_24px_60px_-20px_rgb(24_10_50/0.45)] backdrop-blur-2xl dark:border-white/10',
               align === 'end' ? 'right-0 origin-top-right' : 'left-0 origin-top-left',
               panelClassName,
             )}

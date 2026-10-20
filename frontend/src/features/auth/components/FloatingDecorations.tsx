@@ -26,9 +26,9 @@ export default function FloatingDecorations({ pointer }: { pointer: PointerParal
         <DotGrid rows={4} columns={4} />
       </motion.div>
 
-      {/* Körök: egy nagy, lassan forgó szaggatott gyűrű és két áttetsző korong */}
+      {/* Körök: egy nagy szaggatott gyűrű és két áttetsző korong (az egérrel együtt finoman elmozdulnak) */}
       <motion.div style={{ x: farX, y: farY }} className="absolute -bottom-40 -left-40 size-[26rem]">
-        <div className="size-full rounded-full border-2 border-dashed border-white/15 motion-safe:animate-spin-slow" />
+        <div className="size-full rounded-full border-2 border-dashed border-white/15" />
       </motion.div>
       <motion.div style={{ x: nearX, y: nearY }} className="absolute top-[12%] left-[38%] hidden size-24 rounded-full bg-white/10 md:block" />
       <motion.div style={{ x: farX, y: farY }} className="absolute right-[12%] bottom-[18%] size-14 rounded-full bg-white/10" />

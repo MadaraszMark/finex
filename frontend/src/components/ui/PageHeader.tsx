@@ -35,7 +35,7 @@ export default function PageHeader({ title, highlight, description, eyebrow, act
       </div>
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 hidden md:block">
         <motion.div style={{ x: farX, y: farY }} className="absolute -top-10 -right-28 size-72">
-          <div className="size-full rounded-full border-2 border-dashed border-white/15 motion-safe:animate-spin-slow" />
+          <div className="size-full rounded-full border-2 border-dashed border-white/15" />
         </motion.div>
         <motion.div style={{ x: nearX, y: nearY }} className="absolute -top-4 right-[30%] size-14 rounded-full bg-white/10" />
       </div>

@@ -33,8 +33,8 @@
   --animate-aurora-3: aurora-3 30s ease-in-out infinite alternate;
   --animate-shine: shine 6s ease-in-out infinite;
   --animate-gradient-x: gradient-x 8s ease-in-out infinite;
-  --animate-spin-slow: spin-slow 60s linear infinite;
   --animate-pulse-ring: pulse-ring 2.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
 
   @keyframes float {
     0%,
@@ -107,9 +107,10 @@
     }
   }
 
-  @keyframes spin-slow {
+  /* Betöltés: a vázon végigfutó fénysáv (components/ui/Skeleton.tsx) */
+  @keyframes shimmer {
     to {
-      transform: rotate(360deg);
+      transform: translateX(100%);
     }
   }
 
@@ -129,6 +130,8 @@
 /* Szemantikus színek világos és sötét értékkel. A komponensek ezeket használják (bg-card, text-muted-foreground, …),
    így a sötét módhoz nem kell mindenhova külön dark: előtag. */
 :root {
+  /* A natív vezérlők (dátumválasztó, legördülő lista, görgetősáv) is a témát követik */
+  color-scheme: light;
   --background: #f7f5fc;
   --foreground: #1c1530;
   --card: #ffffff;
@@ -140,10 +143,20 @@
   --ring: #a878f5;
   --success: #059669;
   --danger: #e11d48;
+  /* Kitöltött piros felület fehér szöveggel/ikonnal (gomb, figyelmeztető jelvény): mindkét témában ugyanaz, 4,7:1 kontraszt */
+  --danger-solid: #e11d48;
   --warning: #d97706;
+
+  /* Grafikonok: a bevétel/kiadás színpárja a dataviz-validátorral ellenőrzött (fényerő, telítettség,
+     színtévesztő-biztos elkülönülés, kontraszt a kártya hátterén); a rácsvonal egy árnyalattal tér el a felülettől */
+  --chart-income: #059669;
+  --chart-outcome: #7c45d1;
+  --chart-balance: #7c45d1;
+  --chart-grid: #ece7f6;
 }
 
 .dark {
+  color-scheme: dark;
   --background: #0d0a16;
   --foreground: #f2eefb;
   --card: #16121f;
@@ -156,6 +169,11 @@
   --success: #34d399;
   --danger: #fb7185;
   --warning: #fbbf24;
+
+  --chart-income: #059669;
+  --chart-outcome: #9156e6;
+  --chart-balance: #9156e6;
+  --chart-grid: #2a233d;
 }
 
 @theme inline {
@@ -170,7 +188,11 @@
   --color-ring: var(--ring);
   --color-success: var(--success);
   --color-danger: var(--danger);
+  --color-danger-solid: var(--danger-solid);
   --color-warning: var(--warning);
+  --color-chart-income: var(--chart-income);
+  --color-chart-outcome: var(--chart-outcome);
+  --color-chart-grid: var(--chart-grid);
 }
 
 /* A márka színátmenete: világosabb lila jobb felül, mélyebb ibolya bal alul (mint a koncepcióképeken) */
@@ -199,6 +221,27 @@
   );
 }
 
+/* Az egér követése a kattintható kártyákon: halvány fényfolt ott, ahol a kurzor van (hooks/useSpotlight.ts állítja
+   a --spot-x / --spot-y változókat). A színe a --spot-color változóval felülírható (pl. a színes számlakártyákon fehér). */
+@utility spotlight {
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    background: radial-gradient(420px circle at var(--spot-x, 50%) var(--spot-y, 50%), var(--spot-color, rgb(168 120 245 / 0.16)), transparent 45%);
+  }
+
+  &:hover::after {
+    opacity: 1;
+  }
+}
+
 /* Mobilon a lenti menüsor ne lógjon rá a telefon kezdőképernyő-csíkjára */
 @utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
@@ -217,8 +260,11 @@
     scrollbar-color: var(--color-border) transparent;
   }
 
+  /* A görgetősáv helye mindig le van foglalva: felugró ablak nyitásakor (az oldal görgetése ilyenkor tiltott)
+     így nem ugrik oldalra a tartalom */
   html {
     -webkit-tap-highlight-color: transparent;
+    scrollbar-gutter: stable;
   }
 
   body {
@@ -238,74 +284,101 @@
 }
 
 @layer components {
-  /* Natív <dialog> ki- és beúszó animációja (a böngésző kezeli a fókuszt, az Escape-et és a háttér letiltását) */
-  .finex-dialog {
-    opacity: 0;
-    transform: translateY(12px) scale(0.98);
-    transition:
-      opacity 0.2s ease,
-      transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-      overlay 0.25s allow-discrete,
-      display 0.25s allow-discrete;
+  /* Csúszka (components/ui/Slider.tsx): a sáv kitöltött része a márka színátmenete, a fogantyú fehér, lila kerettel */
+  .finex-range {
+    height: 1.75rem;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
   }
 
-  .finex-dialog[open] {
-    opacity: 1;
-    transform: none;
+  .finex-range::-webkit-slider-runnable-track {
+    height: 0.5rem;
+    border-radius: 9999px;
+    background:
+      linear-gradient(to right, transparent var(--slider-fill), var(--muted) var(--slider-fill)),
+      linear-gradient(to right, var(--color-brand-400), var(--color-brand-600));
   }
 
-  @starting-style {
-    .finex-dialog[open] {
-      opacity: 0;
-      transform: translateY(12px) scale(0.98);
-    }
+  .finex-range::-moz-range-track {
+    height: 0.5rem;
+    border-radius: 9999px;
+    background:
+      linear-gradient(to right, transparent var(--slider-fill), var(--muted) var(--slider-fill)),
+      linear-gradient(to right, var(--color-brand-400), var(--color-brand-600));
   }
 
-  .finex-dialog.finex-sheet {
-    transform: translateY(100%);
+  .finex-range::-webkit-slider-thumb {
+    margin-top: -0.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    appearance: none;
+    border: 3px solid var(--color-brand-600);
+    border-radius: 9999px;
+    background: #fff;
+    box-shadow: 0 4px 12px -2px rgb(124 69 209 / 0.45);
+    transition: transform 0.15s ease;
   }
 
-  .finex-dialog.finex-sheet[open] {
-    transform: none;
+  .finex-range::-moz-range-thumb {
+    width: 1.5rem;
+    height: 1.5rem;
+    box-sizing: border-box;
+    border: 3px solid var(--color-brand-600);
+    border-radius: 9999px;
+    background: #fff;
+    box-shadow: 0 4px 12px -2px rgb(124 69 209 / 0.45);
+    transition: transform 0.15s ease;
   }
 
-  @starting-style {
-    .finex-dialog.finex-sheet[open] {
-      transform: translateY(100%);
-    }
+  .finex-range:active::-webkit-slider-thumb {
+    transform: scale(1.12);
   }
 
-  .finex-dialog::backdrop {
-    background-color: rgb(13 10 22 / 0);
-    backdrop-filter: blur(0);
-    transition:
-      background-color 0.25s ease,
-      backdrop-filter 0.25s ease,
-      overlay 0.25s allow-discrete,
-      display 0.25s allow-discrete;
+  .finex-range:active::-moz-range-thumb {
+    transform: scale(1.12);
   }
 
-  .finex-dialog[open]::backdrop {
-    background-color: rgb(13 10 22 / 0.55);
-    backdrop-filter: blur(4px);
+  .finex-range:focus-visible {
+    outline: none;
   }
 
-  @starting-style {
-    .finex-dialog[open]::backdrop {
-      background-color: rgb(13 10 22 / 0);
-      backdrop-filter: blur(0);
-    }
+  .finex-range:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--ring) 40%, transparent);
   }
+
+  .finex-range:focus-visible::-moz-range-thumb {
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--ring) 40%, transparent);
+  }
+
+  .finex-range:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+/* Témaváltás: a böngésző alapértelmezett áttűnése helyett a theme/themeTransition.ts kör alakú felfedése fut */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
 }
 
 /* Értesítő buborékok (sonner) a FineX betűtípusával és színeivel */
 html [data-sonner-toaster] {
   font-family: var(--font-sans);
-  --border-radius: 1rem;
+  --border-radius: 1.25rem;
 }
 
 html [data-sonner-toaster][data-sonner-theme] {
   --normal-bg: var(--card);
   --normal-border: var(--border);
   --normal-text: var(--foreground);
+}
+
+/* Üveghatású buborékok mély, lila árnyalatú árnyékkal (mint a felugró ablakok) */
+html [data-sonner-toaster] [data-sonner-toast] {
+  padding: 14px 16px;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 22px 50px -22px rgb(24 10 50 / 0.5);
 }
