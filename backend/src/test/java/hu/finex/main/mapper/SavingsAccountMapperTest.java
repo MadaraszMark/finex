@@ -36,7 +36,7 @@ class SavingsAccountMapperTest {
         assertNull(entity.getId());
         assertEquals(user, entity.getUser());
         assertEquals("Vésztartalék", entity.getName());
-        // A kezdő összeg nem az entitásba kerül, hanem befizetésként könyvelődik (service)
+        // A kezdő összeget nem a mapper állítja be, a service befizetésként könyveli
         assertEquals(BigDecimal.ZERO, entity.getBalance());
         assertEquals("HUF", entity.getCurrency());
         assertEquals(new BigDecimal("3.50"), entity.getInterestRate());

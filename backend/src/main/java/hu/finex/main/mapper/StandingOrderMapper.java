@@ -21,6 +21,7 @@ public class StandingOrderMapper {
                 .message(request.getMessage())
                 .frequency(request.getFrequency())
                 .nextExecutionDate(request.getFirstExecutionDate())
+                .executionDay(request.getFirstExecutionDate().getDayOfMonth())
                 .active(true)
                 .build();
     }
@@ -30,6 +31,7 @@ public class StandingOrderMapper {
         order.setMessage(request.getMessage());
         order.setFrequency(request.getFrequency());
         order.setNextExecutionDate(request.getNextExecutionDate());
+        order.setExecutionDay(request.getNextExecutionDate().getDayOfMonth());
     }
 
     public StandingOrderResponse toResponse(StandingOrder order) {

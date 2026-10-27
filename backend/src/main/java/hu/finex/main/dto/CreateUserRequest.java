@@ -16,12 +16,12 @@ import lombok.*;
 public class CreateUserRequest {
 
     @NotBlank
-    @Size(max = 100)
+    @Size(max = 50, message = "Legfeljebb 50 karakter lehet.")
     @Schema(description = "Keresztnév", example = "Bence", required = true)
     private String firstName;
 
     @NotBlank
-    @Size(max = 100)
+    @Size(max = 50, message = "Legfeljebb 50 karakter lehet.")
     @Schema(description = "Vezetéknév", example = "Kovács", required = true)
     private String lastName;
 

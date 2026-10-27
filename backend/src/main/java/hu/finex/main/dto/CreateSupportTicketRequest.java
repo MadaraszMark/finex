@@ -21,6 +21,7 @@ public class CreateSupportTicketRequest {
 
     @NotBlank
     @Schema(description = "A felhasználó által írt részletes üzenet",example = "Az utalásom nem érkezett meg...",required = true)
+    @Size(max = 5000, message = "Az üzenet legfeljebb 5000 karakter lehet.")
     private String message;
 }
 

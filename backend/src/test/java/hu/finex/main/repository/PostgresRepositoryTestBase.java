@@ -5,11 +5,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 
-// Valódi PostgreSQL (ugyanaz a főverzió, mint a docker-compose-ban) Docker-konténerben.
-// A séma a Flyway-migrációkból épül fel (demóadatok nélkül), a Hibernate csak ellenőrzi,
-// így a tesztek a valódi megszorításokkal, triggerekkel és függvényekkel futnak.
-// A konténer egyszer indul el a teljes tesztfutásra (singleton), mert a Spring a tesztosztályok között
-// újrahasznosítja a kontextust: osztályonként újrainduló konténernél a kontextus a régi portra mutatna.
+// Egy konténer a teljes futásra, mert a Spring a kontextust a tesztosztályok között újrahasznosítja
 
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 public abstract class PostgresRepositoryTestBase {

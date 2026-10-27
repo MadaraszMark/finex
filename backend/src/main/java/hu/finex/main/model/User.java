@@ -84,6 +84,10 @@ public class User {
     @Column(nullable = false, length = 20)
     private UserStatus status;
 
+    // Tokenverzió: növelése (jelszócsere, letiltás, kijelentkezés) a korábbi tokeneket érvényteleníti
+    @Column(name = "token_version", nullable = false)
+    private int tokenVersion;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -95,6 +99,10 @@ public class User {
     // Magyar névsorrend: vezetéknév + keresztnév (pl. utaláskor a partner neve)
     public String getFullName() {
         return lastName + " " + firstName;
+    }
+
+    public void revokeTokens() {
+        tokenVersion++;
     }
 
 }

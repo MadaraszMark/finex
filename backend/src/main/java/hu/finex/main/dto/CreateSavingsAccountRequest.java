@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -33,10 +34,12 @@ public class CreateSavingsAccountRequest {
     @NotNull
     @DecimalMin(value = "0.00", message = "A kezdő összeg nem lehet negatív.")
     @Schema(description = "Kezdő befizetés (lehet 0 is)", example = "50000.00", required = true)
+    @Digits(integer = 16, fraction = 2, message = "Az összeg legfeljebb két tizedesjegyet tartalmazhat.")
     private BigDecimal initialDeposit;
 
     @DecimalMin(value = "1.00", message = "A célösszeg legalább 1 kell legyen.")
     @Schema(description = "Opcionális célösszeg", example = "600000.00")
+    @Digits(integer = 16, fraction = 2, message = "Az összeg legfeljebb két tizedesjegyet tartalmazhat.")
     private BigDecimal targetAmount;
 }
 

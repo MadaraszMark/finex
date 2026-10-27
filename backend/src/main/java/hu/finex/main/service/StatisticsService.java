@@ -10,14 +10,17 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import hu.finex.main.dto.CategorySpendingResponse;
 import hu.finex.main.dto.DashboardSummaryResponse;
 import hu.finex.main.dto.MonthlySummaryResponse;
+import hu.finex.main.dto.TransactionListItemResponse;
 import hu.finex.main.exception.BusinessException;
 import hu.finex.main.exception.NotFoundException;
+import hu.finex.main.mapper.TransactionMapper;
 import hu.finex.main.model.Account;
 import hu.finex.main.model.enums.AccountStatus;
 import hu.finex.main.model.enums.CardStatus;
@@ -49,6 +52,7 @@ public class StatisticsService {
     private final NotificationRepository notificationRepository;
     private final ReportRepository reportRepository;
     private final CurrentUser currentUser;
+    private final TransactionMapper transactionMapper;
 
     // A főoldal összesítője egyetlen hívással, egy devizában
     @Transactional(readOnly = true)
@@ -68,8 +72,7 @@ public class StatisticsService {
                 .build();
     }
 
-    // Havi bevétel és kiadás az elmúlt N hónapra (az adatbázis v_account_monthly_summary nézetéből).
-    // A tétel nélküli hónapok is szerepelnek nullával, hogy a grafikon folytonos legyen.
+    // Havi bevétel és kiadás az elmúlt N hónapra, a tétel nélküli hónapok is szerepelnek (nullával)
     @Transactional(readOnly = true)
     public List<MonthlySummaryResponse> getMonthlySummary(int months, String currency, Long accountId) {
         if (months < 1 || months > 24) {
@@ -106,7 +109,7 @@ public class StatisticsService {
         return result;
     }
 
-    // Költések kategóriánként egy időszakban (alapértelmezés: az aktuális hónap eleje és a mai nap között)
+    // Költések kategóriánként (alapértelmezés: az aktuális hónap eleje és a mai nap között)
     @Transactional(readOnly = true)
     public List<CategorySpendingResponse> getCategorySpending(LocalDate from, LocalDate to, String currency) {
         LocalDate end = to != null ? to : DateUtils.today();
@@ -118,5 +121,26 @@ public class StatisticsService {
 
         return transactionCategoryRepository.sumSpendingByCategory(currentUser.requireId(), currency, OUTCOME_TYPES,
                 DateUtils.startOfDay(start), DateUtils.startOfDay(end.plusDays(1)));
+    }
+
+    // Egy időszak legnagyobb kiadásai (csak a valódi pénzforgalom, a sztornózott tétel nem kiadás)
+    @Transactional(readOnly = true)
+    public List<TransactionListItemResponse> getTopExpenses(LocalDate from, LocalDate to, String currency, int limit) {
+        if (limit < 1 || limit > 20) {
+            throw new BusinessException("A darabszám 1 és 20 között lehet.");
+        }
+
+        LocalDate end = to != null ? to : DateUtils.today();
+        LocalDate start = from != null ? from : end.withDayOfMonth(1);
+
+        if (start.isAfter(end)) {
+            throw new BusinessException("A kezdő dátum nem lehet későbbi a záró dátumnál.");
+        }
+
+        return transactionRepository.findTopByUserAndTypes(currentUser.requireId(), currency, OUTCOME_TYPES,
+                        DateUtils.startOfDay(start), DateUtils.startOfDay(end.plusDays(1)), PageRequest.of(0, limit))
+                .stream()
+                .map(transactionMapper::toListItem)
+                .toList();
     }
 }

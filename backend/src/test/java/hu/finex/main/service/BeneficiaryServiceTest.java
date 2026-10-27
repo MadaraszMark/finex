@@ -1,5 +1,6 @@
 package hu.finex.main.service;
 
+import hu.finex.main.config.FinexProperties;
 import hu.finex.main.dto.*;
 import hu.finex.main.exception.BusinessException;
 import hu.finex.main.exception.NotFoundException;
@@ -30,6 +31,7 @@ class BeneficiaryServiceTest {
     @Mock private AccountRepository accountRepository;
     @Mock private BeneficiaryMapper beneficiaryMapper;
     @Mock private CurrentUser currentUser;
+    @Spy private FinexProperties finexProperties = new FinexProperties();
 
     @InjectMocks private BeneficiaryService service;
 

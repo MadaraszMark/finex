@@ -49,8 +49,7 @@ public class StandingOrder {
     @EqualsAndHashCode.Include
     private Long id;
 
-    // FK -> accounts.id (a forrásszámla, a tulajdonos is ezen keresztül érhető el).
-    // Lusta betöltés: teljesítéskor a számlát az utalás zárolja és olvassa be, így biztosan a friss egyenleggel dolgozik.
+    // FK -> accounts.id (forrásszámla), lusta betöltés: teljesítéskor az utalás zárolva olvassa be
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "account_id", nullable = false)
@@ -82,6 +81,10 @@ public class StandingOrder {
     @NotNull
     @Column(name = "next_execution_date", nullable = false)
     private LocalDate nextExecutionDate;
+
+    // A teljesítés napja a hónapban (1–31): havi megbízásnál a következő esedékesség ehhez igazodik
+    @Column(name = "execution_day", nullable = false)
+    private int executionDay;
 
     @Column(nullable = false)
     private boolean active;

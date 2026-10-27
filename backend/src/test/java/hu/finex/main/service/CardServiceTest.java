@@ -48,6 +48,7 @@ class CardServiceTest {
     @Mock private LedgerService ledgerService;
     @Mock private CurrentUser currentUser;
     @Spy private FinexProperties finexProperties = new FinexProperties();
+    @Spy private ExchangeRateService exchangeRateService = new ExchangeRateService(finexProperties);
 
     @InjectMocks private CardService service;
 
@@ -354,7 +355,6 @@ class CardServiceTest {
                 .build();
     }
 
-    // Luhn-ellenőrzés: jobbról minden második számjegy duplázva, az összeg 10-zel osztható
     private boolean isLuhnValid(String number) {
         int sum = 0;
         boolean alternate = false;

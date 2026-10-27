@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import hu.finex.main.model.enums.StandingOrderFrequency;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -22,6 +23,7 @@ public class UpdateStandingOrderRequest {
     @NotNull
     @DecimalMin(value = "0.01", message = "Az összeg legalább 0.01 kell legyen.")
     @Schema(description = "Az utalandó összeg", example = "230000.00", required = true)
+    @Digits(integer = 16, fraction = 2, message = "Az összeg legfeljebb két tizedesjegyet tartalmazhat.")
     private BigDecimal amount;
 
     @Size(max = 255)

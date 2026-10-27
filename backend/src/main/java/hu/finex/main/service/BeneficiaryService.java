@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import hu.finex.main.config.FinexProperties;
 import hu.finex.main.dto.BeneficiaryResponse;
 import hu.finex.main.dto.CreateBeneficiaryRequest;
 import hu.finex.main.dto.UpdateBeneficiaryRequest;
@@ -27,6 +28,7 @@ public class BeneficiaryService {
     private final AccountRepository accountRepository;
     private final BeneficiaryMapper beneficiaryMapper;
     private final CurrentUser currentUser;
+    private final FinexProperties finexProperties;
 
     @Transactional(readOnly = true)
     public List<BeneficiaryResponse> listMine() {
@@ -40,6 +42,9 @@ public class BeneficiaryService {
 
         if (beneficiaryRepository.existsByUser_IdAndAccountNumber(user.getId(), accountNumber)) {
             throw new BusinessException("Ez a számlaszám már szerepel a kedvezményezettjeid között.");
+        }
+        if (beneficiaryRepository.countByUser_Id(user.getId()) >= finexProperties.getMaxBeneficiariesPerUser()) {
+            throw new BusinessException("Legfeljebb " + finexProperties.getMaxBeneficiariesPerUser() + " kedvezményezettet menthetsz.");
         }
 
         Beneficiary beneficiary = beneficiaryMapper.toEntity(request, user, accountNumber);

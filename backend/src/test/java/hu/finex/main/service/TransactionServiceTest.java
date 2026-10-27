@@ -53,6 +53,8 @@ class TransactionServiceTest {
     @Mock private NotificationService notificationService;
     @Mock private CurrentUser currentUser;
     @Spy private FinexProperties finexProperties = new FinexProperties();
+    @Spy private ExchangeRateService exchangeRateService = new ExchangeRateService(finexProperties);
+    @Mock private AuditService auditService;
 
     @InjectMocks private TransactionService service;
 
@@ -70,7 +72,7 @@ class TransactionServiceTest {
         when(categoryMapper.toResponse(food)).thenReturn(foodResp);
 
         TransactionResponse expected = TransactionResponse.builder().id(99L).categories(List.of(foodResp)).build();
-        when(transactionMapper.toResponse(tx, List.of(foodResp))).thenReturn(expected);
+        when(transactionMapper.toResponse(tx, List.of(foodResp), false)).thenReturn(expected);
 
         TransactionResponse resp = service.getById(99L);
 
@@ -113,8 +115,8 @@ class TransactionServiceTest {
         CategoryResponse foodResp = CategoryResponse.builder().id(1L).build();
         when(categoryMapper.toResponse(food)).thenReturn(foodResp);
 
-        when(transactionMapper.toListItem(t1, List.of(foodResp))).thenReturn(TransactionListItemResponse.builder().id(1L).categories(List.of(foodResp)).build());
-        when(transactionMapper.toListItem(t2, List.of())).thenReturn(TransactionListItemResponse.builder().id(2L).categories(List.of()).build());
+        when(transactionMapper.toListItem(t1, List.of(foodResp), false)).thenReturn(TransactionListItemResponse.builder().id(1L).categories(List.of(foodResp)).build());
+        when(transactionMapper.toListItem(t2, List.of(), false)).thenReturn(TransactionListItemResponse.builder().id(2L).categories(List.of()).build());
 
         Page<TransactionListItemResponse> page = service.search(filter, pageable);
 
@@ -186,7 +188,8 @@ class TransactionServiceTest {
         assertTrue(resp.getCategories().isEmpty());
         assertEquals(Instant.parse("2025-03-10T10:00:00Z"), resp.getCreatedAt());
 
-        verify(ledgerService).credit(to, TransactionType.TRANSFER_IN, new BigDecimal("5000.00"), "Kovács Anna", "Pizza", ANNA_IBAN);
+        // A jóváírás a terhelés párja (a terhelésre mutat)
+        verify(ledgerService).creditLinked(to, TransactionType.TRANSFER_IN, new BigDecimal("5000.00"), "Kovács Anna", "Pizza", ANNA_IBAN, outgoing);
         verify(notificationService).notify(eq(bence), eq(NotificationType.TRANSACTION), eq("Beérkező utalás"), contains("Kovács Anna"));
         verifyNoInteractions(transactionCategoryRepository);
     }
@@ -259,7 +262,7 @@ class TransactionServiceTest {
         TransferResponse resp = service.transfer(req);
 
         assertTrue(resp.isInternal());
-        verify(ledgerService).credit(to, TransactionType.TRANSFER_IN, new BigDecimal("1000.00"), "Kovács Anna", null, ANNA_IBAN);
+        verify(ledgerService).creditLinked(eq(to), eq(TransactionType.TRANSFER_IN), eq(new BigDecimal("1000.00")), eq("Kovács Anna"), isNull(), eq(ANNA_IBAN), any());
         verifyNoInteractions(notificationService);
     }
 
@@ -436,6 +439,151 @@ class TransactionServiceTest {
         assertThrows(NotFoundException.class, () -> service.transfer(req));
 
         verifyNoInteractions(ledgerService);
+    }
+
+    // A napi limit forintban értendő: euróban 5 000 000 / 395 = 12 658,22 € a határ
+    @Test
+    void transfer_shouldApplyDailyLimitInHufEquivalent_forEuroAccount() {
+        lenient().doReturn(new BigDecimal("395.00")).when(exchangeRateService).rate("EUR");
+        User anna = user(7L, "Anna", "Kovács");
+        when(currentUser.requireEntity()).thenReturn(anna);
+        when(accountRepository.existsByIdAndUser_Id(1L, 7L)).thenReturn(true);
+        when(accountRepository.findIdByAccountNumber(LANDLORD_IBAN)).thenReturn(Optional.empty());
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(activeAccount(1L, anna, ANNA_IBAN, "EUR", "20000.00")));
+        when(transactionRepository.sumAmountByAccountAndTypeSince(eq(1L), eq(TransactionType.TRANSFER_OUT), any())).thenReturn(BigDecimal.ZERO);
+
+        TransferRequest req = TransferRequest.builder()
+                .fromAccountId(1L)
+                .toAccountNumber(LANDLORD_IBAN)
+                .partnerName("Tóth Gábor")
+                .amount(new BigDecimal("13000.00"))
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.transfer(req));
+
+        assertTrue(ex.getMessage().contains("658,22 EUR"));
+        verifyNoInteractions(ledgerService);
+    }
+
+    @Test
+    void exchange_shouldDebitAndCreditALinkedPair_withConvertedAmount() {
+        lenient().doReturn(new BigDecimal("395.00")).when(exchangeRateService).rate("EUR");
+        User anna = user(7L, "Anna", "Kovács");
+        when(currentUser.requireEntity()).thenReturn(anna);
+        when(accountRepository.existsByIdAndUser_Id(1L, 7L)).thenReturn(true);
+        when(accountRepository.existsByIdAndUser_Id(2L, 7L)).thenReturn(true);
+        Account huf = activeAccount(1L, anna, ANNA_IBAN, "HUF", "100000.00");
+        Account eur = activeAccount(2L, anna, BENCE_IBAN, "EUR", "0.00");
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(huf));
+        when(accountRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(eur));
+        when(transactionRepository.sumAmountByAccountAndTypeSince(eq(1L), eq(TransactionType.TRANSFER_OUT), any())).thenReturn(BigDecimal.ZERO);
+        Transaction outgoing = Transaction.builder().id(300L).build();
+        when(ledgerService.debit(eq(huf), eq(TransactionType.TRANSFER_OUT), eq(new BigDecimal("39500")), eq(TransactionService.EXCHANGE_PARTNER), anyString(), eq(BENCE_IBAN), isNull()))
+                .thenReturn(outgoing);
+
+        ExchangeResponse resp = service.exchange(ExchangeRequest.builder().fromAccountId(1L).toAccountId(2L).amount(new BigDecimal("39500")).build());
+
+        // 39 500 Ft / 395 = 100,00 €, a jóváírás a terhelés párja
+        assertEquals(new BigDecimal("100.00"), resp.getToAmount());
+        assertEquals("EUR", resp.getToCurrency());
+        verify(ledgerService).creditLinked(eq(eur), eq(TransactionType.TRANSFER_IN), eq(new BigDecimal("100.00")), eq(TransactionService.EXCHANGE_PARTNER), anyString(), eq(ANNA_IBAN), eq(outgoing));
+    }
+
+    @Test
+    void exchange_shouldReject_whenCurrenciesAreTheSame() {
+        User anna = user(7L, "Anna", "Kovács");
+        when(currentUser.requireEntity()).thenReturn(anna);
+        when(accountRepository.existsByIdAndUser_Id(1L, 7L)).thenReturn(true);
+        when(accountRepository.existsByIdAndUser_Id(2L, 7L)).thenReturn(true);
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(activeAccount(1L, anna, ANNA_IBAN, "HUF", "1000.00")));
+        when(accountRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(activeAccount(2L, anna, BENCE_IBAN, "HUF", "0.00")));
+
+        assertThrows(BusinessException.class,
+                () -> service.exchange(ExchangeRequest.builder().fromAccountId(1L).toAccountId(2L).amount(BigDecimal.TEN).build()));
+
+        verifyNoInteractions(ledgerService);
+    }
+
+    @Test
+    void exchange_shouldThrowNotFound_whenTargetAccountIsNotOwn() {
+        when(currentUser.requireEntity()).thenReturn(user(7L, "Anna", "Kovács"));
+        when(accountRepository.existsByIdAndUser_Id(1L, 7L)).thenReturn(true);
+        when(accountRepository.existsByIdAndUser_Id(9L, 7L)).thenReturn(false);
+
+        assertThrows(NotFoundException.class,
+                () -> service.exchange(ExchangeRequest.builder().fromAccountId(1L).toAccountId(9L).amount(BigDecimal.TEN).build()));
+
+        verify(accountRepository, never()).findByIdForUpdate(any());
+    }
+
+    @Test
+    void reverse_shouldReverseCardPayment_notifyOwner_andWriteAuditLog() {
+        User anna = user(7L, "Anna", "Kovács");
+        Account account = activeAccount(1L, anna, ANNA_IBAN, "HUF", "1000.00");
+        Transaction original = Transaction.builder().id(5L).account(account).type(TransactionType.OUTCOME).amount(new BigDecimal("700.00"))
+                .currency("HUF").card(Card.builder().id(3L).build()).build();
+        when(transactionRepository.findById(5L)).thenReturn(Optional.of(original));
+        when(transactionRepository.existsByReversalOf_Id(5L)).thenReturn(false);
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(account));
+        Transaction reversal = Transaction.builder().id(6L).reversalOf(original).build();
+        when(ledgerService.reverse(account, original, "Kétszer terhelt")).thenReturn(reversal);
+        TransactionResponse expected = TransactionResponse.builder().id(6L).reversalOfId(5L).build();
+        when(transactionMapper.toResponse(reversal)).thenReturn(expected);
+
+        TransactionResponse resp = service.reverse(5L, ReverseTransactionRequest.builder().reason("Kétszer terhelt").build());
+
+        assertEquals(expected, resp);
+        verify(notificationService).notify(eq(anna), eq(NotificationType.TRANSACTION), eq("Sztornózott tétel"), anyString());
+        verify(auditService).record(eq(hu.finex.main.model.enums.AuditAction.TRANSACTION_REVERSED), eq(hu.finex.main.model.enums.AuditTargetType.TRANSACTION), eq(5L), anyString());
+    }
+
+    // Előbb a címzett terhelése: ha nincs fedezet, semmi nem könyvelődik
+    @Test
+    void reverse_shouldReverseBothLegsOfInternalTransfer_recipientFirst() {
+        User anna = user(7L, "Anna", "Kovács");
+        User bence = user(8L, "Bence", "Nagy");
+        Account from = activeAccount(1L, anna, ANNA_IBAN, "HUF", "1000.00");
+        Account to = activeAccount(2L, bence, BENCE_IBAN, "HUF", "5000.00");
+        Transaction original = Transaction.builder().id(5L).account(from).type(TransactionType.TRANSFER_OUT).amount(new BigDecimal("500.00")).currency("HUF").toAccount(BENCE_IBAN).build();
+        Transaction counterpart = Transaction.builder().id(6L).account(to).type(TransactionType.TRANSFER_IN).amount(new BigDecimal("500.00")).currency("HUF").relatedTransaction(original).build();
+        when(transactionRepository.findById(5L)).thenReturn(Optional.of(original));
+        when(transactionRepository.existsByReversalOf_Id(5L)).thenReturn(false);
+        when(transactionRepository.findFirstByRelatedTransaction_Id(5L)).thenReturn(Optional.of(counterpart));
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(from));
+        when(accountRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(to));
+        when(ledgerService.reverse(to, counterpart, "Téves utalás")).thenReturn(Transaction.builder().id(8L).build());
+        when(ledgerService.reverse(from, original, "Téves utalás")).thenReturn(Transaction.builder().id(7L).build());
+
+        service.reverse(5L, ReverseTransactionRequest.builder().reason("Téves utalás").build());
+
+        InOrder order = inOrder(ledgerService);
+        order.verify(ledgerService).reverse(to, counterpart, "Téves utalás");
+        order.verify(ledgerService).reverse(from, original, "Téves utalás");
+    }
+
+    @Test
+    void reverse_shouldReject_whenAlreadyReversed() {
+        Transaction original = Transaction.builder().id(5L).type(TransactionType.OUTCOME).build();
+        when(transactionRepository.findById(5L)).thenReturn(Optional.of(original));
+        when(transactionRepository.existsByReversalOf_Id(5L)).thenReturn(true);
+
+        assertThrows(BusinessException.class, () -> service.reverse(5L, ReverseTransactionRequest.builder().reason("x").build()));
+
+        verifyNoInteractions(ledgerService, auditService);
+    }
+
+    @Test
+    void reverse_shouldReject_reversalEntry_andNonReversibleTypes() {
+        Transaction reversalEntry = Transaction.builder().id(5L).type(TransactionType.INCOME).reversalOf(Transaction.builder().id(4L).build()).build();
+        Transaction salary = Transaction.builder().id(8L).type(TransactionType.INCOME).partnerName("Netlab Kft.").build();
+        when(transactionRepository.findById(5L)).thenReturn(Optional.of(reversalEntry));
+        when(transactionRepository.findById(8L)).thenReturn(Optional.of(salary));
+        when(transactionRepository.existsByReversalOf_Id(8L)).thenReturn(false);
+
+        assertThrows(BusinessException.class, () -> service.reverse(5L, ReverseTransactionRequest.builder().reason("x").build()));
+        assertThrows(BusinessException.class, () -> service.reverse(8L, ReverseTransactionRequest.builder().reason("x").build()));
+
+        verifyNoInteractions(ledgerService, auditService);
     }
 
     private User user(Long id, String firstName, String lastName) {

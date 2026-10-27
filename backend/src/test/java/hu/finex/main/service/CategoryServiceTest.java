@@ -26,6 +26,7 @@ class CategoryServiceTest {
     @Mock private CategoryRepository categoryRepository;
     @Mock private TransactionCategoryRepository transactionCategoryRepository;
     @Mock private CategoryMapper categoryMapper;
+    @Mock private AuditService auditService;
 
     @InjectMocks private CategoryService service;
 

@@ -38,6 +38,8 @@ class UserServiceTest {
     @Mock private AccountMapper accountMapper;
     @Mock private CardService cardService;
     @Mock private SavingsAccountService savingsAccountService;
+    @Mock private AuthService authService;
+    @Mock private AuditService auditService;
 
     @InjectMocks private UserService service;
 
@@ -55,13 +57,15 @@ class UserServiceTest {
 
     @Test
     void updateOwnProfile_shouldThrowBusinessException_whenEmailChangedAndAlreadyExists() {
-        User user = User.builder().id(1L).email("old@example.com").build();
+        User user = User.builder().id(1L).email("old@example.com").passwordHash("HASH").build();
         when(currentUser.requireEntity()).thenReturn(user);
+        when(passwordEncoder.matches("Jelszo123", "HASH")).thenReturn(true);
         when(userRepository.existsByEmailIgnoreCase("new@example.com")).thenReturn(true);
 
         UpdateUserRequest req = UpdateUserRequest.builder()
                 .firstName("A")
                 .lastName("B")
+                .currentPassword("Jelszo123")
                 .email("New@Example.com")
                 .build();
 
@@ -90,14 +94,16 @@ class UserServiceTest {
 
     @Test
     void updateOwnProfile_shouldStoreEmailInLowercase_whenChangedAndAvailable() {
-        User user = User.builder().id(1L).email("old@example.com").build();
+        User user = User.builder().id(1L).email("old@example.com").passwordHash("HASH").build();
         when(currentUser.requireEntity()).thenReturn(user);
+        when(passwordEncoder.matches("Jelszo123", "HASH")).thenReturn(true);
         when(userRepository.existsByEmailIgnoreCase("new@example.com")).thenReturn(false);
         when(userMapper.toResponse(user)).thenReturn(UserResponse.builder().id(1L).build());
 
         UpdateUserRequest req = UpdateUserRequest.builder()
                 .firstName("A")
                 .lastName("B")
+                .currentPassword("Jelszo123")
                 .email("  New@Example.com ")
                 .build();
 
@@ -105,6 +111,27 @@ class UserServiceTest {
 
         assertEquals("new@example.com", req.getEmail());
         verify(userMapper).updateEntity(user, req);
+        verify(notificationService).notify(eq(user), eq(NotificationType.SECURITY), eq("E-mail címed megváltozott"), anyString());
+    }
+
+    // Ellopott tokennel se lehessen átvenni a fiókot, ezért az e-mail cseréjéhez jelszó kell
+    @Test
+    void updateOwnProfile_shouldThrowBusinessException_whenEmailChangedWithoutCorrectPassword() {
+        User user = User.builder().id(1L).email("old@example.com").passwordHash("HASH").build();
+        when(currentUser.requireEntity()).thenReturn(user);
+        when(passwordEncoder.matches("Rossz1234", "HASH")).thenReturn(false);
+
+        UpdateUserRequest req = UpdateUserRequest.builder()
+                .firstName("A")
+                .lastName("B")
+                .email("attacker@example.com")
+                .currentPassword("Rossz1234")
+                .build();
+
+        assertThrows(BusinessException.class, () -> service.updateOwnProfile(req));
+
+        verify(userMapper, never()).updateEntity(any(), any());
+        verify(userRepository, never()).existsByEmailIgnoreCase(any());
     }
 
     @Test
@@ -120,10 +147,45 @@ class UserServiceTest {
                 .newPassword("New12345")
                 .build();
 
-        service.changePassword(req);
+        AuthResponse fresh = AuthResponse.builder().token("uj.token").build();
+        when(authService.issueToken(user)).thenReturn(fresh);
+
+        AuthResponse resp = service.changePassword(req);
 
         assertEquals("NEW_HASH", user.getPasswordHash());
+        // A korábbi tokenek visszavonva (a verzió nőtt), az aktuális munkamenet új tokent kap
+        assertEquals(1, user.getTokenVersion());
+        assertEquals(fresh, resp);
         verify(notificationService).notify(eq(user), eq(NotificationType.SECURITY), eq("Jelszavad megváltozott"), anyString());
+    }
+
+    @Test
+    void changePassword_shouldThrowBusinessException_whenNewPasswordIsLongerThan72Bytes() {
+        User user = User.builder().id(1L).passwordHash("OLD_HASH").build();
+        when(currentUser.requireEntity()).thenReturn(user);
+        when(passwordEncoder.matches("Old12345", "OLD_HASH")).thenReturn(true);
+
+        // 40 db "ő" = 80 bájt UTF-8-ban (a BCrypt csak 72 bájtot kezel)
+        ChangePasswordRequest req = ChangePasswordRequest.builder()
+                .currentPassword("Old12345")
+                .newPassword("Aa1" + "ő".repeat(40))
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.changePassword(req));
+
+        assertTrue(ex.getMessage().contains("72 bájt"));
+        verify(passwordEncoder, never()).encode(any());
+    }
+
+    @Test
+    void logoutEverywhere_shouldRevokeAllTokens_andIssueNewOne() {
+        User user = User.builder().id(1L).tokenVersion(4).build();
+        when(currentUser.requireEntity()).thenReturn(user);
+        AuthResponse fresh = AuthResponse.builder().token("friss").build();
+        when(authService.issueToken(user)).thenReturn(fresh);
+
+        assertEquals(fresh, service.logoutEverywhere());
+        assertEquals(5, user.getTokenVersion());
     }
 
     @Test

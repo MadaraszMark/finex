@@ -5,6 +5,7 @@ import java.util.List;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -35,6 +36,7 @@ public class TransferRequest {
     @NotNull
     @DecimalMin(value = "0.01", message = "Az átutalás összege legalább 0.01 kell legyen.")
     @Schema(description = "Átutalás összege (a forrásszámla devizanemében)", example = "15000.00", required = true)
+    @Digits(integer = 16, fraction = 2, message = "Az összeg legfeljebb két tizedesjegyet tartalmazhat.")
     private BigDecimal amount;
 
     @Size(max = 255)
@@ -42,5 +44,6 @@ public class TransferRequest {
     private String message;
 
     @Schema(description = "Kategória ID-k, amelyek az átutaláshoz tartoznak", example = "[2, 3]")
+    @Size(max = 10, message = "Legfeljebb 10 kategória adható meg.")
     private List<Long> categoryIds;
 }

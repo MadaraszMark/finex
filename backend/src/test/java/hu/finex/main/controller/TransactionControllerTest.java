@@ -13,6 +13,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
+import java.util.function.Supplier;
+
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +35,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import hu.finex.main.dto.CategoryResponse;
+import hu.finex.main.dto.ExchangeRequest;
+import hu.finex.main.dto.ExchangeResponse;
 import hu.finex.main.dto.TransactionListItemResponse;
 import hu.finex.main.dto.TransactionResponse;
 import hu.finex.main.dto.TransactionSearchRequest;
@@ -39,6 +44,7 @@ import hu.finex.main.dto.TransferRequest;
 import hu.finex.main.dto.TransferResponse;
 import hu.finex.main.exception.BusinessException;
 import hu.finex.main.model.enums.TransactionType;
+import hu.finex.main.service.IdempotencyService;
 import hu.finex.main.service.TransactionService;
 
 @ActiveProfiles("test")
@@ -56,6 +62,13 @@ class TransactionControllerTest {
     @Autowired ObjectMapper objectMapper;
 
     @MockBean TransactionService transactionService;
+    @MockBean IdempotencyService idempotencyService;
+
+    // Az idempotenciát az IdempotencyServiceTest ellenőrzi, itt csak átengedi a kérést
+    @BeforeEach
+    void passThroughIdempotency() {
+        when(idempotencyService.execute(any(), any(), any(), any(), any())).thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(4)).get());
+    }
 
     @Test
     void search_shouldReturn200_andBindFiltersAndDefaultPaging() throws Exception {
@@ -94,7 +107,6 @@ class TransactionControllerTest {
         assertEquals(LocalDate.of(2025, 3, 31), filterCaptor.getValue().getTo());
         assertEquals("tesco", filterCaptor.getValue().getSearch());
 
-        // Alapértelmezés: 20 tétel, a legújabb elöl
         assertEquals(20, pageableCaptor.getValue().getPageSize());
         assertEquals(Sort.Direction.DESC, pageableCaptor.getValue().getSort().getOrderFor("createdAt").getDirection());
     }
@@ -191,5 +203,32 @@ class TransactionControllerTest {
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Nincs elegendő fedezet a számlán."));
+    }
+
+    @Test
+    void exchange_shouldReturn200_andConvertedAmount() throws Exception {
+        ExchangeRequest req = ExchangeRequest.builder().fromAccountId(1L).toAccountId(2L).amount(new BigDecimal("39500")).build();
+        when(transactionService.exchange(any(ExchangeRequest.class))).thenReturn(ExchangeResponse.builder()
+                .fromAmount(new BigDecimal("39500")).fromCurrency("HUF").toAmount(new BigDecimal("100.00")).toCurrency("EUR").build());
+
+        mockMvc.perform(post("/transactions/exchange")
+                        .header("Idempotency-Key", "6f1c2a90-aa11-4c55-9a3e-0d7f5d1f2b10")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.toAmount").value(100.00))
+                .andExpect(jsonPath("$.toCurrency").value("EUR"));
+    }
+
+    @Test
+    void exchange_shouldReturn400_whenAmountHasTooManyDecimals() throws Exception {
+        ExchangeRequest req = ExchangeRequest.builder().fromAccountId(1L).toAccountId(2L).amount(new BigDecimal("10.555")).build();
+
+        mockMvc.perform(post("/transactions/exchange")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(transactionService);
     }
 }

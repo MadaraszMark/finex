@@ -3,6 +3,7 @@ package hu.finex.main.repository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -41,8 +42,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
     boolean existsByIdAndAccount_User_Id(Long id, Long userId);
 
-    // A felhasználó tételeinek keresése: a szűrők opcionálisak (null = nincs szűrés), az időszaknak viszont mindig van határa
-    // (lásd DateUtils.BEGINNING_OF_TIME / END_OF_TIME), a search kisbetűs és %-jelekkel érkezik
+    // Tételkeresés: a szűrők opcionálisak, az időszak kötelező, a search kisbetűs, %-jelekkel érkezik
     @Query("select t from Transaction t where t.account.user.id = :userId"
             + " and (:accountId is null or t.account.id = :accountId)"
             + " and (:type is null or t.type = :type)"
@@ -70,9 +70,33 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     @Query("select coalesce(sum(t.amount), 0) from Transaction t where t.card.id = :cardId and t.createdAt >= :since")
     BigDecimal sumCardSpendingSince(@Param("cardId") Long cardId, @Param("since") Instant since);
 
-    // A felhasználó bevételei vagy kiadásai egy devizában egy időpont óta (dashboard)
-    @Query("select coalesce(sum(t.amount), 0) from Transaction t where t.account.user.id = :userId and t.currency = :currency and t.type in :types and t.createdAt >= :since")
+    // Bevétel vagy kiadás egy devizában egy időpont óta, csak a valódi pénzforgalom (is_cashflow)
+    @Query("select coalesce(sum(t.amount), 0) from Transaction t where t.account.user.id = :userId and t.currency = :currency and t.type in :types and t.createdAt >= :since"
+            + " and function('is_cashflow', t.id) = true")
     BigDecimal sumByUserAndTypesSince(@Param("userId") Long userId, @Param("currency") String currency, @Param("types") Collection<TransactionType> types, @Param("since") Instant since);
+
+    // Statisztika: egy időszak legnagyobb kiadásai (csak a valódi pénzforgalom, lásd is_cashflow)
+    @Query("select t from Transaction t where t.account.user.id = :userId and t.currency = :currency and t.type in :types"
+            + " and t.createdAt >= :from and t.createdAt < :to and function('is_cashflow', t.id) = true"
+            + " order by t.amount desc, t.createdAt desc")
+    List<Transaction> findTopByUserAndTypes(@Param("userId") Long userId,
+                                            @Param("currency") String currency,
+                                            @Param("types") Collection<TransactionType> types,
+                                            @Param("from") Instant from,
+                                            @Param("to") Instant to,
+                                            Pageable pageable);
+
+    // A megadott tételek közül azok azonosítója, amelyeket már sztornóztak
+    @Query("select r.reversalOf.id from Transaction r where r.reversalOf.id in :ids")
+    List<Long> findReversedIds(@Param("ids") Collection<Long> ids);
+
+    boolean existsByReversalOf_Id(Long id);
+
+    // Egy terhelés párja (belső utalás vagy devizaváltás jóváírása)
+    Optional<Transaction> findFirstByRelatedTransaction_Id(Long id);
+
+    // Admin: egy számla tételei (a sztornóhoz)
+    Page<Transaction> findByAccount_IdOrderByCreatedAtDescIdDesc(Long accountId, Pageable pageable);
 
     // Admin statisztika: tételek száma és forgalma egy időpont óta
     long countByCreatedAtGreaterThanEqual(Instant since);

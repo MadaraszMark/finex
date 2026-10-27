@@ -9,8 +9,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
-// A bejelentkezett felhasználó elérése a service-ekből: minden "saját" adatot ennek az azonosítójával kérdezünk le,
-// így a kliens nem tud más felhasználó azonosítójával próbálkozni
+// A "saját" adatokat mindig a tokenből vett azonosítóval kérdezzük le, nem a kliens által küldöttel
 
 @Component
 @RequiredArgsConstructor

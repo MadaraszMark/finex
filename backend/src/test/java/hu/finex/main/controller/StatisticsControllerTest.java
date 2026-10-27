@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import hu.finex.main.dto.CategorySpendingResponse;
 import hu.finex.main.dto.DashboardSummaryResponse;
 import hu.finex.main.dto.MonthlySummaryResponse;
+import hu.finex.main.dto.TransactionListItemResponse;
 import hu.finex.main.service.StatisticsService;
 
 @ActiveProfiles("test")
@@ -88,5 +89,16 @@ class StatisticsControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].categoryName").value("Élelmiszer"))
                 .andExpect(jsonPath("$[0].transactionCount").value(9));
+    }
+
+    @Test
+    void getTopExpenses_shouldPassCurrencyAndLimit() throws Exception {
+        when(statisticsService.getTopExpenses(isNull(), isNull(), eq("EUR"), eq(3)))
+                .thenReturn(List.of(TransactionListItemResponse.builder().id(9L).currency("EUR").build()));
+
+        mockMvc.perform(get("/statistics/top-expenses").param("currency", "EUR").param("limit", "3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(9))
+                .andExpect(jsonPath("$[0].currency").value("EUR"));
     }
 }

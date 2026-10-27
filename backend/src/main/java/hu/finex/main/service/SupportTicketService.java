@@ -20,6 +20,8 @@ import hu.finex.main.exception.NotFoundException;
 import hu.finex.main.mapper.SupportTicketMapper;
 import hu.finex.main.model.SupportTicket;
 import hu.finex.main.model.User;
+import hu.finex.main.model.enums.AuditAction;
+import hu.finex.main.model.enums.AuditTargetType;
 import hu.finex.main.model.enums.NotificationType;
 import hu.finex.main.model.enums.TicketStatus;
 import hu.finex.main.repository.SupportTicketMessageRepository;
@@ -41,6 +43,7 @@ public class SupportTicketService {
     private final SupportTicketMapper supportTicketMapper;
     private final NotificationService notificationService;
     private final CurrentUser currentUser;
+    private final AuditService auditService;
 
     // Új ticket: egyszerre csak egy nyitott (még meg nem válaszolt) ticketje lehet a felhasználónak
     @Transactional
@@ -59,7 +62,6 @@ public class SupportTicketService {
         return supportTicketMapper.toResponse(ticket);
     }
 
-    // A bejelentkezett felhasználó ticketjei, a legújabb elöl
     @Transactional(readOnly = true)
     public Page<SupportTicketListItemResponse> listMine(Pageable pageable) {
         return supportTicketRepository.findByUser_IdOrderByCreatedAtDesc(currentUser.requireId(), pageable).map(supportTicketMapper::toListItem);
@@ -127,8 +129,12 @@ public class SupportTicketService {
     public SupportTicketResponse updateStatus(Long id, UpdateSupportTicketStatusRequest request) {
         SupportTicket ticket = findById(id);
 
+        TicketStatus previous = ticket.getStatus();
         supportTicketMapper.updateStatus(ticket, request);
         ticket.setUpdatedAt(Instant.now());
+
+        auditService.record(AuditAction.TICKET_STATUS_CHANGED, AuditTargetType.SUPPORT_TICKET, ticket.getId(),
+                "„" + ticket.getTitle() + "”: " + previous + " → " + ticket.getStatus());
 
         notificationService.notify(ticket.getUser(), NotificationType.SUPPORT, "Ticketed státusza megváltozott",
                 "A(z) „" + ticket.getTitle() + "” ticketed új státusza: " + STATUS_LABELS.get(ticket.getStatus()) + ".");

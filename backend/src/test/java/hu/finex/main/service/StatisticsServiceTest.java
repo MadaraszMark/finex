@@ -3,8 +3,11 @@ package hu.finex.main.service;
 import hu.finex.main.dto.CategorySpendingResponse;
 import hu.finex.main.dto.DashboardSummaryResponse;
 import hu.finex.main.dto.MonthlySummaryResponse;
+import hu.finex.main.dto.TransactionListItemResponse;
 import hu.finex.main.exception.BusinessException;
 import hu.finex.main.exception.NotFoundException;
+import hu.finex.main.mapper.TransactionMapper;
+import hu.finex.main.model.Transaction;
 import hu.finex.main.model.Account;
 import hu.finex.main.model.enums.AccountStatus;
 import hu.finex.main.model.enums.CardStatus;
@@ -47,6 +50,7 @@ class StatisticsServiceTest {
     @Mock private NotificationRepository notificationRepository;
     @Mock private ReportRepository reportRepository;
     @Mock private CurrentUser currentUser;
+    @Mock private TransactionMapper transactionMapper;
 
     @InjectMocks private StatisticsService service;
 
@@ -152,5 +156,28 @@ class StatisticsServiceTest {
         assertThrows(BusinessException.class, () -> service.getCategorySpending(LocalDate.of(2025, 4, 1), LocalDate.of(2025, 3, 1), "HUF"));
 
         verifyNoInteractions(transactionCategoryRepository);
+    }
+
+    @Test
+    void getTopExpenses_shouldQueryOutgoingCashflowInTheCurrency_withLimit() {
+        when(currentUser.requireId()).thenReturn(7L);
+        Transaction big = Transaction.builder().id(9L).build();
+        when(transactionRepository.findTopByUserAndTypes(eq(7L), eq("EUR"), eq(List.of(TransactionType.OUTCOME, TransactionType.TRANSFER_OUT)),
+                eq(DateUtils.startOfDay(LocalDate.of(2026, 5, 1))), eq(DateUtils.startOfDay(LocalDate.of(2026, 6, 1))), eq(org.springframework.data.domain.PageRequest.of(0, 3))))
+                .thenReturn(List.of(big));
+        when(transactionMapper.toListItem(big)).thenReturn(TransactionListItemResponse.builder().id(9L).build());
+
+        List<TransactionListItemResponse> top = service.getTopExpenses(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 31), "EUR", 3);
+
+        assertEquals(1, top.size());
+        assertEquals(9L, top.get(0).getId());
+    }
+
+    @Test
+    void getTopExpenses_shouldRejectInvalidLimit() {
+        assertThrows(BusinessException.class, () -> service.getTopExpenses(null, null, "HUF", 0));
+        assertThrows(BusinessException.class, () -> service.getTopExpenses(null, null, "HUF", 21));
+
+        verifyNoInteractions(transactionRepository);
     }
 }

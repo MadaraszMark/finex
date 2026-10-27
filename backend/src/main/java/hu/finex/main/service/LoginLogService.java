@@ -29,22 +29,24 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class LoginLogService {
 
+    // A zárolás miatt elutasított próbálkozás oka: ezek nem számítanak bele a zárolási számlálókba
+    public static final String LOCKED_REASON = "Átmenetileg zárolva";
+
     private final LoginLogRepository loginLogRepository;
     private final LoginLogMapper loginLogMapper;
     private final CurrentUser currentUser;
     private final FinexProperties finexProperties;
 
-    // Saját tranzakcióban ment (REQUIRES_NEW): a sikertelen próbálkozás akkor is naplózva marad,
-    // ha a bejelentkezés utána kivétellel megszakad és a hívó tranzakciója visszagörgetődik
+    // Saját tranzakcióban (REQUIRES_NEW), így a sikertelen próbálkozás a visszagörgetés után is megmarad
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordAttempt(User user, String email, LoginStatus status, String ip, String userAgent, String failureReason) {
         LoginLog log = loginLogMapper.toEntity(user, email, ip, userAgent, failureReason, status);
         loginLogRepository.save(log);
     }
 
-    // Átmeneti zárolás: az utolsó sikeres belépés óta (de legfeljebb a zárolási időablakon belül) túl sok sikertelen próbálkozás
+    // Zárolás három szinten: e-mail + IP, csak IP, csak fiók (ez utóbbihoz jóval több próbálkozás kell)
     @Transactional(readOnly = true)
-    public boolean isTemporarilyLocked(String email) {
+    public boolean isTemporarilyLocked(String email, String ip) {
         Instant windowStart = Instant.now().minus(finexProperties.getLoginLockMinutes(), ChronoUnit.MINUTES);
 
         Instant since = loginLogRepository.findFirstByEmailAndStatusOrderByCreatedAtDesc(email, LoginStatus.SUCCESS)
@@ -52,11 +54,20 @@ public class LoginLogService {
                 .filter(lastSuccess -> lastSuccess.isAfter(windowStart))
                 .orElse(windowStart);
 
-        long failedAttempts = loginLogRepository.countByEmailAndStatusAndCreatedAtAfter(email, LoginStatus.FAILED, since);
-        return failedAttempts >= finexProperties.getLoginMaxFailedAttempts();
+        long failedFromThisIp = loginLogRepository.countByEmailAndIpAddressAndStatusAndFailureReasonNotAndCreatedAtAfter(email, ip, LoginStatus.FAILED, LOCKED_REASON, since);
+        if (failedFromThisIp >= finexProperties.getLoginMaxFailedAttempts()) {
+            return true;
+        }
+
+        long failedOnAccount = loginLogRepository.countByEmailAndStatusAndFailureReasonNotAndCreatedAtAfter(email, LoginStatus.FAILED, LOCKED_REASON, since);
+        if (failedOnAccount >= finexProperties.getLoginMaxFailedAttemptsPerAccount()) {
+            return true;
+        }
+
+        long failedFromIp = loginLogRepository.countByIpAddressAndStatusAndFailureReasonNotAndCreatedAtAfter(ip, LoginStatus.FAILED, LOCKED_REASON, windowStart);
+        return failedFromIp >= finexProperties.getLoginMaxFailedAttemptsPerIp();
     }
 
-    // A bejelentkezett felhasználó saját belépési előzményei (eszköz, IP, sikeres/sikertelen)
     @Transactional(readOnly = true)
     public Page<LoginLogListItemResponse> listMine(Pageable pageable) {
         return loginLogRepository.findByUser_IdOrderByCreatedAtDesc(currentUser.requireId(), pageable).map(loginLogMapper::toListItem);

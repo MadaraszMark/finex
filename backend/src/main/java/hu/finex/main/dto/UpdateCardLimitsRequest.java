@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
@@ -20,6 +21,7 @@ public class UpdateCardLimitsRequest {
     @DecimalMin(value = "0.00", message = "A napi limit nem lehet negatív.")
     @DecimalMax(value = "5000000", message = "A napi limit legfeljebb 5 000 000 lehet.")
     @Schema(description = "Új napi költési limit", example = "150000.00", required = true)
+    @Digits(integer = 16, fraction = 2, message = "Az összeg legfeljebb két tizedesjegyet tartalmazhat.")
     private BigDecimal dailyLimit;
 
     @NotNull

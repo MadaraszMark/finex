@@ -12,15 +12,19 @@ public class BankSettingsService {
 
     private final FinexProperties finexProperties;
 
-    // Az üzleti szabályok paraméterei (application.properties: finex.*): a frontend innen tudja pl. a napi utalási
-    // limitet és a nyitható számlák számát, így ha a beállítás változik, a felület sem mutat elavult értéket
+    // Az üzleti szabályok a frontendnek, így a felület sem mutat elavult limitet
     public BankSettingsResponse getSettings() {
         return BankSettingsResponse.builder()
                 .transferDailyLimit(finexProperties.getTransferDailyLimit())
                 .maxAccountsPerUser(finexProperties.getMaxAccountsPerUser())
+                .maxSavingsPerUser(finexProperties.getMaxSavingsPerUser())
+                .maxStandingOrdersPerUser(finexProperties.getMaxStandingOrdersPerUser())
+                .maxBeneficiariesPerUser(finexProperties.getMaxBeneficiariesPerUser())
                 .savingsInterestRate(finexProperties.getSavingsInterestRate())
                 .cardDefaultDailyLimit(finexProperties.getCardDefaultDailyLimit())
                 .cardDefaultDailyLimitForeign(finexProperties.getCardDefaultDailyLimitForeign())
+                .cardMaxDailyLimit(finexProperties.getCardMaxDailyLimit())
+                .exchangeRates(finexProperties.getExchangeRates())
                 .build();
     }
 }

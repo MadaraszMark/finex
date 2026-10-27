@@ -8,8 +8,7 @@ import hu.finex.main.service.SavingsAccountService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-// Havi kamatjóváírás a megtakarításokon. Óránként fut, de megtakarításonként havonta csak egyszer ír jóvá,
-// így ha a szerver épp nem futott a hónap elején, a következő indulás után pótolja.
+// Havi kamatjóváírás: óránként fut, de havonta egyszer ír jóvá (így a kimaradt futást pótolja)
 
 @Slf4j
 @Component
@@ -23,7 +22,7 @@ public class SavingsInterestScheduler {
         run();
     }
 
-    // Megtakarításonként külön tranzakció: egy hiba nem akasztja meg a többit (az admin kézzel is elindíthatja)
+    // Megtakarításonként külön tranzakció: egy hiba nem akasztja meg a többit (kézzel is indítható)
     public JobRunResponse run() {
         int processed = 0;
         int skipped = 0;

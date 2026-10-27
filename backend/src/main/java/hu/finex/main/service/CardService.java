@@ -53,6 +53,7 @@ public class CardService {
     private final LedgerService ledgerService;
     private final CurrentUser currentUser;
     private final FinexProperties finexProperties;
+    private final ExchangeRateService exchangeRateService;
 
     @Transactional(readOnly = true)
     public List<CardResponse> listMine() {
@@ -94,18 +95,25 @@ public class CardService {
         Card card = findOwned(id);
         ensureNotCancelled(card);
 
+        // A felső határ forintban van, devizakártyánál az árfolyamon számolt megfelelője számít
+        String currency = card.getAccount().getCurrency();
+        BigDecimal maxLimit = exchangeRateService.fromHuf(finexProperties.getCardMaxDailyLimit(), currency);
+        if (request.getDailyLimit().compareTo(maxLimit) > 0) {
+            throw new BusinessException("A napi limit legfeljebb " + MoneyUtils.format(maxLimit, currency) + " lehet.");
+        }
+
         card.setDailyLimit(request.getDailyLimit());
         card.setOnlinePaymentEnabled(request.getOnlinePaymentEnabled());
 
         return toResponse(card);
     }
 
-    // Kártyás fizetés (demó): ellenőrzi a kártya és a számla állapotát, a lejáratot, az online fizetést és a napi limitet
+    // Kártyás fizetés (demó) a kártya, a számla, a lejárat és a napi limit ellenőrzésével
     @Transactional
     public TransactionResponse pay(Long cardId, CardPaymentRequest request) {
         Long accountId = cardRepository.findAccountIdByIdAndUserId(cardId, currentUser.requireId()).orElseThrow(() -> new NotFoundException("Kártya nem található."));
 
-        // Előbb a számlát zároljuk, hogy a fedezet- és limitellenőrzés ne kerülhessen versenyhelyzetbe egy párhuzamos fizetéssel
+        // Előbb a számlát zároljuk, hogy a fedezet- és limitellenőrzés ne legyen versenyhelyzetben
         Account account = accountRepository.findByIdForUpdate(accountId).orElseThrow(() -> new NotFoundException("Számla nem található."));
         Card card = cardRepository.findById(cardId).orElseThrow(() -> new NotFoundException("Kártya nem található."));
 

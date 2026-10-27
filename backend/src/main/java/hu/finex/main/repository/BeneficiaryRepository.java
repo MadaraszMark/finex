@@ -21,4 +21,7 @@ public interface BeneficiaryRepository extends JpaRepository<Beneficiary, Long> 
     boolean existsByUser_IdAndAccountNumber(Long userId, String accountNumber);
 
     boolean existsByUser_IdAndAccountNumberAndIdNot(Long userId, String accountNumber, Long id);
+
+    // A felhasználó kedvezményezettjeinek száma (felső korláthoz)
+    long countByUser_Id(Long userId);
 }

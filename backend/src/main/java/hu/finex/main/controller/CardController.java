@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -18,6 +19,7 @@ import hu.finex.main.dto.CardResponse;
 import hu.finex.main.dto.TransactionResponse;
 import hu.finex.main.dto.UpdateCardLimitsRequest;
 import hu.finex.main.service.CardService;
+import hu.finex.main.service.IdempotencyService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -33,6 +35,7 @@ import lombok.RequiredArgsConstructor;
 public class CardController {
 
     private final CardService cardService;
+    private final IdempotencyService idempotencyService;
 
     @GetMapping
     @Operation(summary = "Saját bankkártyák (maszkolt kártyaszámmal)",responses = {
@@ -93,7 +96,10 @@ public class CardController {
                     @ApiResponse(responseCode = "404", description = "Kártya nem található")
             }
     )
-    public ResponseEntity<TransactionResponse> pay(@PathVariable("id") Long id,@Valid @RequestBody CardPaymentRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(cardService.pay(id, request));
+    public ResponseEntity<TransactionResponse> pay(@PathVariable("id") Long id,
+                                                   @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                                   @Valid @RequestBody CardPaymentRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(idempotencyService.execute(idempotencyKey, "card-payment:" + id, request, TransactionResponse.class,
+                () -> cardService.pay(id, request)));
     }
 }

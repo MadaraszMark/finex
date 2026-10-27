@@ -1,6 +1,7 @@
 package hu.finex.main.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -23,6 +24,7 @@ public class SavingsTransferRequest {
     @NotNull
     @Min(1)
     @Schema(description = "Az átvezetendő összeg (1 vagy több)",example = "20000", required = true)
+    @Digits(integer = 16, fraction = 2, message = "Az összeg legfeljebb két tizedesjegyet tartalmazhat.")
     private BigDecimal amount;
 
     @Size(max = 255)

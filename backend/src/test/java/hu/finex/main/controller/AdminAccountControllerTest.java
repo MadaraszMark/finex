@@ -2,6 +2,7 @@ package hu.finex.main.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -26,9 +27,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import hu.finex.main.dto.AccountResponse;
+import hu.finex.main.dto.DepositRequest;
+import hu.finex.main.dto.TransactionListItemResponse;
 import hu.finex.main.dto.UpdateAccountStatusRequest;
 import hu.finex.main.model.enums.AccountStatus;
 import hu.finex.main.service.AccountService;
+import hu.finex.main.service.TransactionService;
 
 @ActiveProfiles("test")
 @WebMvcTest(
@@ -45,6 +49,7 @@ class AdminAccountControllerTest {
     @Autowired ObjectMapper objectMapper;
 
     @MockBean AccountService accountService;
+    @MockBean TransactionService transactionService;
 
     @Test
     void listAll_shouldFilterByStatus() throws Exception {
@@ -79,5 +84,46 @@ class AdminAccountControllerTest {
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("FROZEN"));
+    }
+
+    @Test
+    void deposit_shouldReturn200() throws Exception {
+        DepositRequest req = DepositRequest.builder()
+                .amount(new BigDecimal("250.00"))
+                .message("Pénztári befizetés")
+                .build();
+
+        when(accountService.depositByAdmin(eq(10L), any(DepositRequest.class))).thenReturn(AccountResponse.builder().id(10L).balance(new BigDecimal("1250.00")).build());
+
+        mockMvc.perform(post("/admin/accounts/10/deposit")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.balance").value(1250.00));
+    }
+
+    @Test
+    void deposit_shouldReturn400_whenAmountHasTooManyDecimals() throws Exception {
+        DepositRequest req = DepositRequest.builder()
+                .amount(new BigDecimal("10.001"))
+                .build();
+
+        mockMvc.perform(post("/admin/accounts/10/deposit")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(accountService);
+    }
+
+    @Test
+    void listTransactions_shouldReturnPage() throws Exception {
+        TransactionListItemResponse item = TransactionListItemResponse.builder().id(5L).reversed(true).build();
+        when(transactionService.listByAccountForAdmin(eq(10L), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(item), PageRequest.of(0, 20), 1));
+
+        mockMvc.perform(get("/admin/accounts/10/transactions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(5))
+                .andExpect(jsonPath("$.content[0].reversed").value(true));
     }
 }

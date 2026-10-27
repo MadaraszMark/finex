@@ -1,6 +1,9 @@
 package hu.finex.main.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import hu.finex.main.security.JwtAuthenticationFilter;
+import hu.finex.main.security.RateLimitFilter;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
@@ -19,13 +22,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 // Stateless JWT-alapú security konfiguráció
-// - /auth/** és a Swagger nyilvános, /admin/** csak ADMIN szerepkörrel, minden más bejelentkezéshez kötött
-// - azt, hogy egy adat a felhasználóé-e, a service-ek ellenőrzik (CurrentUser)
 
 @Configuration
 @RequiredArgsConstructor
@@ -34,14 +36,20 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final FinexProperties finexProperties;
+    private final ObjectMapper objectMapper;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // A CSRF-védelem fölösleges: a token fejlécben utazik, nem sütiben
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // Hiányzó vagy lejárt token esetén 401 (és nem 403), így a frontend tudja, hogy újra be kell lépni
+                // A hivatkozó oldal címe ne szivárogjon ki, és a böngésző ne adjon eszköz-hozzáférést
+                .headers(headers -> headers
+                        .referrerPolicy(referrer -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+                        .permissionsPolicyHeader(permissions -> permissions.policy("camera=(), microphone=(), geolocation=(), payment=()")))
+                // Hiányzó vagy lejárt token: 401 (nem 403), így a frontend tudja, hogy újra be kell lépni
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
@@ -54,18 +62,20 @@ public class SecurityConfig {
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
+                // Előbb a kérésszám- és méretkorlát, utána a JWT (a szűrő nem bean, így kérésenként egyszer fut)
+                .addFilterBefore(new RateLimitFilter(finexProperties, objectMapper), UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // A frontend (más porton fut) közvetlenül is hívhatja az API-t; fejlesztés közben a Vite proxy miatt ez nem is kell
+    // CORS: a frontend más porton fut (fejlesztés közben a Vite proxy miatt nem is kell)
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(finexProperties.getCorsAllowedOrigins());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

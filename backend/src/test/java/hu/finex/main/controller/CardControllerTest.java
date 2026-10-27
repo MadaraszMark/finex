@@ -11,6 +11,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
+import java.util.function.Supplier;
+
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -31,6 +34,7 @@ import hu.finex.main.dto.UpdateCardLimitsRequest;
 import hu.finex.main.exception.BusinessException;
 import hu.finex.main.model.enums.CardStatus;
 import hu.finex.main.model.enums.TransactionType;
+import hu.finex.main.service.IdempotencyService;
 import hu.finex.main.service.CardService;
 
 @ActiveProfiles("test")
@@ -48,6 +52,13 @@ class CardControllerTest {
     @Autowired ObjectMapper objectMapper;
 
     @MockBean CardService cardService;
+    @MockBean IdempotencyService idempotencyService;
+
+    // Az idempotenciát az IdempotencyServiceTest ellenőrzi, itt csak átengedi a kérést
+    @BeforeEach
+    void passThroughIdempotency() {
+        when(idempotencyService.execute(any(), any(), any(), any(), any())).thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(4)).get());
+    }
 
     private CardResponse sampleCard(CardStatus status) {
         return CardResponse.builder()

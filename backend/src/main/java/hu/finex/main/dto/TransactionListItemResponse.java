@@ -46,5 +46,11 @@ public class TransactionListItemResponse {
 
     @Schema(description = "Időpont", example = "2025-02-15T11:00:15Z")
     private Instant createdAt;
+
+    @Schema(description = "Sztornó tételnél az eredeti (semlegesített) tétel azonosítója", example = "118")
+    private Long reversalOfId;
+
+    @Schema(description = "Sztornózták-e már ezt a tételt", example = "false")
+    private boolean reversed;
 }
 

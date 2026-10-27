@@ -4,7 +4,9 @@ import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,7 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import hu.finex.main.dto.AccountResponse;
 import hu.finex.main.dto.CreateAccountRequest;
-import hu.finex.main.dto.DepositRequest;
 import hu.finex.main.dto.StatementResponse;
 import hu.finex.main.service.AccountService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -78,18 +79,23 @@ public class AccountController {
         return ResponseEntity.ok(accountService.getMyAccount());
     }
 
-    @PostMapping("/{id}/deposit")
-    @Operation(summary = "Egyenleg befizetése a bankszámlára", description = "Demó funkció (pl. ATM-es készpénzbefizetés): a bejelentkezett felhasználó pénzt fizet be a saját számlájára.",responses = {
-            @ApiResponse(
-                responseCode = "200",
-                description = "Sikeres befizetés",
-                content = @Content(schema = @Schema(implementation = AccountResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Érvénytelen bemenet vagy nem aktív számla"),
+    @GetMapping(value = "/{id}/statement.csv", produces = "text/csv")
+    @Operation(summary = "Számlakivonat letöltése CSV-ben (Excelhez)", description = "Pontosvesszővel tagolt, UTF-8, tizedesvesszővel. A szöveges mezők képletnek látszó kezdete semlegesítve (CSV injection ellen).",responses = {
+            @ApiResponse(responseCode = "200", description = "A kivonat CSV-fájlként"),
+            @ApiResponse(responseCode = "400", description = "Hibás vagy túl hosszú időszak"),
             @ApiResponse(responseCode = "404", description = "Számla nem található")
         }
     )
-    public ResponseEntity<AccountResponse> deposit(@PathVariable("id") Long accountId,@Valid @RequestBody DepositRequest request) {
-        return ResponseEntity.ok(accountService.deposit(accountId, request));
+    public ResponseEntity<byte[]> exportStatementCsv(@PathVariable("id") Long id,
+                                                     @RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                                     @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        byte[] csv = accountService.exportStatementCsv(id, from, to);
+        String filename = "finex-kivonat-" + from + "_" + to + ".csv";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
+                .body(csv);
     }
 
     @GetMapping("/{id}/statement")

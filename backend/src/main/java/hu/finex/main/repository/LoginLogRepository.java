@@ -37,10 +37,17 @@ public interface LoginLogRepository extends JpaRepository<LoginLog, Long> {
     // Sikertelen próbálkozások száma egy e-mail címre egy időpont óta (átmeneti zároláshoz)
     long countByEmailAndStatusAndCreatedAtAfter(String email, LoginStatus status, Instant since);
 
+    // A zárolás miatt elutasított próbálkozások nem számítanak bele, különben a zárolás sosem járna le
+    long countByEmailAndIpAddressAndStatusAndFailureReasonNotAndCreatedAtAfter(String email, String ipAddress, LoginStatus status, String excludedReason, Instant since);
+
+    long countByEmailAndStatusAndFailureReasonNotAndCreatedAtAfter(String email, LoginStatus status, String excludedReason, Instant since);
+
+    long countByIpAddressAndStatusAndFailureReasonNotAndCreatedAtAfter(String ipAddress, LoginStatus status, String excludedReason, Instant since);
+
     // Az utolsó sikeres belépés (utána a sikertelen próbálkozások számlálója újraindul)
     Optional<LoginLog> findFirstByEmailAndStatusOrderByCreatedAtDesc(String email, LoginStatus status);
 
-    // Admin keresés: a szűrők opcionálisak (null = nincs szűrés), az időszaknak viszont mindig van határa
+    // Admin keresés: a szűrők opcionálisak (null = nincs szűrés), az időszak viszont kötelező
     @Query("select l from LoginLog l where (:status is null or l.status = :status)"
             + " and (:userId is null or l.user.id = :userId)"
             + " and (:ipAddress is null or l.ipAddress = :ipAddress)"

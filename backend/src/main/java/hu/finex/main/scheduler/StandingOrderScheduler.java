@@ -10,7 +10,7 @@ import hu.finex.main.service.StandingOrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-// Rendszeres átutalások teljesítése. Óránként fut, és az esedékes (ma vagy korábban esedékes) megbízásokat teljesíti.
+// Rendszeres átutalások: óránként fut, és teljesíti a ma vagy korábban esedékes megbízásokat
 
 @Slf4j
 @Component
@@ -24,8 +24,7 @@ public class StandingOrderScheduler {
         run();
     }
 
-    // Megbízásonként külön tranzakció. Sikertelen teljesítésnél (pl. nincs fedezet) az utalás visszagörgetődik,
-    // a hibát pedig egy újabb, önálló tranzakció rögzíti (a megbízás a következő esedékességre lép, értesítés megy).
+    // Megbízásonként külön tranzakció, a sikertelen teljesítést egy önálló tranzakció rögzíti
     public JobRunResponse run() {
         int processed = 0;
         int skipped = 0;

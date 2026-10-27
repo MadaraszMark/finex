@@ -46,7 +46,7 @@ class AuthServiceTest {
         User user = activeUser();
 
         when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(user));
-        when(loginLogService.isTemporarilyLocked("test@example.com")).thenReturn(false);
+        when(loginLogService.isTemporarilyLocked(eq("test@example.com"), any())).thenReturn(false);
         when(passwordEncoder.matches("pw", "HASH")).thenReturn(true);
         when(jwtTokenUtil.generateToken(user)).thenReturn("JWT_TOKEN");
 
@@ -79,7 +79,7 @@ class AuthServiceTest {
         User user = activeUser();
 
         when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(user));
-        when(loginLogService.isTemporarilyLocked("test@example.com")).thenReturn(false);
+        when(loginLogService.isTemporarilyLocked(eq("test@example.com"), any())).thenReturn(false);
         when(passwordEncoder.matches("bad", "HASH")).thenReturn(false);
 
         BusinessException ex = assertThrows(BusinessException.class, () -> service.login(request, "127.0.0.1", "UA"));
@@ -100,7 +100,7 @@ class AuthServiceTest {
 
         when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(user));
         // Az ellenőrzéskor még nincs zárolva, a mostani hibás próbálkozás után már igen
-        when(loginLogService.isTemporarilyLocked("test@example.com")).thenReturn(false, true);
+        when(loginLogService.isTemporarilyLocked(eq("test@example.com"), any())).thenReturn(false, true);
         when(passwordEncoder.matches("bad", "HASH")).thenReturn(false);
 
         assertThrows(BusinessException.class, () -> service.login(request, "127.0.0.1", "UA"));
@@ -116,14 +116,16 @@ class AuthServiceTest {
                 .build();
 
         when(userRepository.findByEmailIgnoreCase("missing@example.com")).thenReturn(Optional.empty());
-        when(loginLogService.isTemporarilyLocked("missing@example.com")).thenReturn(false);
+        when(loginLogService.isTemporarilyLocked(eq("missing@example.com"), any())).thenReturn(false);
 
         BusinessException ex = assertThrows(BusinessException.class, () -> service.login(request, "127.0.0.1", "UA"));
 
         // Ugyanaz az üzenet, mint hibás jelszónál: kívülről nem derül ki, hogy létezik-e a cím
         assertEquals("Hibás email vagy jelszó.", ex.getMessage());
         verify(loginLogService).recordAttempt(null, "missing@example.com", LoginStatus.FAILED, "127.0.0.1", "UA", "Ismeretlen e-mail cím");
-        verifyNoInteractions(passwordEncoder, jwtTokenUtil);
+        // Ismeretlen címnél is fut jelszó-összehasonlítás, így a válaszidő sem árulja el, létezik-e
+        verify(passwordEncoder).matches(eq("pw"), any());
+        verifyNoInteractions(jwtTokenUtil);
     }
 
     @Test
@@ -136,7 +138,7 @@ class AuthServiceTest {
         User user = activeUser();
 
         when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(user));
-        when(loginLogService.isTemporarilyLocked("test@example.com")).thenReturn(true);
+        when(loginLogService.isTemporarilyLocked(eq("test@example.com"), any())).thenReturn(true);
 
         BusinessException ex = assertThrows(BusinessException.class, () -> service.login(request, "127.0.0.1", "UA"));
 
@@ -156,7 +158,7 @@ class AuthServiceTest {
         user.setStatus(UserStatus.BLOCKED);
 
         when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(user));
-        when(loginLogService.isTemporarilyLocked("test@example.com")).thenReturn(false);
+        when(loginLogService.isTemporarilyLocked(eq("test@example.com"), any())).thenReturn(false);
         when(passwordEncoder.matches("pw", "HASH")).thenReturn(true);
 
         assertThrows(BusinessException.class, () -> service.login(request, "127.0.0.1", "UA"));

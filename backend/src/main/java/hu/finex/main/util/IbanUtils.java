@@ -17,7 +17,7 @@ public final class IbanUtils {
         return iban.replaceAll("\\s", "").toUpperCase(Locale.ROOT);
     }
 
-    // Formátum + ellenőrzőszám: az ország és az ellenőrzőszám a végére kerül, és a szám mod 97 értéke 1 kell legyen
+    // Formátum + ellenőrzőszám: az első 4 karaktert a végére téve a szám mod 97 értéke 1 kell legyen
     public static boolean isValid(String iban) {
         String normalized = normalize(iban);
         if (normalized == null || !normalized.matches("[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}")) {
@@ -31,7 +31,7 @@ public final class IbanUtils {
         return mod97(convertLettersToDigits(rearranged)) == 1;
     }
 
-    // 24 jegyű random magyar bankszámlaszám, érvényes ellenőrzőszámmal
+    // 24 jegyű random bankszámlaszám
     public static String generateHungarian() {
         StringBuilder base = new StringBuilder();
         for (int i = 0; i < 24; i++) {

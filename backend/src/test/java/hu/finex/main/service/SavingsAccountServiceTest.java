@@ -400,19 +400,22 @@ class SavingsAccountServiceTest {
     }
 
     @Test
-    void creditMonthlyInterest_shouldCreditOneTwelfthOfYearlyRate_andNotify() {
+    void creditMonthlyInterest_shouldCreditOneTwelfthOfYearlyRate_onPreviousMonthMinimumBalance() {
         User owner = User.builder().id(7L).build();
-        SavingsAccount savings = savings(2L, "HUF", "120000.00", SavingsStatus.ACTIVE);
+        SavingsAccount savings = savings(2L, "HUF", "150000.00", SavingsStatus.ACTIVE);
         savings.setUser(owner);
         savings.setInterestRate(new BigDecimal("3.50"));
         when(savingsAccountRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(savings));
         when(savingsTransactionRepository.existsBySavingsAccount_IdAndTypeAndCreatedAtGreaterThanEqual(eq(2L), eq(SavingsTransactionType.INTEREST), any())).thenReturn(false);
 
+        // A hó végi 30 000 Ft-os befizetés nem számít: az előző hónap minimuma 120 000 Ft
+        when(savingsAccountRepository.findMinBalance(eq(2L), any(), any())).thenReturn(new BigDecimal("120000.00"));
+
         boolean credited = service.creditMonthlyInterest(2L);
 
         // 120 000 * 3,5% / 12 = 350,00
         assertTrue(credited);
-        assertEquals(0, new BigDecimal("120350.00").compareTo(savings.getBalance()));
+        assertEquals(0, new BigDecimal("150350.00").compareTo(savings.getBalance()));
         verify(savingsTransactionMapper).toEntity(savings, SavingsTransactionType.INTEREST, new BigDecimal("350.00"));
         verify(notificationService).notify(eq(owner), eq(NotificationType.SAVINGS), eq("Kamatjóváírás"), anyString());
     }
@@ -446,9 +449,27 @@ class SavingsAccountServiceTest {
         when(savingsAccountRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(savings));
         when(savingsTransactionRepository.existsBySavingsAccount_IdAndTypeAndCreatedAtGreaterThanEqual(eq(2L), eq(SavingsTransactionType.INTEREST), any())).thenReturn(false);
 
+        when(savingsAccountRepository.findMinBalance(eq(2L), any(), any())).thenReturn(new BigDecimal("1.00"));
+
         assertFalse(service.creditMonthlyInterest(2L));
 
         verify(savingsTransactionRepository, never()).save(any());
+    }
+
+    // Kamatfarmolás ellen: a nyitás hónapjában a minimum egyenleg 0, így arra a hónapra nem jár kamat
+    @Test
+    void creditMonthlyInterest_shouldSkip_whenSavingsWasOpenedDuringThePreviousMonth() {
+        SavingsAccount savings = savings(2L, "HUF", "1000000.00", SavingsStatus.ACTIVE);
+        savings.setInterestRate(new BigDecimal("3.50"));
+        when(savingsAccountRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(savings));
+        when(savingsTransactionRepository.existsBySavingsAccount_IdAndTypeAndCreatedAtGreaterThanEqual(eq(2L), eq(SavingsTransactionType.INTEREST), any())).thenReturn(false);
+        when(savingsAccountRepository.findMinBalance(eq(2L), any(), any())).thenReturn(BigDecimal.ZERO);
+
+        assertFalse(service.creditMonthlyInterest(2L));
+
+        assertEquals(0, new BigDecimal("1000000.00").compareTo(savings.getBalance()));
+        verify(savingsTransactionRepository, never()).save(any());
+        verifyNoInteractions(notificationService);
     }
 
     private void lockAccount(Long userId, Account account) {

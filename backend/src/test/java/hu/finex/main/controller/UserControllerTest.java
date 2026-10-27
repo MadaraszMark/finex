@@ -21,12 +21,14 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import hu.finex.main.dto.AuthResponse;
 import hu.finex.main.dto.ChangePasswordRequest;
 import hu.finex.main.dto.UpdateUserRequest;
 import hu.finex.main.dto.UserResponse;
 import hu.finex.main.exception.BusinessException;
 import hu.finex.main.model.enums.UserRole;
 import hu.finex.main.model.enums.UserStatus;
+import hu.finex.main.service.RevokedTokenService;
 import hu.finex.main.service.UserService;
 
 @ActiveProfiles("test")
@@ -44,6 +46,7 @@ class UserControllerTest {
     @Autowired ObjectMapper objectMapper;
 
     @MockBean UserService userService;
+    @MockBean RevokedTokenService revokedTokenService;
 
     private UserResponse sampleUser() {
         return UserResponse.builder()
@@ -103,19 +106,40 @@ class UserControllerTest {
         verifyNoInteractions(userService);
     }
 
+    // Jelszócsere után a többi token érvénytelen, az aktuális munkamenet új tokent kap
     @Test
-    void changePassword_shouldReturn204() throws Exception {
+    void changePassword_shouldReturn200_withNewToken() throws Exception {
         ChangePasswordRequest req = ChangePasswordRequest.builder()
                 .currentPassword("Regi12345")
                 .newPassword("Uj123456")
                 .build();
 
+        when(userService.changePassword(any(ChangePasswordRequest.class))).thenReturn(AuthResponse.builder().token("uj.token").build());
+
         mockMvc.perform(put("/users/me/password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").value("uj.token"));
 
         verify(userService).changePassword(any(ChangePasswordRequest.class));
+    }
+
+    @Test
+    void logout_shouldRevokeTheBearerToken() throws Exception {
+        mockMvc.perform(post("/users/me/logout").header("Authorization", "Bearer a.b.c"))
+                .andExpect(status().isNoContent());
+
+        verify(revokedTokenService).revoke("a.b.c");
+    }
+
+    @Test
+    void logoutEverywhere_shouldReturnNewToken() throws Exception {
+        when(userService.logoutEverywhere()).thenReturn(AuthResponse.builder().token("friss.token").build());
+
+        mockMvc.perform(post("/users/me/logout-all"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").value("friss.token"));
     }
 
     @Test

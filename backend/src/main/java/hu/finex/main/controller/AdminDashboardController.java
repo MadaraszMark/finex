@@ -45,7 +45,9 @@ public class AdminDashboardController {
             }
     )
     public ResponseEntity<JobRunResponse> runSavingsInterest() {
-        return ResponseEntity.ok(savingsInterestScheduler.run());
+        JobRunResponse result = savingsInterestScheduler.run();
+        adminDashboardService.recordJobRun(result);
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/jobs/standing-orders")
@@ -54,6 +56,8 @@ public class AdminDashboardController {
             }
     )
     public ResponseEntity<JobRunResponse> runStandingOrders() {
-        return ResponseEntity.ok(standingOrderScheduler.run());
+        JobRunResponse result = standingOrderScheduler.run();
+        adminDashboardService.recordJobRun(result);
+        return ResponseEntity.ok(result);
     }
 }

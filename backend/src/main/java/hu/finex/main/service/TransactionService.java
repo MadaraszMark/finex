@@ -17,6 +17,9 @@ import org.springframework.util.StringUtils;
 
 import hu.finex.main.config.FinexProperties;
 import hu.finex.main.dto.CategoryResponse;
+import hu.finex.main.dto.ExchangeRequest;
+import hu.finex.main.dto.ExchangeResponse;
+import hu.finex.main.dto.ReverseTransactionRequest;
 import hu.finex.main.dto.TransactionListItemResponse;
 import hu.finex.main.dto.TransactionResponse;
 import hu.finex.main.dto.TransactionSearchRequest;
@@ -32,6 +35,8 @@ import hu.finex.main.model.Category;
 import hu.finex.main.model.Transaction;
 import hu.finex.main.model.User;
 import hu.finex.main.model.enums.AccountStatus;
+import hu.finex.main.model.enums.AuditAction;
+import hu.finex.main.model.enums.AuditTargetType;
 import hu.finex.main.model.enums.NotificationType;
 import hu.finex.main.model.enums.TransactionType;
 import hu.finex.main.repository.AccountRepository;
@@ -48,6 +53,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class TransactionService {
 
+    // A devizaváltás tételeinek partnerneve
+    public static final String EXCHANGE_PARTNER = "Devizaváltás";
+
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
     private final TransactionMapper transactionMapper;
@@ -59,16 +67,17 @@ public class TransactionService {
     private final NotificationService notificationService;
     private final CurrentUser currentUser;
     private final FinexProperties finexProperties;
+    private final ExchangeRateService exchangeRateService;
+    private final AuditService auditService;
 
     @Transactional(readOnly = true)
     public TransactionResponse getById(Long id) {
         Transaction transaction = transactionRepository.findByIdAndAccount_User_Id(id, currentUser.requireId()).orElseThrow(() -> new NotFoundException("Tranzakció nem található."));
 
         List<CategoryResponse> categories = loadCategories(List.of(transaction.getId())).getOrDefault(transaction.getId(), List.of());
-        return transactionMapper.toResponse(transaction, categories);
+        return transactionMapper.toResponse(transaction, categories, transactionRepository.existsByReversalOf_Id(transaction.getId()));
     }
 
-    // A bejelentkezett felhasználó tételeinek keresése szűrőkkel, lapozva
     @Transactional(readOnly = true)
     public Page<TransactionListItemResponse> search(TransactionSearchRequest filter, Pageable pageable) {
         Long userId = currentUser.requireId();
@@ -87,13 +96,27 @@ public class TransactionService {
         Page<Transaction> page = transactionRepository.search(userId, filter.getAccountId(), filter.getType(), from, to,
                 filter.getMinAmount(), filter.getMaxAmount(), search, filter.getCategoryId(), pageable);
 
-        // A lap összes tételének kategóriái egyetlen lekérdezéssel
-        Map<Long, List<CategoryResponse>> categories = loadCategories(page.getContent().stream().map(Transaction::getId).toList());
-
-        return page.map(transaction -> transactionMapper.toListItem(transaction, categories.getOrDefault(transaction.getId(), List.of())));
+        return toListItems(page);
     }
 
-    // Utalás a bejelentkezett felhasználó számlájáról
+    // Admin: egy számla tételei (a sztornóhoz), legfrissebb elöl
+    @Transactional(readOnly = true)
+    public Page<TransactionListItemResponse> listByAccountForAdmin(Long accountId, Pageable pageable) {
+        if (!accountRepository.existsById(accountId)) {
+            throw new NotFoundException("Számla nem található.");
+        }
+        return toListItems(transactionRepository.findByAccount_IdOrderByCreatedAtDescIdDesc(accountId, pageable));
+    }
+
+    // A lap összes tételének kategóriái és sztornó-állapota egy-egy lekérdezéssel (nem tételenként)
+    private Page<TransactionListItemResponse> toListItems(Page<Transaction> page) {
+        List<Long> ids = page.getContent().stream().map(Transaction::getId).toList();
+        Map<Long, List<CategoryResponse>> categories = loadCategories(ids);
+        Set<Long> reversed = ids.isEmpty() ? Set.of() : Set.copyOf(transactionRepository.findReversedIds(ids));
+
+        return page.map(transaction -> transactionMapper.toListItem(transaction, categories.getOrDefault(transaction.getId(), List.of()), reversed.contains(transaction.getId())));
+    }
+
     @Transactional
     public TransferResponse transfer(TransferRequest request) {
         User owner = currentUser.requireEntity();
@@ -102,8 +125,7 @@ public class TransactionService {
                 request.getAmount(), request.getMessage(), request.getCategoryIds());
     }
 
-    // Az utalás magja: a kézi utalás és a rendszeres átutalás ütemezője is ezt használja.
-    // FineX-es címzettnél mindkét oldalon könyvel (TRANSFER_OUT + TRANSFER_IN), külső számlánál csak a terhelés történik meg.
+    // Az utalás magja (kézi és rendszeres utalás is); FineX-es címzettnél a jóváírás is lekönyvelődik
     @Transactional
     public TransferResponse executeTransfer(User owner, Long fromAccountId, String toAccountNumber, String partnerName,
                                             BigDecimal amount, String message, List<Long> categoryIds) {
@@ -120,7 +142,7 @@ public class TransactionService {
             throw new BusinessException("Nem utalhatsz ugyanarra a számlára.");
         }
 
-        // Zárolás mindig azonos (azonosító szerinti) sorrendben: két egymással szembe menő utalás így nem akadhat össze (holtpont)
+        // Zárolás azonosító szerinti sorrendben, így két szembe menő utalás nem akadhat össze (holtpont)
         Account from;
         Account to = null;
         if (targetId != null && targetId < fromAccountId) {
@@ -145,10 +167,11 @@ public class TransactionService {
             }
         }
 
-        // Napi limit: a mai kimenő utalások és ez az utalás együtt sem lépheti túl
+        // Napi limit: a forintos limitet devizaszámlán az árfolyamon számolt megfelelőjével vetjük össze
         BigDecimal sentToday = transactionRepository.sumAmountByAccountAndTypeSince(from.getId(), TransactionType.TRANSFER_OUT, DateUtils.startOfToday());
-        if (sentToday.add(amount).compareTo(finexProperties.getTransferDailyLimit()) > 0) {
-            throw new BusinessException("Az utalás túllépné a napi utalási limitet (" + MoneyUtils.format(finexProperties.getTransferDailyLimit(), from.getCurrency()) + ").");
+        if (exchangeRateService.toHuf(sentToday.add(amount), from.getCurrency()).compareTo(finexProperties.getTransferDailyLimit()) > 0) {
+            BigDecimal limit = exchangeRateService.fromHuf(finexProperties.getTransferDailyLimit(), from.getCurrency());
+            throw new BusinessException("Az utalás túllépné a napi utalási limitet (" + MoneyUtils.format(limit, from.getCurrency()) + ").");
         }
 
         List<Category> categories = findCategories(categoryIds);
@@ -158,7 +181,7 @@ public class TransactionService {
         saveCategories(outgoing, categories);
 
         if (to != null) {
-            ledgerService.credit(to, TransactionType.TRANSFER_IN, amount, owner.getFullName(), message, from.getAccountNumber());
+            ledgerService.creditLinked(to, TransactionType.TRANSFER_IN, amount, owner.getFullName(), message, from.getAccountNumber(), outgoing);
 
             // Saját számlák közötti átvezetésről nem kell értesítés
             if (!to.getUser().getId().equals(owner.getId())) {
@@ -180,6 +203,124 @@ public class TransactionService {
                 .internal(to != null)
                 .createdAt(outgoing.getCreatedAt())
                 .build();
+    }
+
+    // Devizaváltás saját számlák között a bank árfolyamán (a napi utalási limit is vonatkozik rá)
+    @Transactional
+    public ExchangeResponse exchange(ExchangeRequest request) {
+        User owner = currentUser.requireEntity();
+
+        if (request.getFromAccountId().equals(request.getToAccountId())) {
+            throw new BusinessException("A forrás- és a célszámla nem lehet ugyanaz.");
+        }
+        if (!accountRepository.existsByIdAndUser_Id(request.getFromAccountId(), owner.getId())
+                || !accountRepository.existsByIdAndUser_Id(request.getToAccountId(), owner.getId())) {
+            throw new NotFoundException("Számla nem található.");
+        }
+
+        // Zárolás azonosító szerinti sorrendben (holtpont ellen, mint az utalásnál)
+        Account from;
+        Account to;
+        if (request.getToAccountId() < request.getFromAccountId()) {
+            to = lock(request.getToAccountId());
+            from = lock(request.getFromAccountId());
+        } else {
+            from = lock(request.getFromAccountId());
+            to = lock(request.getToAccountId());
+        }
+
+        if (from.getStatus() != AccountStatus.ACTIVE || to.getStatus() != AccountStatus.ACTIVE) {
+            throw new BusinessException("Csak aktív számlák között lehet váltani.");
+        }
+        if (from.getCurrency().equals(to.getCurrency())) {
+            throw new BusinessException("A két számla devizaneme azonos: ehhez nem kell váltás, használd az utalást.");
+        }
+
+        BigDecimal amount = request.getAmount();
+        BigDecimal sentToday = transactionRepository.sumAmountByAccountAndTypeSince(from.getId(), TransactionType.TRANSFER_OUT, DateUtils.startOfToday());
+        if (exchangeRateService.toHuf(sentToday.add(amount), from.getCurrency()).compareTo(finexProperties.getTransferDailyLimit()) > 0) {
+            BigDecimal limit = exchangeRateService.fromHuf(finexProperties.getTransferDailyLimit(), from.getCurrency());
+            throw new BusinessException("A váltás túllépné a napi limitet (" + MoneyUtils.format(limit, from.getCurrency()) + ").");
+        }
+
+        BigDecimal converted = exchangeRateService.convert(amount, from.getCurrency(), to.getCurrency());
+        if (converted.signum() <= 0) {
+            throw new BusinessException("Az összeg túl kicsi a váltáshoz.");
+        }
+
+        String message = "Váltás: " + MoneyUtils.format(amount, from.getCurrency()) + " → " + MoneyUtils.format(converted, to.getCurrency());
+        Transaction outgoing = ledgerService.debit(from, TransactionType.TRANSFER_OUT, amount, EXCHANGE_PARTNER, message, to.getAccountNumber(), null);
+        ledgerService.creditLinked(to, TransactionType.TRANSFER_IN, converted, EXCHANGE_PARTNER, message, from.getAccountNumber(), outgoing);
+
+        return ExchangeResponse.builder()
+                .transactionId(outgoing.getId())
+                .fromAccountId(from.getId())
+                .toAccountId(to.getId())
+                .fromAmount(amount)
+                .fromCurrency(from.getCurrency())
+                .toAmount(converted)
+                .toCurrency(to.getCurrency())
+                .rate(exchangeRateService.crossRate(from.getCurrency(), to.getCurrency()))
+                .fromAccountNewBalance(from.getBalance())
+                .toAccountNewBalance(to.getBalance())
+                .createdAt(outgoing.getCreatedAt())
+                .build();
+    }
+
+    // Admin: sztornó ellentétes irányú javító tétellel; belső utalásnál a pár másik fele is sztornózódik
+    @Transactional
+    public TransactionResponse reverse(Long transactionId, ReverseTransactionRequest request) {
+        Transaction original = transactionRepository.findById(transactionId).orElseThrow(() -> new NotFoundException("Tranzakció nem található."));
+
+        if (original.getReversalOf() != null) {
+            throw new BusinessException("Sztornó tétel nem sztornózható.");
+        }
+        if (transactionRepository.existsByReversalOf_Id(transactionId)) {
+            throw new BusinessException("Ezt a tételt már sztornózták.");
+        }
+
+        boolean cardPayment = original.getType() == TransactionType.OUTCOME && original.getCard() != null;
+        boolean cashDeposit = original.getType() == TransactionType.INCOME && AccountService.CASH_DEPOSIT_PARTNER.equals(original.getPartnerName());
+        boolean transferOut = original.getType() == TransactionType.TRANSFER_OUT;
+        if (!cardPayment && !cashDeposit && !transferOut) {
+            throw new BusinessException("Csak kártyás fizetés, készpénzbefizetés és kimenő utalás sztornózható.");
+        }
+
+        Transaction counterpart = transferOut ? transactionRepository.findFirstByRelatedTransaction_Id(transactionId).orElse(null) : null;
+        if (transferOut && counterpart == null && accountRepository.findIdByAccountNumber(original.getToAccount()).isPresent()) {
+            throw new BusinessException("Ez a belső utalás a tételpárosítás bevezetése előtt készült, ezért nem sztornózható automatikusan.");
+        }
+
+        // Zárolás azonosító szerinti sorrendben
+        Long originalAccountId = original.getAccount().getId();
+        Long counterpartAccountId = counterpart != null ? counterpart.getAccount().getId() : null;
+        Account originalAccount;
+        Account counterpartAccount = null;
+        if (counterpartAccountId != null && counterpartAccountId < originalAccountId) {
+            counterpartAccount = lock(counterpartAccountId);
+            originalAccount = lock(originalAccountId);
+        } else {
+            originalAccount = lock(originalAccountId);
+            if (counterpartAccountId != null) {
+                counterpartAccount = lock(counterpartAccountId);
+            }
+        }
+
+        // Előbb a címzett oldal (terhelés): ha nincs rajta fedezet, semmi nem könyvelődik
+        if (counterpart != null) {
+            ledgerService.reverse(counterpartAccount, counterpart, request.getReason());
+            notificationService.notify(counterpartAccount.getUser(), NotificationType.TRANSACTION, "Sztornózott tétel",
+                    MoneyUtils.format(counterpart.getAmount(), counterpart.getCurrency()) + " jóváírást sztornóztunk a(z) " + counterpartAccount.getName() + " számládon. Ok: " + request.getReason());
+        }
+        Transaction reversal = ledgerService.reverse(originalAccount, original, request.getReason());
+        notificationService.notify(originalAccount.getUser(), NotificationType.TRANSACTION, "Sztornózott tétel",
+                MoneyUtils.format(original.getAmount(), original.getCurrency()) + " összegű tételt sztornóztunk a(z) " + originalAccount.getName() + " számládon. Ok: " + request.getReason());
+
+        auditService.record(AuditAction.TRANSACTION_REVERSED, AuditTargetType.TRANSACTION, original.getId(),
+                originalAccount.getAccountNumber() + ": " + MoneyUtils.format(original.getAmount(), original.getCurrency())
+                + " (" + original.getType() + ") – " + request.getReason());
+
+        return transactionMapper.toResponse(reversal);
     }
 
     private Account lock(Long accountId) {

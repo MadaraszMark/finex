@@ -5,11 +5,13 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import hu.finex.main.model.StandingOrder;
+import jakarta.persistence.LockModeType;
 
 @Repository
 public interface StandingOrderRepository extends JpaRepository<StandingOrder, Long> {
@@ -26,6 +28,14 @@ public interface StandingOrderRepository extends JpaRepository<StandingOrder, Lo
 
     // Egy számla aktív megbízásai (a számla lezárásakor le kell állítani őket)
     List<StandingOrder> findByAccount_IdAndActiveTrue(Long accountId);
+
+    // A felhasználó aktív megbízásainak száma (felső korláthoz)
+    long countByAccount_User_IdAndActiveTrue(Long userId);
+
+    // A megbízás zárolása teljesítés előtt (két párhuzamos futás ne teljesíthesse kétszer)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select o from StandingOrder o where o.id = :id")
+    Optional<StandingOrder> findByIdForUpdate(@Param("id") Long id);
 
     // A megbízás tulajdonosa, a forrásszámla betöltése nélkül (az utalás előtt a számlát zárolni kell)
     @Query("select o.account.user.id from StandingOrder o where o.id = :id")

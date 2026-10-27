@@ -8,7 +8,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import hu.finex.main.dto.AdminDashboardResponse;
+import hu.finex.main.dto.JobRunResponse;
 import hu.finex.main.model.enums.AccountStatus;
+import hu.finex.main.model.enums.AuditAction;
+import hu.finex.main.model.enums.AuditTargetType;
 import hu.finex.main.model.enums.LoginStatus;
 import hu.finex.main.model.enums.TicketStatus;
 import hu.finex.main.model.enums.TransactionType;
@@ -30,6 +33,14 @@ public class AdminDashboardService {
     private final TransactionRepository transactionRepository;
     private final SupportTicketRepository supportTicketRepository;
     private final LoginLogRepository loginLogRepository;
+    private final AuditService auditService;
+
+    // Ütemezett feladat kézi indításának naplózása
+    @Transactional
+    public void recordJobRun(JobRunResponse result) {
+        auditService.record(AuditAction.JOB_RUN, AuditTargetType.JOB, null,
+                result.getJob() + ": " + result.getProcessed() + " teljesült, " + result.getSkipped() + " kimaradt");
+    }
 
     // A bank egészére vonatkozó mutatók az admin főoldalhoz
     @Transactional(readOnly = true)

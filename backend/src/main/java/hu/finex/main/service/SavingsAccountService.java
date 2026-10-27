@@ -54,13 +54,16 @@ public class SavingsAccountService {
     private final CurrentUser currentUser;
     private final FinexProperties finexProperties;
 
-    // Új megtakarítás: a kamatlábat a bank határozza meg, a kezdő összeg a megadott folyószámláról érkezik
+    // Új megtakarítás: a kamatlábat a bank adja, a kezdő összeg a megadott folyószámláról jön
     @Transactional
     public SavingsAccountResponse create(CreateSavingsAccountRequest request) {
         User user = currentUser.requireEntity();
 
         if (savingsAccountRepository.existsByUser_IdAndNameIgnoreCaseAndStatusNot(user.getId(), request.getName(), SavingsStatus.CLOSED)) {
             throw new BusinessException("Már létezik ilyen nevű megtakarításod.");
+        }
+        if (savingsAccountRepository.countByUser_IdAndStatusNot(user.getId(), SavingsStatus.CLOSED) >= finexProperties.getMaxSavingsPerUser()) {
+            throw new BusinessException("Legfeljebb " + finexProperties.getMaxSavingsPerUser() + " megtakarításod lehet egyszerre.");
         }
 
         Account current = lockOwnedAccount(request.getAccountId(), user.getId());
@@ -76,7 +79,6 @@ public class SavingsAccountService {
         return mapper.toResponse(savings);
     }
 
-    // A bejelentkezett felhasználó nem lezárt megtakarításai
     @Transactional(readOnly = true)
     public List<SavingsAccountResponse> listMine() {
         return savingsAccountRepository.findByUser_IdAndStatusNotOrderByCreatedAtAsc(currentUser.requireId(), SavingsStatus.CLOSED).stream().map(mapper::toResponse).toList();
@@ -105,7 +107,6 @@ public class SavingsAccountService {
         return mapper.toResponse(entity);
     }
 
-    // Befizetés a folyószámláról a megtakarításra
     @Transactional
     public SavingsTransferResponse depositFromAccount(Long savingsId, SavingsTransferRequest request) {
         Long userId = currentUser.requireId();
@@ -122,7 +123,6 @@ public class SavingsAccountService {
         return buildTransferResponse(savings, current, tx);
     }
 
-    // Kivét a megtakarításról a folyószámlára
     @Transactional
     public SavingsTransferResponse withdrawToAccount(Long savingsId, SavingsTransferRequest request) {
         Long userId = currentUser.requireId();
@@ -158,7 +158,6 @@ public class SavingsAccountService {
         savings.setUpdatedAt(Instant.now());
     }
 
-    // A megtakarítás mozgásai (befizetés, kivét, kamat)
     @Transactional(readOnly = true)
     public Page<SavingsTransactionResponse> listTransactions(Long savingsId, Pageable pageable) {
         if (!savingsAccountRepository.existsByIdAndUser_Id(savingsId, currentUser.requireId())) {
@@ -168,14 +167,12 @@ public class SavingsAccountService {
         return savingsTransactionRepository.findBySavingsAccount_IdOrderByCreatedAtDesc(savingsId, pageable).map(savingsTransactionMapper::toResponse);
     }
 
-    // A havi kamatjóváírásban részt vevő megtakarítások (az ütemező használja)
     @Transactional(readOnly = true)
     public List<Long> findIdsForInterest() {
         return savingsAccountRepository.findIdsForInterest(SavingsStatus.ACTIVE);
     }
 
-    // Havi kamatjóváírás egy megtakarításra, saját tranzakcióban (az ütemező hívja egyenként).
-    // Egyszerű havi kamat: egyenleg * éves kamatláb / 12 / 100, két tizedesre kerekítve. Egy hónapban csak egyszer.
+    // Havi kamat az előző hónap legalacsonyabb egyenlege után, így nem lehet kamatot "aratni"
     @Transactional
     public boolean creditMonthlyInterest(Long savingsId) {
         SavingsAccount savings = savingsAccountRepository.findByIdForUpdate(savingsId).orElse(null);
@@ -183,11 +180,17 @@ public class SavingsAccountService {
         if (savings == null || savings.getStatus() != SavingsStatus.ACTIVE) {
             return false;
         }
-        if (savingsTransactionRepository.existsBySavingsAccount_IdAndTypeAndCreatedAtGreaterThanEqual(savingsId, SavingsTransactionType.INTEREST, DateUtils.startOfCurrentMonth())) {
+        Instant currentMonthStart = DateUtils.startOfCurrentMonth();
+        if (savingsTransactionRepository.existsBySavingsAccount_IdAndTypeAndCreatedAtGreaterThanEqual(savingsId, SavingsTransactionType.INTEREST, currentMonthStart)) {
             return false;
         }
 
-        BigDecimal interest = savings.getBalance()
+        BigDecimal minBalance = savingsAccountRepository.findMinBalance(savingsId, DateUtils.startOfPreviousMonth(), currentMonthStart);
+        if (minBalance == null || minBalance.signum() <= 0) {
+            return false;
+        }
+
+        BigDecimal interest = minBalance
                 .multiply(savings.getInterestRate())
                 .divide(BigDecimal.valueOf(1200), 2, RoundingMode.HALF_UP);
 
@@ -200,7 +203,8 @@ public class SavingsAccountService {
         savingsTransactionRepository.save(savingsTransactionMapper.toEntity(savings, SavingsTransactionType.INTEREST, interest));
 
         notificationService.notify(savings.getUser(), NotificationType.SAVINGS, "Kamatjóváírás",
-                MoneyUtils.format(interest, savings.getCurrency()) + " kamatot írtunk jóvá a(z) " + savings.getName() + " megtakarításodon.");
+                MoneyUtils.format(interest, savings.getCurrency()) + " kamatot írtunk jóvá a(z) " + savings.getName()
+                + " megtakarításodon (az előző havi legalacsonyabb egyenleg, " + MoneyUtils.format(minBalance, savings.getCurrency()) + " után).");
 
         return true;
     }
@@ -250,7 +254,7 @@ public class SavingsAccountService {
         return savingsAccountRepository.findByIdAndUser_Id(id, currentUser.requireId()).orElseThrow(() -> new NotFoundException("Megtakarítás nem található."));
     }
 
-    // A zárolási sorrend minden megtakarítás-műveletben ugyanaz: előbb a folyószámla, aztán a megtakarítás
+    // A zárolási sorrend mindenhol ugyanaz: előbb a folyószámla, aztán a megtakarítás
     private Account lockOwnedAccount(Long accountId, Long userId) {
         if (!accountRepository.existsByIdAndUser_Id(accountId, userId)) {
             throw new NotFoundException("A megadott folyószámla nem található.");

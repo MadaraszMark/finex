@@ -1,5 +1,6 @@
 package hu.finex.main.service;
 
+import hu.finex.main.config.FinexProperties;
 import hu.finex.main.dto.*;
 import hu.finex.main.exception.BusinessException;
 import hu.finex.main.exception.NotFoundException;
@@ -10,6 +11,7 @@ import hu.finex.main.model.User;
 import hu.finex.main.model.enums.AccountStatus;
 import hu.finex.main.model.enums.NotificationType;
 import hu.finex.main.model.enums.StandingOrderFrequency;
+import hu.finex.main.model.enums.UserStatus;
 import hu.finex.main.repository.AccountRepository;
 import hu.finex.main.repository.StandingOrderRepository;
 import hu.finex.main.repository.UserRepository;
@@ -41,6 +43,7 @@ class StandingOrderServiceTest {
     @Mock private TransactionService transactionService;
     @Mock private NotificationService notificationService;
     @Mock private CurrentUser currentUser;
+    @Spy private FinexProperties finexProperties = new FinexProperties();
 
     @InjectMocks private StandingOrderService service;
 
@@ -141,7 +144,7 @@ class StandingOrderServiceTest {
 
     @Test
     void execute_shouldTransfer_andMoveToNextMonth() {
-        User owner = User.builder().id(7L).build();
+        User owner = User.builder().id(7L).status(UserStatus.ACTIVE).build();
         Account account = account(AccountStatus.ACTIVE);
 
         LocalDate today = DateUtils.today();
@@ -154,10 +157,11 @@ class StandingOrderServiceTest {
                 .message("Albérlet")
                 .frequency(StandingOrderFrequency.MONTHLY)
                 .nextExecutionDate(today)
+                .executionDay(today.getDayOfMonth())
                 .active(true)
                 .build();
 
-        when(standingOrderRepository.findById(3L)).thenReturn(Optional.of(order));
+        when(standingOrderRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(order));
         when(standingOrderRepository.findOwnerIdById(3L)).thenReturn(Optional.of(7L));
         when(userRepository.findById(7L)).thenReturn(Optional.of(owner));
 
@@ -183,13 +187,13 @@ class StandingOrderServiceTest {
                 .active(true)
                 .build();
 
-        when(standingOrderRepository.findById(4L)).thenReturn(Optional.of(order));
+        when(standingOrderRepository.findByIdForUpdate(4L)).thenReturn(Optional.of(order));
         when(standingOrderRepository.findOwnerIdById(4L)).thenReturn(Optional.of(7L));
-        when(userRepository.findById(7L)).thenReturn(Optional.of(User.builder().id(7L).build()));
+        when(userRepository.findById(7L)).thenReturn(Optional.of(User.builder().id(7L).status(UserStatus.ACTIVE).build()));
 
         service.execute(4L);
 
-        // 15 nappal ezelőtt esedékes volt: a következő a mai nap utáni első heti időpont (egyszer teljesül, nem pótolja a kimaradtakat)
+        // Egyszer teljesül, a kimaradtakat nem pótolja: a következő a mai nap utáni első heti időpont
         assertEquals(today.minusDays(15).plusWeeks(3), order.getNextExecutionDate());
         verify(transactionService, times(1)).executeTransfer(any(), any(), any(), any(), any(), any(), any());
     }
@@ -197,7 +201,7 @@ class StandingOrderServiceTest {
     @Test
     void execute_shouldDoNothing_whenOrderIsInactive() {
         StandingOrder order = StandingOrder.builder().id(3L).active(false).build();
-        when(standingOrderRepository.findById(3L)).thenReturn(Optional.of(order));
+        when(standingOrderRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(order));
 
         service.execute(3L);
 
@@ -207,7 +211,7 @@ class StandingOrderServiceTest {
     @Test
     void execute_shouldPropagateFailure_withoutMovingTheDate() {
         LocalDate today = DateUtils.today();
-        User owner = User.builder().id(7L).build();
+        User owner = User.builder().id(7L).status(UserStatus.ACTIVE).build();
         StandingOrder order = StandingOrder.builder()
                 .id(3L)
                 .account(account(AccountStatus.ACTIVE))
@@ -216,10 +220,11 @@ class StandingOrderServiceTest {
                 .amount(new BigDecimal("220000.00"))
                 .frequency(StandingOrderFrequency.MONTHLY)
                 .nextExecutionDate(today)
+                .executionDay(today.getDayOfMonth())
                 .active(true)
                 .build();
 
-        when(standingOrderRepository.findById(3L)).thenReturn(Optional.of(order));
+        when(standingOrderRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(order));
         when(standingOrderRepository.findOwnerIdById(3L)).thenReturn(Optional.of(7L));
         when(userRepository.findById(7L)).thenReturn(Optional.of(owner));
         when(transactionService.executeTransfer(any(), any(), any(), any(), any(), any(), any())).thenThrow(new BusinessException("Nincs elegendő fedezet a számlán."));
@@ -233,7 +238,7 @@ class StandingOrderServiceTest {
     @Test
     void handleFailedExecution_shouldMoveToNextDate_andNotifyOwner() {
         LocalDate today = DateUtils.today();
-        User owner = User.builder().id(7L).build();
+        User owner = User.builder().id(7L).status(UserStatus.ACTIVE).build();
         Account account = account(AccountStatus.ACTIVE);
         account.setUser(owner);
 
@@ -243,9 +248,10 @@ class StandingOrderServiceTest {
                 .partnerName("Tóth Gábor")
                 .frequency(StandingOrderFrequency.MONTHLY)
                 .nextExecutionDate(today)
+                .executionDay(today.getDayOfMonth())
                 .active(true)
                 .build();
-        when(standingOrderRepository.findById(3L)).thenReturn(Optional.of(order));
+        when(standingOrderRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(order));
 
         service.handleFailedExecution(3L, "Nincs elegendő fedezet a számlán.");
 
@@ -261,10 +267,66 @@ class StandingOrderServiceTest {
         assertEquals(List.of(3L, 4L), service.findDueOrderIds());
     }
 
+    // A 31-i teljesítés februárban a hó utolsó napjára kerül, márciusban viszont újra 31-re
+    @Test
+    void nextExecutionDate_shouldKeepTheExecutionDay_forMonthlyOrder() {
+        StandingOrder order = StandingOrder.builder()
+                .frequency(StandingOrderFrequency.MONTHLY)
+                .executionDay(31)
+                .nextExecutionDate(LocalDate.of(2027, 1, 31))
+                .build();
+
+        LocalDate february = StandingOrderService.nextExecutionDate(order, LocalDate.of(2027, 1, 31));
+        assertEquals(LocalDate.of(2027, 2, 28), february);
+
+        order.setNextExecutionDate(february);
+        assertEquals(LocalDate.of(2027, 3, 31), StandingOrderService.nextExecutionDate(order, february));
+    }
+
+    // Ütemező és kézi admin indítás egyszerre: a második már a továbblépett dátumot látja
+    @Test
+    void execute_shouldDoNothing_whenOrderIsNoLongerDue() {
+        LocalDate tomorrow = DateUtils.today().plusDays(1);
+        StandingOrder order = StandingOrder.builder()
+                .id(3L)
+                .account(account(AccountStatus.ACTIVE))
+                .frequency(StandingOrderFrequency.MONTHLY)
+                .nextExecutionDate(tomorrow)
+                .executionDay(tomorrow.getDayOfMonth())
+                .active(true)
+                .build();
+        when(standingOrderRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(order));
+
+        service.execute(3L);
+
+        verifyNoInteractions(transactionService, notificationService);
+    }
+
+    @Test
+    void execute_shouldFail_whenOwnerIsBlocked() {
+        LocalDate today = DateUtils.today();
+        StandingOrder order = StandingOrder.builder()
+                .id(3L)
+                .account(account(AccountStatus.ACTIVE))
+                .frequency(StandingOrderFrequency.MONTHLY)
+                .nextExecutionDate(today)
+                .executionDay(today.getDayOfMonth())
+                .active(true)
+                .build();
+        when(standingOrderRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(order));
+        when(standingOrderRepository.findOwnerIdById(3L)).thenReturn(Optional.of(7L));
+        when(userRepository.findById(7L)).thenReturn(Optional.of(User.builder().id(7L).status(UserStatus.BLOCKED).build()));
+
+        assertThrows(BusinessException.class, () -> service.execute(3L));
+
+        verifyNoInteractions(transactionService);
+    }
+
     private Account account(AccountStatus status) {
         return Account.builder()
                 .id(1L)
                 .accountNumber(ANNA_IBAN)
+                .user(User.builder().id(7L).status(UserStatus.ACTIVE).build())
                 .currency("HUF")
                 .status(status)
                 .build();

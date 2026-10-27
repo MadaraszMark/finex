@@ -1,6 +1,7 @@
 package hu.finex.main.repository;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -37,12 +38,15 @@ public interface SavingsAccountRepository extends JpaRepository<SavingsAccount, 
     // A felhasználó nem lezárt megtakarításai (a lezártak csak az előzményekben számítanak)
     List<SavingsAccount> findByUser_IdAndStatusNotOrderByCreatedAtAsc(Long userId, SavingsStatus status);
 
+    // A felhasználó nem lezárt megtakarításainak száma (felső korláthoz)
+    long countByUser_IdAndStatusNot(Long userId, SavingsStatus status);
+
     // Csak akkor adja vissza a megtakarítást, ha a megadott felhasználóé (jogosultság-ellenőrzés)
     Optional<SavingsAccount> findByIdAndUser_Id(Long id, Long userId);
 
     boolean existsByIdAndUser_Id(Long id, Long userId);
 
-    // Névütközés csak a nem lezárt megtakarítások között számít (ugyanez az adatbázis részleges egyedi indexe)
+    // Névütközés csak a nem lezárt megtakarítások között számít (mint az adatbázis részleges indexe)
     boolean existsByUser_IdAndNameIgnoreCaseAndStatusNot(Long userId, String name, SavingsStatus status);
 
     // Sorzárolás egyenleg-módosítás előtt
@@ -53,6 +57,10 @@ public interface SavingsAccountRepository extends JpaRepository<SavingsAccount, 
     // A havi kamatjóváírásban részt vevő megtakarítások
     @Query("select s.id from SavingsAccount s where s.status = :status and s.balance > 0 and s.interestRate > 0")
     List<Long> findIdsForInterest(@Param("status") SavingsStatus status);
+
+    // A legalacsonyabb egyenleg egy időszakban (a kamat alapja), a savings_min_balance SQL-függvénnyel
+    @Query(value = "select savings_min_balance(:id, :from, :to)", nativeQuery = true)
+    BigDecimal findMinBalance(@Param("id") Long id, @Param("from") Instant from, @Param("to") Instant to);
 
     @Query("select coalesce(sum(s.balance), 0) from SavingsAccount s where s.user.id = :userId and s.currency = :currency and s.status <> :excluded")
     BigDecimal sumBalanceByUser(@Param("userId") Long userId, @Param("currency") String currency, @Param("excluded") SavingsStatus excluded);

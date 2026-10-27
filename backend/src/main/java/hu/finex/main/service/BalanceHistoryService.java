@@ -38,6 +38,7 @@ public class BalanceHistoryService {
         if (start.isAfter(end)) {
             throw new BusinessException("A kezdő dátum nem lehet későbbi a záró dátumnál.");
         }
+        DateUtils.requireReportRange(start, end);
 
         return balanceHistoryRepository.findByAccount_IdAndCreatedAtBetweenOrderByCreatedAtAsc(accountId, DateUtils.startOfDay(start), DateUtils.startOfDay(end.plusDays(1)))
                 .stream()

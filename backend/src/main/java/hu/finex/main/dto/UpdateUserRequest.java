@@ -15,12 +15,12 @@ import lombok.*;
 public class UpdateUserRequest {
 
     @NotBlank
-    @Size(max = 100)
+    @Size(max = 50, message = "Legfeljebb 50 karakter lehet.")
     @Schema(description = "Keresztnév", example = "Bence")
     private String firstName;
 
     @NotBlank
-    @Size(max = 100)
+    @Size(max = 50, message = "Legfeljebb 50 karakter lehet.")
     @Schema(description = "Vezetéknév", example = "Kovács")
     private String lastName;
 
@@ -33,4 +33,9 @@ public class UpdateUserRequest {
     @Size(max = 30)
     @Schema(description = "Telefonszám", example = "+36301234567")
     private String phone;
+
+    // Ellopott tokennel se lehessen új e-mail címmel átvenni a fiókot
+    @Size(max = 100)
+    @Schema(description = "Jelenlegi jelszó (csak az e-mail cím módosításakor kötelező)", example = "Titkos123")
+    private String currentPassword;
 }

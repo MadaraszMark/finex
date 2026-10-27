@@ -48,42 +48,80 @@ class LoginLogServiceTest {
         verify(loginLogRepository).save(log);
     }
 
-    @Test
-    void isTemporarilyLocked_shouldBeTrue_whenTooManyFailuresInWindow() {
-        when(loginLogRepository.findFirstByEmailAndStatusOrderByCreatedAtDesc("a@finex.hu", LoginStatus.SUCCESS)).thenReturn(Optional.empty());
-        when(loginLogRepository.countByEmailAndStatusAndCreatedAtAfter(eq("a@finex.hu"), eq(LoginStatus.FAILED), any())).thenReturn(5L);
+    private static final String EMAIL = "a@finex.hu";
+    private static final String IP = "10.0.0.1";
+    private static final String LOCKED = LoginLogService.LOCKED_REASON;
 
-        assertTrue(service.isTemporarilyLocked("a@finex.hu"));
+    private void givenFailures(long fromThisIpOnAccount, long onAccount, long fromIp) {
+        when(loginLogRepository.findFirstByEmailAndStatusOrderByCreatedAtDesc(EMAIL, LoginStatus.SUCCESS)).thenReturn(Optional.empty());
+        lenient().when(loginLogRepository.countByEmailAndIpAddressAndStatusAndFailureReasonNotAndCreatedAtAfter(eq(EMAIL), eq(IP), eq(LoginStatus.FAILED), eq(LOCKED), any()))
+                .thenReturn(fromThisIpOnAccount);
+        lenient().when(loginLogRepository.countByEmailAndStatusAndFailureReasonNotAndCreatedAtAfter(eq(EMAIL), eq(LoginStatus.FAILED), eq(LOCKED), any()))
+                .thenReturn(onAccount);
+        lenient().when(loginLogRepository.countByIpAddressAndStatusAndFailureReasonNotAndCreatedAtAfter(eq(IP), eq(LoginStatus.FAILED), eq(LOCKED), any()))
+                .thenReturn(fromIp);
     }
 
     @Test
-    void isTemporarilyLocked_shouldBeFalse_belowTheLimit() {
-        when(loginLogRepository.findFirstByEmailAndStatusOrderByCreatedAtDesc("a@finex.hu", LoginStatus.SUCCESS)).thenReturn(Optional.empty());
-        when(loginLogRepository.countByEmailAndStatusAndCreatedAtAfter(eq("a@finex.hu"), eq(LoginStatus.FAILED), any())).thenReturn(4L);
+    void isTemporarilyLocked_shouldBeTrue_whenTooManyFailuresFromThisIp() {
+        givenFailures(5, 5, 5);
 
-        assertFalse(service.isTemporarilyLocked("a@finex.hu"));
+        assertTrue(service.isTemporarilyLocked(EMAIL, IP));
+    }
+
+    @Test
+    void isTemporarilyLocked_shouldBeFalse_belowAllLimits() {
+        givenFailures(4, 4, 4);
+
+        assertFalse(service.isTemporarilyLocked(EMAIL, IP));
+    }
+
+    // Támadó a saját IP-címéről nem zárhatja ki a tulajdonost a fiókjából
+    @Test
+    void isTemporarilyLocked_shouldBeFalse_forOwnerOnOtherIp_whenAttackerFailedFromAnotherIp() {
+        givenFailures(0, 5, 0);
+
+        assertFalse(service.isTemporarilyLocked(EMAIL, IP));
+    }
+
+    @Test
+    void isTemporarilyLocked_shouldBeTrue_whenAccountIsAttackedFromManyIps() {
+        givenFailures(0, 20, 0);
+
+        assertTrue(service.isTemporarilyLocked(EMAIL, IP));
+    }
+
+    @Test
+    void isTemporarilyLocked_shouldBeTrue_whenIpTriesManyAccounts() {
+        givenFailures(0, 0, 20);
+
+        assertTrue(service.isTemporarilyLocked(EMAIL, IP));
     }
 
     @Test
     void isTemporarilyLocked_shouldCountOnlyFailuresAfterLastSuccess() {
         Instant lastSuccess = Instant.now().minus(2, ChronoUnit.MINUTES);
-        when(loginLogRepository.findFirstByEmailAndStatusOrderByCreatedAtDesc("a@finex.hu", LoginStatus.SUCCESS))
+        when(loginLogRepository.findFirstByEmailAndStatusOrderByCreatedAtDesc(EMAIL, LoginStatus.SUCCESS))
                 .thenReturn(Optional.of(LoginLog.builder().createdAt(lastSuccess).build()));
-        when(loginLogRepository.countByEmailAndStatusAndCreatedAtAfter("a@finex.hu", LoginStatus.FAILED, lastSuccess)).thenReturn(1L);
+        when(loginLogRepository.countByEmailAndIpAddressAndStatusAndFailureReasonNotAndCreatedAtAfter(EMAIL, IP, LoginStatus.FAILED, LOCKED, lastSuccess)).thenReturn(1L);
+        when(loginLogRepository.countByEmailAndStatusAndFailureReasonNotAndCreatedAtAfter(EMAIL, LoginStatus.FAILED, LOCKED, lastSuccess)).thenReturn(1L);
+        when(loginLogRepository.countByIpAddressAndStatusAndFailureReasonNotAndCreatedAtAfter(eq(IP), eq(LoginStatus.FAILED), eq(LOCKED), any())).thenReturn(1L);
 
-        assertFalse(service.isTemporarilyLocked("a@finex.hu"));
+        assertFalse(service.isTemporarilyLocked(EMAIL, IP));
     }
 
     @Test
     void isTemporarilyLocked_shouldUseWindowStart_whenLastSuccessIsOlder() {
         Instant oldSuccess = Instant.now().minus(3, ChronoUnit.HOURS);
-        when(loginLogRepository.findFirstByEmailAndStatusOrderByCreatedAtDesc("a@finex.hu", LoginStatus.SUCCESS))
+        when(loginLogRepository.findFirstByEmailAndStatusOrderByCreatedAtDesc(EMAIL, LoginStatus.SUCCESS))
                 .thenReturn(Optional.of(LoginLog.builder().createdAt(oldSuccess).build()));
 
         ArgumentCaptor<Instant> sinceCaptor = ArgumentCaptor.forClass(Instant.class);
-        when(loginLogRepository.countByEmailAndStatusAndCreatedAtAfter(eq("a@finex.hu"), eq(LoginStatus.FAILED), sinceCaptor.capture())).thenReturn(0L);
+        when(loginLogRepository.countByEmailAndIpAddressAndStatusAndFailureReasonNotAndCreatedAtAfter(eq(EMAIL), eq(IP), eq(LoginStatus.FAILED), eq(LOCKED), sinceCaptor.capture())).thenReturn(0L);
+        when(loginLogRepository.countByEmailAndStatusAndFailureReasonNotAndCreatedAtAfter(eq(EMAIL), eq(LoginStatus.FAILED), eq(LOCKED), any())).thenReturn(0L);
+        when(loginLogRepository.countByIpAddressAndStatusAndFailureReasonNotAndCreatedAtAfter(eq(IP), eq(LoginStatus.FAILED), eq(LOCKED), any())).thenReturn(0L);
 
-        service.isTemporarilyLocked("a@finex.hu");
+        service.isTemporarilyLocked(EMAIL, IP);
 
         // A 15 perces zárolási ablak eleje számít, nem a régi sikeres belépés
         assertTrue(sinceCaptor.getValue().isAfter(Instant.now().minus(16, ChronoUnit.MINUTES)));

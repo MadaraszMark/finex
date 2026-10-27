@@ -32,6 +32,7 @@ class SupportTicketServiceTest {
     @Mock private SupportTicketMapper supportTicketMapper;
     @Mock private NotificationService notificationService;
     @Mock private CurrentUser currentUser;
+    @Mock private AuditService auditService;
 
     @InjectMocks private SupportTicketService service;
 

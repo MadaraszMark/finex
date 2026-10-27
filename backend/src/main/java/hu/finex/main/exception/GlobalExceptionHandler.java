@@ -1,23 +1,30 @@
 package hu.finex.main.exception;
 
+import java.time.DateTimeException;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -70,12 +77,53 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, "Hiányzó paraméter: " + ex.getParameterName());
     }
 
+    // A könyvtárak belső (angol, technikai) hibaüzenete nem megy ki a kliensnek, csak a naplóba
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException ex) {
-        return error(HttpStatus.BAD_REQUEST, ex.getMessage());
+        log.warn("Érvénytelen argumentum: {}", ex.getMessage());
+        return error(HttpStatus.BAD_REQUEST, "Érvénytelen kérés.");
     }
 
-    // Bejelentkezett, de nincs joga (pl. USER admin végpontot hív)
+    // Lapozásnál nem létező mező szerinti rendezés (?sort=...)
+    @ExceptionHandler(PropertyReferenceException.class)
+    public ResponseEntity<ApiError> handlePropertyReference(PropertyReferenceException ex) {
+        return error(HttpStatus.BAD_REQUEST, "Érvénytelen rendezési mező: " + ex.getPropertyName());
+    }
+
+    // A Spring Data a hibás lekérdezési paramétert (pl. rendezést) gyakran ebbe csomagolja
+    @ExceptionHandler(InvalidDataAccessApiUsageException.class)
+    public ResponseEntity<ApiError> handleInvalidDataAccess(InvalidDataAccessApiUsageException ex) {
+        log.warn("Érvénytelen lekérdezés: {}", ex.getMostSpecificCause().getMessage());
+        return error(HttpStatus.BAD_REQUEST, "Érvénytelen kérés.");
+    }
+
+    // Validációs hiba útvonal- vagy lekérdezési paraméteren (nem a kérés törzsében)
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiError> handleConstraintViolation(ConstraintViolationException ex) {
+        return error(HttpStatus.BAD_REQUEST, "Érvénytelen kérés, hibás paraméter.");
+    }
+
+    // Értelmezhetetlen vagy a naptár határain kívül eső dátum (pl. a +999999999. év)
+    @ExceptionHandler(DateTimeException.class)
+    public ResponseEntity<ApiError> handleDateTime(DateTimeException ex) {
+        return error(HttpStatus.BAD_REQUEST, "Érvénytelen dátum.");
+    }
+
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<ApiError> handleMissingHeader(MissingRequestHeaderException ex) {
+        return error(HttpStatus.BAD_REQUEST, "Hiányzó fejléc: " + ex.getHeaderName());
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiError> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex) {
+        return error(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "A kérés formátuma nem támogatott (JSON szükséges).");
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<ApiError> handleMediaTypeNotAcceptable(HttpMediaTypeNotAcceptableException ex) {
+        return error(HttpStatus.NOT_ACCEPTABLE, "A kért válaszformátum nem támogatott.");
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex) {
         return error(HttpStatus.FORBIDDEN, "Nincs jogosultságod ehhez a művelethez.");
@@ -91,14 +139,15 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.METHOD_NOT_ALLOWED, "Ez a HTTP metódus itt nem támogatott.");
     }
 
-    // Adatbázis-szabály sértése: egyedi megszorítás, CHECK, vagy a könyvelt tételeket védő trigger
+    // Adatbázis-szabály sértése: csak a szabály neve naplózódik (az üzenet ütköző adatot is tartalmazna)
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex) {
-        log.warn("Adatbázis-szabály sértése: {}", ex.getMostSpecificCause().getMessage());
+        String constraint = ex.getCause() instanceof org.hibernate.exception.ConstraintViolationException violation ? violation.getConstraintName() : null;
+        log.warn("Adatbázis-szabály sértése: {}", constraint != null ? constraint : ex.getMostSpecificCause().getClass().getSimpleName());
         return error(HttpStatus.CONFLICT, "Az adatbázis elutasította a műveletet (ütközés vagy szabálysértés).");
     }
 
-    // A sorzárolásra várakozás nem sikerült (pl. holtpont esetén az adatbázis megszakítja az egyik tranzakciót)
+    // Sorzárolási hiba (pl. holtpontnál az adatbázis megszakítja az egyik tranzakciót)
     @ExceptionHandler(PessimisticLockingFailureException.class)
     public ResponseEntity<ApiError> handleLockingFailure(PessimisticLockingFailureException ex) {
         return error(HttpStatus.CONFLICT, "A számlán éppen egy másik művelet fut, próbáld újra.");

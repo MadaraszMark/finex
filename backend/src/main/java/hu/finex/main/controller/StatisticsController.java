@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import hu.finex.main.dto.CategorySpendingResponse;
 import hu.finex.main.dto.DashboardSummaryResponse;
 import hu.finex.main.dto.MonthlySummaryResponse;
+import hu.finex.main.dto.TransactionListItemResponse;
 import hu.finex.main.service.StatisticsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -61,5 +62,18 @@ public class StatisticsController {
                                                                               @RequestParam(value = "to", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
                                                                               @RequestParam(value = "currency", defaultValue = "HUF") String currency) {
         return ResponseEntity.ok(statisticsService.getCategorySpending(from, to, currency));
+    }
+
+    @GetMapping("/top-expenses")
+    @Operation(summary = "Az időszak legnagyobb kiadásai egy devizában", description = "Csak a valódi pénzforgalom (a saját számlák közötti mozgás, a megtakarítás és a sztornó nem számít). Alapértelmezés: az aktuális hónap.",responses = {
+                    @ApiResponse(responseCode = "200", description = "Sikeres lekérdezés"),
+                    @ApiResponse(responseCode = "400", description = "Hibás időszak vagy darabszám")
+            }
+    )
+    public ResponseEntity<List<TransactionListItemResponse>> getTopExpenses(@RequestParam(value = "from", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                                                            @RequestParam(value = "to", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+                                                                            @RequestParam(value = "currency", defaultValue = "HUF") String currency,
+                                                                            @RequestParam(value = "limit", defaultValue = "5") int limit) {
+        return ResponseEntity.ok(statisticsService.getTopExpenses(from, to, currency, limit));
     }
 }

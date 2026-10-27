@@ -132,32 +132,17 @@ class AccountControllerTest {
         mockMvc.perform(get("/accounts/me")).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(10));
     }
 
+    // Ügyfél nem írhat jóvá magának pénzt: befizetést csak admin rögzíthet
     @Test
-    void deposit_shouldReturn200() throws Exception {
+    void deposit_shouldNotExistForCustomers() throws Exception {
         DepositRequest req = DepositRequest.builder()
                 .amount(new BigDecimal("250.00"))
-                .message("Készpénz")
-                .build();
-
-        when(accountService.deposit(eq(10L), any(DepositRequest.class))).thenReturn(sampleResponse());
-
-        mockMvc.perform(post("/accounts/10/deposit")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.balance").value(1500.00));
-    }
-
-    @Test
-    void deposit_shouldReturn400_whenAmountIsNegative() throws Exception {
-        DepositRequest req = DepositRequest.builder()
-                .amount(new BigDecimal("-5"))
                 .build();
 
         mockMvc.perform(post("/accounts/10/deposit")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
 
         verifyNoInteractions(accountService);
     }
@@ -200,5 +185,17 @@ class AccountControllerTest {
         mockMvc.perform(delete("/accounts/10"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Csak nulla egyenlegű számla zárható le."));
+    }
+
+    @Test
+    void exportStatementCsv_shouldReturnAnAttachment() throws Exception {
+        byte[] csv = "﻿Dátum;Típus\r\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        when(accountService.exportStatementCsv(10L, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 26))).thenReturn(csv);
+
+        mockMvc.perform(get("/accounts/10/statement.csv").param("from", "2026-10-01").param("to", "2026-10-26"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"finex-kivonat-2026-10-01_2026-10-26.csv\""))
+                .andExpect(content().contentTypeCompatibleWith("text/csv"))
+                .andExpect(content().bytes(csv));
     }
 }

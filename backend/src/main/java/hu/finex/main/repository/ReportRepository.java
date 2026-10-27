@@ -14,12 +14,12 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import hu.finex.main.dto.MonthlySummaryResponse;
+import hu.finex.main.dto.ReconciliationItemResponse;
 import hu.finex.main.dto.StatementItemResponse;
 import hu.finex.main.model.enums.TransactionType;
 import lombok.RequiredArgsConstructor;
 
-// Az adatbázisban megírt SQL-objektumok (account_balance_at, account_statement függvények,
-// v_account_monthly_summary nézet) lekérdezése natív SQL-lel
+// Az adatbázisban megírt SQL-függvények és nézetek lekérdezése natív SQL-lel
 
 @Repository
 @RequiredArgsConstructor
@@ -78,6 +78,35 @@ public class ReportRepository {
                 .outcome(rs.getBigDecimal("outcome"))
                 .transactionCount(rs.getLong("transaction_count"))
                 .build());
+    }
+
+    // Főkönyvi egyeztetés: ahol a tárolt egyenleg eltér a tételekből számolttól (helyesen üres lista)
+    public List<ReconciliationItemResponse> findReconciliationMismatches() {
+        String sql = "select 'ACCOUNT' as kind, account_id as id, account_number as label, currency, stored_balance, ledger_balance, difference"
+                + " from v_account_reconciliation where difference <> 0"
+                + " union all"
+                + " select 'SAVINGS', savings_account_id, name, currency, stored_balance, ledger_balance, difference"
+                + " from v_savings_reconciliation where difference <> 0 or last_balance_after is distinct from (case when transaction_count = 0 then null else stored_balance end)"
+                + " order by kind, id";
+
+        return jdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, rowNum) -> ReconciliationItemResponse.builder()
+                .kind(rs.getString("kind"))
+                .id(rs.getLong("id"))
+                .label(rs.getString("label"))
+                .currency(rs.getString("currency"))
+                .storedBalance(rs.getBigDecimal("stored_balance"))
+                .ledgerBalance(rs.getBigDecimal("ledger_balance"))
+                .difference(rs.getBigDecimal("difference"))
+                .build());
+    }
+
+    // Az egyeztetett számlák és megtakarítások száma
+    public long countReconciledAccounts() {
+        return jdbcTemplate.queryForObject("select count(*) from v_account_reconciliation", new MapSqlParameterSource(), Long.class);
+    }
+
+    public long countReconciledSavings() {
+        return jdbcTemplate.queryForObject("select count(*) from v_savings_reconciliation", new MapSqlParameterSource(), Long.class);
     }
 
     private OffsetDateTime toOffsetDateTime(Instant instant) {

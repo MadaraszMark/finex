@@ -27,9 +27,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-// Az adatbázisban megírt szabályok tesztje (V1–V3 migrációk): CHECK megszorítások, részleges egyedi index,
-// a könyvelt tételeket védő trigger, a kivonatfüggvények és a statisztikai nézet.
-// A szabálysértő utasítás mindig a teszt utolsó lépése, mert utána a PostgreSQL tranzakció "aborted" állapotba kerül.
+// A szabálysértő utasítás mindig az utolsó lépés, mert utána a tranzakció "aborted" állapotú
 
 @DataJpaTest
 @ActiveProfiles("test")

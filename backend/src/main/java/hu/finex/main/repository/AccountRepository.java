@@ -55,7 +55,7 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     @Query("select a.id from Account a where a.accountNumber = :accountNumber")
     Optional<Long> findIdByAccountNumber(@Param("accountNumber") String accountNumber);
 
-    // Sorzárolás (SELECT ... FOR UPDATE): egyenleg-módosítás előtt, hogy két párhuzamos művelet ne írja felül egymást
+    // Sorzárolás (SELECT ... FOR UPDATE), hogy két párhuzamos művelet ne írja felül az egyenleget
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from Account a where a.id = :id")
     Optional<Account> findByIdForUpdate(@Param("id") Long id);

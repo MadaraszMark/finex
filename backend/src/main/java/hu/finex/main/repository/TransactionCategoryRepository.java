@@ -42,7 +42,7 @@ public interface TransactionCategoryRepository extends JpaRepository<Transaction
     // Költések kategóriánként egy időszakban, a legnagyobb költés elöl (kategória-diagramhoz)
     @Query("select new hu.finex.main.dto.CategorySpendingResponse(c.id, c.name, c.icon, sum(t.amount), count(t))"
             + " from TransactionCategory tc join tc.transaction t join tc.category c"
-            + " where t.account.user.id = :userId and t.currency = :currency and t.type in :types"
+            + " where t.account.user.id = :userId and t.currency = :currency and t.type in :types and function('is_cashflow', t.id) = true"
             + " and t.createdAt >= :from and t.createdAt < :to"
             + " group by c.id, c.name, c.icon"
             + " order by sum(t.amount) desc")

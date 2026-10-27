@@ -16,6 +16,6 @@ public interface SavingsTransactionRepository extends JpaRepository<SavingsTrans
     // Egy megtakarítás mozgásai, a legújabb elöl
     Page<SavingsTransaction> findBySavingsAccount_IdOrderByCreatedAtDesc(Long savingsAccountId, Pageable pageable);
 
-    // Volt-e már adott típusú tétel egy időpont óta (pl. az adott havi kamat, hogy ne legyen kétszer jóváírva)
+    // Volt-e adott típusú tétel egy időpont óta (pl. a havi kamat ne legyen kétszer jóváírva)
     boolean existsBySavingsAccount_IdAndTypeAndCreatedAtGreaterThanEqual(Long savingsAccountId, SavingsTransactionType type, Instant since);
 }

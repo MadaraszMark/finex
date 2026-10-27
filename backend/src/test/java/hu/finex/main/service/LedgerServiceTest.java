@@ -51,6 +51,35 @@ class LedgerServiceTest {
         verify(balanceHistoryRepository).save(history);
     }
 
+    // Az eredeti tétel érintetlen marad, a sztornó tétel kártyához nem kötődik
+    @Test
+    void reverse_shouldCreditBack_aDebit_withReferenceToTheOriginal() {
+        Account account = account("300.00");
+        Transaction original = Transaction.builder().id(5L).account(account).type(TransactionType.OUTCOME).amount(new BigDecimal("700.00"))
+                .partnerName("Tesco").card(Card.builder().id(3L).build()).fromAccount("HU15117730161111101800000001").build();
+        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Transaction reversal = service.reverse(account, original, "Kétszer terhelt");
+
+        assertEquals(new BigDecimal("1000.00"), account.getBalance());
+        assertEquals(TransactionType.INCOME, reversal.getType());
+        assertEquals(original, reversal.getReversalOf());
+        assertNull(reversal.getCard());
+        assertEquals("Sztornó: Kétszer terhelt", reversal.getMessage());
+        assertEquals(new BigDecimal("700.00"), original.getAmount());
+    }
+
+    @Test
+    void reverse_shouldRequireFunds_whenReversingACredit() {
+        Account account = account("100.00");
+        Transaction original = Transaction.builder().id(5L).account(account).type(TransactionType.TRANSFER_IN).amount(new BigDecimal("500.00")).build();
+
+        assertThrows(BusinessException.class, () -> service.reverse(account, original, "Téves utalás"));
+
+        assertEquals(new BigDecimal("100.00"), account.getBalance());
+        verifyNoInteractions(transactionRepository, balanceHistoryRepository);
+    }
+
     @Test
     void debit_shouldDecreaseBalance_andLinkCard() {
         Account account = account("1000.00");

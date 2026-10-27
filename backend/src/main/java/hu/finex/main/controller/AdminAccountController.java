@@ -10,15 +10,19 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import hu.finex.main.dto.AccountResponse;
+import hu.finex.main.dto.DepositRequest;
+import hu.finex.main.dto.TransactionListItemResponse;
 import hu.finex.main.dto.UpdateAccountStatusRequest;
 import hu.finex.main.model.enums.AccountStatus;
 import hu.finex.main.service.AccountService;
+import hu.finex.main.service.TransactionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -35,6 +39,7 @@ import lombok.RequiredArgsConstructor;
 public class AdminAccountController {
 
     private final AccountService accountService;
+    private final TransactionService transactionService;
 
     @GetMapping
     @Operation(summary = "Összes számla, opcionálisan státusz szerint (lapozva)",responses = {
@@ -56,5 +61,28 @@ public class AdminAccountController {
     )
     public ResponseEntity<AccountResponse> updateStatus(@PathVariable("id") Long id,@Valid @RequestBody UpdateAccountStatusRequest request) {
         return ResponseEntity.ok(accountService.updateStatus(id, request));
+    }
+
+    @GetMapping("/{id}/transactions")
+    @Operation(summary = "Egy számla tételei (lapozva, legfrissebb elöl)",description = "A sztornóhoz: minden tételnél látszik, hogy sztornó tétel-e, illetve sztornózták-e már.",responses = {
+            @ApiResponse(responseCode = "200", description = "Sikeres lekérdezés"),
+            @ApiResponse(responseCode = "404", description = "Számla nem található")
+        }
+    )
+    public ResponseEntity<Page<TransactionListItemResponse>> listTransactions(@PathVariable("id") Long id,
+                                                                              @ParameterObject @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(transactionService.listByAccountForAdmin(id, pageable));
+    }
+
+    @PostMapping("/{id}/deposit")
+    @Operation(summary = "Készpénzbefizetés rögzítése egy számlára", description = "Bankfiókban befizetett készpénz jóváírása. Az ügyfél értesítést kap, a művelet az audit naplóba kerül.",responses = {
+            @ApiResponse(responseCode = "200", description = "Sikeres befizetés",
+                content = @Content(schema = @Schema(implementation = AccountResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Érvénytelen összeg vagy nem aktív számla"),
+            @ApiResponse(responseCode = "404", description = "Számla nem található")
+        }
+    )
+    public ResponseEntity<AccountResponse> deposit(@PathVariable("id") Long id,@Valid @RequestBody DepositRequest request) {
+        return ResponseEntity.ok(accountService.depositByAdmin(id, request));
     }
 }

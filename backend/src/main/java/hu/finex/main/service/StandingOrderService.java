@@ -7,6 +7,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import hu.finex.main.config.FinexProperties;
 import hu.finex.main.dto.CreateStandingOrderRequest;
 import hu.finex.main.dto.StandingOrderResponse;
 import hu.finex.main.dto.UpdateStandingOrderRequest;
@@ -19,6 +20,7 @@ import hu.finex.main.model.User;
 import hu.finex.main.model.enums.AccountStatus;
 import hu.finex.main.model.enums.NotificationType;
 import hu.finex.main.model.enums.StandingOrderFrequency;
+import hu.finex.main.model.enums.UserStatus;
 import hu.finex.main.repository.AccountRepository;
 import hu.finex.main.repository.StandingOrderRepository;
 import hu.finex.main.repository.UserRepository;
@@ -39,6 +41,7 @@ public class StandingOrderService {
     private final TransactionService transactionService;
     private final NotificationService notificationService;
     private final CurrentUser currentUser;
+    private final FinexProperties finexProperties;
 
     @Transactional(readOnly = true)
     public List<StandingOrderResponse> listMine() {
@@ -52,13 +55,15 @@ public class StandingOrderService {
         if (account.getStatus() != AccountStatus.ACTIVE) {
             throw new BusinessException("Nem aktív számláról nem indítható rendszeres átutalás.");
         }
-
         String toAccountNumber = IbanUtils.normalize(request.getToAccountNumber());
         if (!IbanUtils.isValid(toAccountNumber)) {
             throw new BusinessException("Érvénytelen számlaszám (IBAN).");
         }
         if (toAccountNumber.equals(account.getAccountNumber())) {
             throw new BusinessException("A forrás- és a célszámla nem lehet ugyanaz.");
+        }
+        if (standingOrderRepository.countByAccount_User_IdAndActiveTrue(account.getUser().getId()) >= finexProperties.getMaxStandingOrdersPerUser()) {
+            throw new BusinessException("Legfeljebb " + finexProperties.getMaxStandingOrdersPerUser() + " aktív rendszeres átutalásod lehet.");
         }
 
         StandingOrder order = standingOrderMapper.toEntity(request, account, toAccountNumber);
@@ -67,7 +72,7 @@ public class StandingOrderService {
         return standingOrderMapper.toResponse(order);
     }
 
-    // Összeg, közlemény, gyakoriság és következő esedékesség módosítása (a címzett nem változtatható)
+    // Módosítás: összeg, közlemény, gyakoriság, esedékesség (a címzett nem változtatható)
     @Transactional
     public StandingOrderResponse update(Long id, UpdateStandingOrderRequest request) {
         StandingOrder order = findOwned(id);
@@ -87,25 +92,28 @@ public class StandingOrderService {
         order.setActive(false);
     }
 
-    // Az ütemező által ma teljesítendő megbízások
     @Transactional(readOnly = true)
     public List<Long> findDueOrderIds() {
         return standingOrderRepository.findDueOrderIds(DateUtils.today());
     }
 
-    // Egy megbízás teljesítése saját tranzakcióban (az ütemező hívja egyenként). Ha nem sikerül (pl. nincs fedezet),
-    // a kivétel visszagörgeti ezt a tranzakciót, és az ütemező a handleFailedExecution-nel rögzíti a hibát.
+    // Saját tranzakcióban fut, és zárolva újra ellenőrzi az esedékességet, így nem teljesülhet kétszer
     @Transactional
     public void execute(Long orderId) {
-        StandingOrder order = standingOrderRepository.findById(orderId).orElseThrow(() -> new NotFoundException("Megbízás nem található."));
+        StandingOrder order = standingOrderRepository.findByIdForUpdate(orderId).orElseThrow(() -> new NotFoundException("Megbízás nem található."));
 
-        if (!order.isActive()) {
+        if (!order.isActive() || order.getNextExecutionDate().isAfter(DateUtils.today())) {
             return;
         }
 
         // A tulajdonost a számla betöltése nélkül kérdezzük le: a számlát az utalás zárolja és olvassa be
         Long ownerId = standingOrderRepository.findOwnerIdById(orderId).orElseThrow(() -> new NotFoundException("Megbízás nem található."));
         User owner = userRepository.findById(ownerId).orElseThrow(() -> new NotFoundException("Felhasználó nem található."));
+
+        // Letiltott ügyfél megbízása nem teljesül (a sikertelen teljesítésként rögzített hiba továbblépteti)
+        if (owner.getStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException("Az ügyfél fiókja le van tiltva.");
+        }
 
         transactionService.executeTransfer(owner, order.getAccount().getId(), order.getToAccountNumber(), order.getPartnerName(),
                 order.getAmount(), order.getMessage(), null);
@@ -117,11 +125,11 @@ public class StandingOrderService {
                 MoneyUtils.format(order.getAmount(), order.getAccount().getCurrency()) + " utalva " + order.getPartnerName() + " részére.");
     }
 
-    // Sikertelen teljesítés: a megbízás a következő esedékességre lép, a tulajdonos értesítést kap (új tranzakcióban)
+    // Sikertelen teljesítés: a megbízás továbblép, a tulajdonos értesítést kap (új tranzakcióban)
     @Transactional
     public void handleFailedExecution(Long orderId, String reason) {
-        StandingOrder order = standingOrderRepository.findById(orderId).orElse(null);
-        if (order == null) {
+        StandingOrder order = standingOrderRepository.findByIdForUpdate(orderId).orElse(null);
+        if (order == null || order.getNextExecutionDate().isAfter(DateUtils.today())) {
             return;
         }
 
@@ -135,14 +143,22 @@ public class StandingOrderService {
         return standingOrderRepository.findByIdAndAccount_User_Id(id, currentUser.requireId()).orElseThrow(() -> new NotFoundException("Megbízás nem található."));
     }
 
-    // A következő esedékesség: a mainál későbbi első időpont (a kimaradt időszakokat nem pótolja utólag)
-    private LocalDate nextExecutionDate(StandingOrder order) {
+    // Havi megbízás a teljesítés napjához igazodik: a 31-i februárban a hónap végén, márciusban 31-én fut
+    static LocalDate nextExecutionDate(StandingOrder order, LocalDate today) {
         LocalDate next = order.getNextExecutionDate();
-        LocalDate today = DateUtils.today();
 
         while (!next.isAfter(today)) {
-            next = order.getFrequency() == StandingOrderFrequency.WEEKLY ? next.plusWeeks(1) : next.plusMonths(1);
+            if (order.getFrequency() == StandingOrderFrequency.WEEKLY) {
+                next = next.plusWeeks(1);
+            } else {
+                LocalDate nextMonth = next.withDayOfMonth(1).plusMonths(1);
+                next = nextMonth.withDayOfMonth(Math.min(order.getExecutionDay(), nextMonth.lengthOfMonth()));
+            }
         }
         return next;
+    }
+
+    private LocalDate nextExecutionDate(StandingOrder order) {
+        return nextExecutionDate(order, DateUtils.today());
     }
 }

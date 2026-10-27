@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -27,5 +28,6 @@ public class UpdateSavingsAccountRequest {
 
     @DecimalMin(value = "1.00", message = "A célösszeg legalább 1 kell legyen.")
     @Schema(description = "Új célösszeg (üresen hagyva nincs cél)", example = "1500000.00")
+    @Digits(integer = 16, fraction = 2, message = "Az összeg legfeljebb két tizedesjegyet tartalmazhat.")
     private BigDecimal targetAmount;
 }

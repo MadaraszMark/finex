@@ -31,7 +31,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-// Könyvelt tétel: létrehozás után nem módosul (az adatbázis triggere is tiltja az UPDATE-et és a DELETE-et)
+// Könyvelt tétel: létrehozás után nem módosul (az adatbázis triggere is tiltja)
 
 @Entity
 @Table(name = "transactions",indexes = {@Index(name = "idx_transactions_account_created", columnList = "account_id, created_at"),@Index(name = "idx_transactions_card_id", columnList = "card_id")})
@@ -87,6 +87,16 @@ public class Transaction {
     @Size(max = 3)
     @Column(name = "currency", length = 3, nullable = false)
     private String currency;
+
+    // Belső utalásnál és devizaváltásnál a jóváírás a párjára, a terhelésre mutat
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "related_transaction_id")
+    private Transaction relatedTransaction;
+
+    // Sztornó tételnél az eredeti tétel, amelyet semlegesít
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reversal_of_id")
+    private Transaction reversalOf;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)

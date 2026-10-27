@@ -16,9 +16,7 @@ import hu.finex.main.repository.BalanceHistoryRepository;
 import hu.finex.main.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 
-// Könyvelés egy helyen ("főkönyv"): minden egyenlegváltozás ezen megy át, így mindig keletkezik hozzá
-// tranzakció és egyenlegtörténet. A hívó felelőssége, hogy a számlát előtte zárolja
-// (AccountRepository.findByIdForUpdate), ezért csak meglévő tranzakción belül hívható (MANDATORY).
+// Könyvelés egy helyen: minden egyenlegváltozás ezen megy át, a hívó előtte zárolja a számlát
 
 @Service
 @RequiredArgsConstructor
@@ -31,11 +29,17 @@ public class LedgerService {
     // Jóváírás (INCOME vagy TRANSFER_IN): az egyenleg nő
     @Transactional(propagation = Propagation.MANDATORY)
     public Transaction credit(Account account, TransactionType type, BigDecimal amount, String partnerName, String message, String fromAccount) {
+        return creditLinked(account, type, amount, partnerName, message, fromAccount, null);
+    }
+
+    // Jóváírás egy terhelés párjaként (belső utalás, devizaváltás): a tétel a terhelésre mutat
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Transaction creditLinked(Account account, TransactionType type, BigDecimal amount, String partnerName, String message, String fromAccount, Transaction related) {
         validateAmount(amount);
 
         account.setBalance(account.getBalance().add(amount));
 
-        return book(account, null, type, amount, partnerName, message, fromAccount, account.getAccountNumber());
+        return book(account, null, type, amount, partnerName, message, fromAccount, account.getAccountNumber(), related, null);
     }
 
     // Terhelés (OUTCOME vagy TRANSFER_OUT): fedezet nélkül nem engedi
@@ -49,10 +53,34 @@ public class LedgerService {
 
         account.setBalance(account.getBalance().subtract(amount));
 
-        return book(account, card, type, amount, partnerName, message, account.getAccountNumber(), toAccount);
+        return book(account, card, type, amount, partnerName, message, account.getAccountNumber(), toAccount, null, null);
     }
 
-    private Transaction book(Account account, Card card, TransactionType type, BigDecimal amount, String partnerName, String message, String fromAccount, String toAccount) {
+    // Sztornó: ellentétes irányú javító tétel, az eredeti érintetlen marad (append-only főkönyv)
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Transaction reverse(Account account, Transaction original, String reason) {
+        BigDecimal amount = original.getAmount();
+        TransactionType type = switch (original.getType()) {
+            case INCOME -> TransactionType.OUTCOME;
+            case OUTCOME -> TransactionType.INCOME;
+            case TRANSFER_IN -> TransactionType.TRANSFER_OUT;
+            case TRANSFER_OUT -> TransactionType.TRANSFER_IN;
+        };
+
+        if (type == TransactionType.OUTCOME || type == TransactionType.TRANSFER_OUT) {
+            if (account.getBalance().compareTo(amount) < 0) {
+                throw new BusinessException("Nincs elegendő fedezet a sztornóhoz a(z) " + account.getAccountNumber() + " számlán.");
+            }
+            account.setBalance(account.getBalance().subtract(amount));
+        } else {
+            account.setBalance(account.getBalance().add(amount));
+        }
+
+        return book(account, null, type, amount, original.getPartnerName(), "Sztornó: " + reason, original.getToAccount(), original.getFromAccount(), null, original);
+    }
+
+    private Transaction book(Account account, Card card, TransactionType type, BigDecimal amount, String partnerName, String message,
+                             String fromAccount, String toAccount, Transaction related, Transaction reversalOf) {
         Transaction transaction = Transaction.builder()
                 .account(account)
                 .card(card)
@@ -63,6 +91,8 @@ public class LedgerService {
                 .partnerName(partnerName)
                 .fromAccount(fromAccount)
                 .toAccount(toAccount)
+                .relatedTransaction(related)
+                .reversalOf(reversalOf)
                 .build();
         transaction = transactionRepository.save(transaction);
 

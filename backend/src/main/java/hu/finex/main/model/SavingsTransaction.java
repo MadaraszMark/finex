@@ -28,7 +28,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-// A megtakarítási számla mozgásai. Könyvelt tétel, nem módosul (az adatbázis triggere is tiltja).
+// A megtakarítás mozgásai: könyvelt tétel, nem módosul (az adatbázis triggere is tiltja)
 
 @Entity
 @Table(name = "savings_transactions",indexes = {@Index(name = "idx_savings_tx_savings_created", columnList = "savings_account_id, created_at")})

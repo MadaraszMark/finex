@@ -8,11 +8,14 @@ import hu.finex.main.mapper.AccountMapper;
 import hu.finex.main.model.*;
 import hu.finex.main.model.enums.AccountStatus;
 import hu.finex.main.model.enums.AccountType;
+import hu.finex.main.model.enums.AuditAction;
+import hu.finex.main.model.enums.AuditTargetType;
 import hu.finex.main.model.enums.NotificationType;
 import hu.finex.main.model.enums.TransactionType;
 import hu.finex.main.repository.AccountRepository;
 import hu.finex.main.repository.ReportRepository;
 import hu.finex.main.repository.StandingOrderRepository;
+import hu.finex.main.repository.UserRepository;
 import hu.finex.main.security.CurrentUser;
 import hu.finex.main.util.DateUtils;
 import hu.finex.main.util.IbanUtils;
@@ -41,6 +44,8 @@ class AccountServiceTest {
     @Mock private StandingOrderRepository standingOrderRepository;
     @Mock private ReportRepository reportRepository;
     @Mock private CurrentUser currentUser;
+    @Mock private UserRepository userRepository;
+    @Mock private AuditService auditService;
     @Spy private FinexProperties finexProperties = new FinexProperties();
 
     @InjectMocks private AccountService service;
@@ -112,7 +117,8 @@ class AccountServiceTest {
     @Test
     void open_shouldCreateAccountWithValidIbanAndCard() {
         User user = User.builder().id(7L).build();
-        when(currentUser.requireEntity()).thenReturn(user);
+        when(currentUser.requireId()).thenReturn(7L);
+        when(userRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(user));
         when(accountRepository.countByUser_IdAndStatusNot(7L, AccountStatus.CLOSED)).thenReturn(1L);
         when(accountRepository.existsByAccountNumber(anyString())).thenReturn(false);
 
@@ -133,7 +139,6 @@ class AccountServiceTest {
         assertEquals(10L, resp.getId());
         assertEquals("Euró számla", resp.getName());
 
-        // A generált számlaszám érvényes magyar IBAN
         ArgumentCaptor<String> numberCaptor = ArgumentCaptor.forClass(String.class);
         verify(accountMapper).toEntity(eq(req), eq(user), numberCaptor.capture());
         assertTrue(IbanUtils.isValid(numberCaptor.getValue()));
@@ -145,7 +150,8 @@ class AccountServiceTest {
     @Test
     void open_shouldThrowBusinessException_whenAccountLimitReached() {
         User user = User.builder().id(7L).build();
-        when(currentUser.requireEntity()).thenReturn(user);
+        when(currentUser.requireId()).thenReturn(7L);
+        when(userRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(user));
         when(accountRepository.countByUser_IdAndStatusNot(7L, AccountStatus.CLOSED)).thenReturn(5L);
 
         CreateAccountRequest req = CreateAccountRequest.builder().name("Hatodik").currency("HUF").build();
@@ -175,12 +181,13 @@ class AccountServiceTest {
     }
 
     @Test
-    void deposit_shouldCreditThroughLedger() {
-        when(currentUser.requireId()).thenReturn(7L);
-        when(accountRepository.existsByIdAndUser_Id(10L, 7L)).thenReturn(true);
-
+    void depositByAdmin_shouldCreditThroughLedger_auditAndNotifyOwner() {
+        User owner = User.builder().id(7L).build();
         Account acc = Account.builder()
                 .id(10L)
+                .user(owner)
+                .name("Fő számla")
+                .accountNumber("HU15117730161111101800000001")
                 .balance(new BigDecimal("1000.00"))
                 .currency("HUF")
                 .status(AccountStatus.ACTIVE)
@@ -195,44 +202,42 @@ class AccountServiceTest {
                 .message("Topup")
                 .build();
 
-        AccountResponse resp = service.deposit(10L, req);
+        AccountResponse resp = service.depositByAdmin(10L, req);
 
         assertEquals(expected, resp);
-        verify(ledgerService).credit(acc, TransactionType.INCOME, new BigDecimal("250.00"), "Készpénzbefizetés", "Topup", null);
+        verify(ledgerService).credit(acc, TransactionType.INCOME, new BigDecimal("250.00"), AccountService.CASH_DEPOSIT_PARTNER, "Topup", null);
+        verify(auditService).record(eq(AuditAction.ACCOUNT_DEPOSIT), eq(AuditTargetType.ACCOUNT), eq(10L), anyString());
+        verify(notificationService).notify(eq(owner), eq(NotificationType.TRANSACTION), anyString(), anyString());
     }
 
     @Test
-    void deposit_shouldThrowNotFound_whenNotOwner_withoutLockingTheAccount() {
-        when(currentUser.requireId()).thenReturn(7L);
-        when(accountRepository.existsByIdAndUser_Id(10L, 7L)).thenReturn(false);
+    void depositByAdmin_shouldThrowNotFound_whenAccountMissing() {
+        when(accountRepository.findByIdForUpdate(10L)).thenReturn(Optional.empty());
 
         DepositRequest req = DepositRequest.builder().amount(BigDecimal.TEN).build();
 
-        assertThrows(NotFoundException.class, () -> service.deposit(10L, req));
+        assertThrows(NotFoundException.class, () -> service.depositByAdmin(10L, req));
 
-        verify(accountRepository, never()).findByIdForUpdate(any());
-        verifyNoInteractions(ledgerService, accountMapper);
+        verifyNoInteractions(ledgerService, auditService);
     }
 
     @Test
-    void deposit_shouldThrowBusinessException_whenAccountFrozen() {
-        when(currentUser.requireId()).thenReturn(7L);
-        when(accountRepository.existsByIdAndUser_Id(10L, 7L)).thenReturn(true);
-
+    void depositByAdmin_shouldThrowBusinessException_whenAccountFrozen() {
         Account acc = Account.builder().id(10L).balance(BigDecimal.ZERO).status(AccountStatus.FROZEN).build();
         when(accountRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(acc));
 
         DepositRequest req = DepositRequest.builder().amount(BigDecimal.TEN).build();
 
-        assertThrows(BusinessException.class, () -> service.deposit(10L, req));
+        assertThrows(BusinessException.class, () -> service.depositByAdmin(10L, req));
 
-        verifyNoInteractions(ledgerService);
+        verifyNoInteractions(ledgerService, auditService);
     }
 
     @Test
     void close_shouldCloseAccount_cancelCards_andStopStandingOrders() {
         User owner = User.builder().id(7L).build();
         when(currentUser.requireId()).thenReturn(7L);
+        when(userRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(User.builder().id(7L).build()));
         when(accountRepository.existsByIdAndUser_Id(3L, 7L)).thenReturn(true);
 
         Account acc = Account.builder().id(3L).user(owner).balance(new BigDecimal("0.00")).status(AccountStatus.ACTIVE).build();
@@ -253,6 +258,7 @@ class AccountServiceTest {
     void close_shouldThrowBusinessException_whenBalanceIsNotZero() {
         User owner = User.builder().id(7L).build();
         when(currentUser.requireId()).thenReturn(7L);
+        when(userRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(User.builder().id(7L).build()));
         when(accountRepository.existsByIdAndUser_Id(3L, 7L)).thenReturn(true);
 
         Account acc = Account.builder().id(3L).user(owner).balance(new BigDecimal("0.01")).status(AccountStatus.ACTIVE).build();
@@ -268,6 +274,7 @@ class AccountServiceTest {
     void close_shouldThrowBusinessException_whenLastOpenAccount() {
         User owner = User.builder().id(7L).build();
         when(currentUser.requireId()).thenReturn(7L);
+        when(userRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(User.builder().id(7L).build()));
         when(accountRepository.existsByIdAndUser_Id(3L, 7L)).thenReturn(true);
 
         Account acc = Account.builder().id(3L).user(owner).balance(BigDecimal.ZERO).status(AccountStatus.ACTIVE).build();
@@ -283,6 +290,7 @@ class AccountServiceTest {
     @Test
     void close_shouldThrowBusinessException_whenAlreadyClosed() {
         when(currentUser.requireId()).thenReturn(7L);
+        when(userRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(User.builder().id(7L).build()));
         when(accountRepository.existsByIdAndUser_Id(3L, 7L)).thenReturn(true);
 
         Account acc = Account.builder().id(3L).balance(BigDecimal.ZERO).status(AccountStatus.CLOSED).build();

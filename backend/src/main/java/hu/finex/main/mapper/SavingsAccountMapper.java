@@ -16,7 +16,7 @@ import hu.finex.main.model.enums.SavingsStatus;
 @Component
 public class SavingsAccountMapper {
 
-    // Az egyenleg 0-ról indul, a kezdő összeg rendes befizetésként kerül rá (így a mozgások között is megjelenik)
+    // Az egyenleg 0-ról indul, a kezdő összeg befizetésként kerül rá (így a mozgások között is látszik)
     public SavingsAccount toEntity(CreateSavingsAccountRequest request, User user, String currency, BigDecimal interestRate) {
         return SavingsAccount.builder()
                 .user(user)

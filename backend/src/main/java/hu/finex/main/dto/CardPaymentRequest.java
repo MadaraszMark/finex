@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -25,6 +26,7 @@ public class CardPaymentRequest {
     @NotNull
     @DecimalMin(value = "0.01", message = "A fizetés összege legalább 0.01 kell legyen.")
     @Schema(description = "A fizetés összege", example = "12990.00", required = true)
+    @Digits(integer = 16, fraction = 2, message = "Az összeg legfeljebb két tizedesjegyet tartalmazhat.")
     private BigDecimal amount;
 
     @Schema(description = "Opcionális kategória", example = "1")

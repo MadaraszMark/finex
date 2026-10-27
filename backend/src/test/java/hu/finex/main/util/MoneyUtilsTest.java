@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class MoneyUtilsTest {
 
-    // A magyar számformátum ezres elválasztója nem törhető szóköz, az összehasonlításhoz sima szóközre cseréljük
+    // A magyar ezres elválasztó nem törhető szóköz, ezért sima szóközre cseréljük
     private String format(String amount, String currency) {
         return MoneyUtils.format(new BigDecimal(amount), currency).replace(' ', ' ').replace(' ', ' ');
     }

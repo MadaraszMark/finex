@@ -12,6 +12,8 @@ import hu.finex.main.exception.BusinessException;
 import hu.finex.main.exception.NotFoundException;
 import hu.finex.main.mapper.CategoryMapper;
 import hu.finex.main.model.Category;
+import hu.finex.main.model.enums.AuditAction;
+import hu.finex.main.model.enums.AuditTargetType;
 import hu.finex.main.repository.CategoryRepository;
 import hu.finex.main.repository.TransactionCategoryRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ public class CategoryService {
     private final CategoryRepository categoryRepository;
     private final TransactionCategoryRepository transactionCategoryRepository;
     private final CategoryMapper categoryMapper;
+    private final AuditService auditService;
 
     // Admin
     @Transactional
@@ -33,6 +36,8 @@ public class CategoryService {
 
         Category entity = categoryMapper.toEntity(request);
         entity = categoryRepository.save(entity);
+
+        auditService.record(AuditAction.CATEGORY_CREATED, AuditTargetType.CATEGORY, entity.getId(), entity.getName());
 
         return categoryMapper.toResponse(entity);
     }
@@ -58,11 +63,15 @@ public class CategoryService {
             throw new BusinessException("Már létezik kategória ezzel a névvel.");
         }
 
+        String previousName = category.getName();
         categoryMapper.updateEntity(category, request);
+
+        auditService.record(AuditAction.CATEGORY_UPDATED, AuditTargetType.CATEGORY, category.getId(), previousName + " → " + category.getName());
+
         return categoryMapper.toResponse(category);
     }
 
-    // Admin: tranzakcióhoz rendelt kategória nem törölhető (az adatbázis ON DELETE RESTRICT szabálya is ezt védi)
+    // Admin: tranzakcióhoz rendelt kategória nem törölhető (az adatbázis ON DELETE RESTRICT is védi)
     @Transactional
     public void delete(Long id) {
         Category category = categoryRepository.findById(id).orElseThrow(() -> new NotFoundException("Kategória nem található."));
@@ -72,5 +81,7 @@ public class CategoryService {
         }
 
         categoryRepository.delete(category);
+
+        auditService.record(AuditAction.CATEGORY_DELETED, AuditTargetType.CATEGORY, id, category.getName());
     }
 }

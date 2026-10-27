@@ -2,6 +2,7 @@ package hu.finex.main.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
@@ -21,6 +22,7 @@ public class DepositRequest {
     @Positive
     @DecimalMax(value = "10000000", message = "Egy befizetés legfeljebb 10 000 000 lehet.")
     @Schema(description = "Befizetni kívánt összeg (pozitív szám kötelező)", example = "25000.00", required = true)
+    @Digits(integer = 16, fraction = 2, message = "Az összeg legfeljebb két tizedesjegyet tartalmazhat.")
     private BigDecimal amount;
 
     @Size(max = 255)

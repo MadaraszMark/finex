@@ -47,6 +47,45 @@ class JwtTokenUtilTest {
     }
 
     @Test
+    void generateToken_shouldCarryTokenVersion_andUniqueId() {
+        User user = User.builder().id(42L).email("anna@finex.hu").role(UserRole.USER).tokenVersion(7).build();
+
+        String first = jwtTokenUtil.generateToken(user);
+        String second = jwtTokenUtil.generateToken(user);
+
+        assertEquals(7, jwtTokenUtil.extractTokenVersion(first));
+        assertNotNull(jwtTokenUtil.extractTokenId(first));
+        assertNotEquals(jwtTokenUtil.extractTokenId(first), jwtTokenUtil.extractTokenId(second));
+    }
+
+    // A publikus repóban nincs titkos kulcs, ezért megadás nélkül véletlen kulcs készül
+    @Test
+    void missingSecret_shouldUseRandomKey_soForeignTokensAreRejected() {
+        JwtTokenUtil randomA = new JwtTokenUtil("", 3600000);
+        JwtTokenUtil randomB = new JwtTokenUtil(null, 3600000);
+        User user = User.builder().id(42L).email("anna@finex.hu").role(UserRole.ADMIN).build();
+
+        String token = randomA.generateToken(user);
+
+        assertTrue(randomA.isValid(token));
+        assertFalse(randomB.isValid(token));
+        assertFalse(jwtTokenUtil.isValid(token));
+    }
+
+    @Test
+    void shortSecret_shouldBeRejectedAtStartup() {
+        assertThrows(IllegalStateException.class, () -> new JwtTokenUtil("rovid-titok", 3600000));
+    }
+
+    @Test
+    void isValid_shouldRejectUnsignedToken() {
+        String header = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString("{\"alg\":\"none\"}".getBytes());
+        String payload = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString("{\"sub\":\"1\",\"ver\":0,\"jti\":\"x\"}".getBytes());
+
+        assertFalse(jwtTokenUtil.isValid(header + "." + payload + "."));
+    }
+
+    @Test
     void isValid_shouldRejectExpiredOrGarbageToken() {
         JwtTokenUtil expiredUtil = new JwtTokenUtil(SECRET, -1000);
         User user = User.builder().id(42L).email("anna@finex.hu").role(UserRole.USER).build();

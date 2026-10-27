@@ -29,9 +29,7 @@ import java.util.concurrent.Future;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-// Párhuzamos utalások valódi PostgreSQL-en: a sorzárolás (SELECT ... FOR UPDATE) miatt a számla nem mehet mínuszba,
-// nem vész el pénz, és az egymással szembe menő utalások sem akadnak össze (holtpont), mert a zárolás sorrendje rögzített.
-// A kontextus a teszt után bezárul (lásd FinexApplicationTests).
+// A FOR UPDATE sorzárolás és a rögzített zárolási sorrend véd a mínusz és a holtpont ellen
 
 @SpringBootTest
 @DirtiesContext
@@ -49,7 +47,7 @@ class TransferConcurrencyIntegrationTest extends PostgresRepositoryTestBase {
         Account from = saveAccount(sender, "HU15117730161111101800000001", "50000.00");
         Account to = saveAccount(receiver, "HU28104000950000521700000003", "0.00");
 
-        // 10 egyidejű, egyenként 10 000 Ft-os utalás, de csak 50 000 Ft fedezet van: pontosan 5 sikerülhet
+        // 10 egyidejű 10 000 Ft-os utalás, de csak 50 000 Ft fedezet: pontosan 5 sikerülhet
         List<Callable<Boolean>> tasks = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             tasks.add(() -> tryTransfer(sender, from.getId(), to.getAccountNumber(), "10000.00"));
@@ -73,7 +71,6 @@ class TransferConcurrencyIntegrationTest extends PostgresRepositoryTestBase {
         Account a = saveAccount(first, "HU50120100070000123400000004", "10000.00");
         Account b = saveAccount(second, "HU85117730161111101800000002", "10000.00");
 
-        // Felváltva A -> B és B -> A irányú utalások egyszerre
         List<Callable<Boolean>> tasks = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             if (i % 2 == 0) {
@@ -92,7 +89,6 @@ class TransferConcurrencyIntegrationTest extends PostgresRepositoryTestBase {
         assertEquals(0, new BigDecimal("10000.00").compareTo(aAfter.getBalance()));
     }
 
-    // true: sikeres utalás, false: üzleti okból elutasítva (pl. nincs fedezet)
     private boolean tryTransfer(User owner, Long fromAccountId, String toAccountNumber, String amount) {
         try {
             transactionService.executeTransfer(owner, fromAccountId, toAccountNumber, "Teszt", new BigDecimal(amount), "Párhuzamos teszt", null);
@@ -102,7 +98,6 @@ class TransferConcurrencyIntegrationTest extends PostgresRepositoryTestBase {
         }
     }
 
-    // Az összes feladat egyszerre indul (latch), majd megvárjuk mindet
     private List<Boolean> runConcurrently(List<Callable<Boolean>> tasks) throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(tasks.size());
         CountDownLatch start = new CountDownLatch(1);
