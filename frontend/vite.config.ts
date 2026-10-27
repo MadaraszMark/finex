@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
@@ -5,10 +6,15 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // Frontend-tesztek (npm test): Vitest jsdom környezetben
+  test: {
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+    css: false,
+  },
   server: {
     port: 5173,
-    // Fejlesztés közben a /api/... kéréseket a Vite továbbítja a Spring Boot backendnek
-    // (a /api előtag nélkül), így a böngésző csak az 5173-as porttal beszél, és nincs CORS-hiba.
+    // A /api kéréseket a Vite az előtag nélkül továbbítja a backendnek, így nincs CORS-hiba
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
@@ -20,8 +26,7 @@ export default defineConfig({
   build: {
     rolldownOptions: {
       output: {
-        // A nagy külső könyvtárak külön fájlokba kerülnek: kisebb a fő csomag, és egy új kiadás után
-        // a böngésző a változatlan könyvtárakat a gyorsítótárból tölti be
+        // Nagy könyvtárak külön fájlban: kisebb fő csomag, új kiadás után gyorsítótárból töltődnek
         codeSplitting: {
           groups: [
             { name: 'react', test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
