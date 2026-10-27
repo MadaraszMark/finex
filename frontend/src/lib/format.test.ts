@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatMoney, formatSignedMoney, parseAmount, signedAmount } from './format'
+import { formatMoney, formatSignedMoney, formatTabTitle, parseAmount, SHY, signedAmount } from './format'
 
 // Ezen múlik, hogy pontosan a beírt összeg menjen el az utalásban
 describe('parseAmount', () => {
@@ -33,5 +33,18 @@ describe('pénzösszegek megjelenítése', () => {
   it('forintnál "Ft", devizánál a devizanem jelenik meg', () => {
     expect(formatMoney(1500, 'HUF')).toContain('Ft')
     expect(formatMoney(12.5, 'EUR')).toMatch(/12,50/)
+  })
+})
+
+describe('böngészőfül címe', () => {
+  it('olvasatlan értesítésnél elöl a darabszám, 99 fölött rövidítve', () => {
+    expect(formatTabTitle('Főoldal', 0)).toBe('Főoldal · FineX')
+    expect(formatTabTitle('Főoldal', 3)).toBe('(3) Főoldal · FineX')
+    expect(formatTabTitle('Főoldal', 150)).toBe('(99+) Főoldal · FineX')
+    expect(formatTabTitle(undefined, 0)).toBe('FineX')
+  })
+
+  it('a feltételes elválasztójel nem kerül a címbe', () => {
+    expect(formatTabTitle(`Megtaka${SHY}rítások`, 0)).toBe('Megtakarítások · FineX')
   })
 })

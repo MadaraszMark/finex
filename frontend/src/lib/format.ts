@@ -192,6 +192,12 @@ export function isIncoming(type: TransactionType): boolean {
   return type === 'INCOME' || type === 'TRANSFER_IN'
 }
 
+// Böngészőfül címe, elöl az olvasatlan értesítések számával: "(3) Főoldal · FineX"
+export function formatTabTitle(title: string | undefined, unread: number): string {
+  const base = title ? `${title.replaceAll(SHY, '')} · FineX` : 'FineX'
+  return unread > 0 ? `(${unread > 99 ? '99+' : unread}) ${base}` : base
+}
+
 export const transactionTypeLabels: Record<TransactionType, string> = {
   INCOME: 'Bevétel',
   OUTCOME: 'Kiadás',

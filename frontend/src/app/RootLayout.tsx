@@ -1,18 +1,22 @@
+import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Outlet, ScrollRestoration, useNavigation } from 'react-router'
+import { getUnreadCount } from '../api/notifications'
+import { queryKeys } from '../api/queryKeys'
 import { useRouteTitle } from '../hooks/useRouteTitle'
-import { SHY } from '../lib/format'
+import { formatTabTitle } from '../lib/format'
 import NavigationProgress from './NavigationProgress'
 
 // Közös gyökér: fülcím, betöltésjelző csík és görgetési pozíció visszaállítása
 export default function RootLayout() {
   const title = useRouteTitle()
   const navigation = useNavigation()
+  // Csak a csengő által már betöltött számot olvassa, kijelentkezve nem kérdez le semmit
+  const { data: unread = 0 } = useQuery({ queryKey: queryKeys.unreadNotifications, queryFn: getUnreadCount, enabled: false })
 
   useEffect(() => {
-    // A feltételes elválasztójelek (SHY) a fül címében nem kellenek
-    document.title = title ? `${title.replaceAll(SHY, '')} · FineX` : 'FineX'
-  }, [title])
+    document.title = formatTabTitle(title, unread)
+  }, [title, unread])
 
   return (
     <>
