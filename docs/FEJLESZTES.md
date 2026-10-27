@@ -46,10 +46,10 @@ Fejlesztőeszközök: backend Eclipse (Spring Tools), frontend VS Code, Windows 
 | Dátum | Mi készült |
 |---|---|
 | 2025-12 – 2026-02 | Az eredeti backend (entitások, DTO-k, JWT, service-ek, controllerek, mapper-, service- és controllertesztek) |
-| 2026-09-29 | Monorepo, Flyway-séma és teljes banki funkciókészlet, frontend alapok (`5083355`, `ef27afc`, `a61a08e`) |
-| 2026-10-20 | Frontend 2–5. rész és újratervezés, `GET /settings` (`5fcb21c`, `b13a379`) |
+| 2026-09-29 | Monorepo, Flyway-séma és teljes banki funkciókészlet, frontend alapok |
+| 2026-10-20 | Frontend 2–5. rész és újratervezés, `GET /settings` |
 | 2026-10-26 | Biztonsági megerősítés, idempotencia, sztornó, egyeztetés, audit napló, devizaváltás, CSV-kivonat, Vitest, Docker Compose |
-| 2026-10-27 | Kommentek egységesítése; a régi, Flyway előtti pgAdmin-mentés kikerült a repóból |
+| 2026-10-27 | Kommentek egységesítése, az olvasatlan értesítések száma a böngészőfül címében, fejlesztői dokumentáció |
 
 ### Teendők, ötletek
 
