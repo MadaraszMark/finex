@@ -9,7 +9,7 @@ Spring Boot REST API és React webes felület: felhasználók, bankszámlák, ba
 | [`backend/`](backend) | Spring Boot REST API (Java 17, Maven) | Eclipse / Spring Tool Suite |
 | [`frontend/`](frontend) | React + TypeScript webes felület (Vite, Tailwind CSS) | VS Code |
 | [`database/`](database) | PostgreSQL (Docker Compose), a séma és a demóadatok leírása | Docker Desktop, pgAdmin |
-| [`docs/`](docs) | [Telepítési útmutató](docs/TELEPITES.md), UI koncepcióképek | – |
+| [`docs/`](docs) | [Telepítési útmutató](docs/TELEPITES.md), [Fejlesztői dokumentáció](docs/FEJLESZTES.md), UI koncepcióképek | – |
 
 ---
 
@@ -175,7 +175,7 @@ A frontend öt részben készült:
 - [x] **4. Tervezés** – megtakarítási célok körkörös haladásjelzővel (befizetés, kivét, mozgások, havi kamat, lezárás), statisztika időszak- és pénznemválasztóval (bevétel, kiadás, megtakarítási arány, havi grafikon, költés kategóriánként, legnagyobb kiadások)
 - [x] **5. Fiók és adminisztráció** – értesítések (szűrés, napok szerint csoportosítva, olvasottnak jelölés), profil és biztonság (személyes adatok, jelszócsere, belépési előzmények, téma), ügyfélszolgálat csevegő nézetben, admin felület (áttekintés és ütemezett feladatok kézi indítása, felhasználók, számlák, ticketek, belépési napló, kategóriák)
 
-Mindenhol elérhető: **Ctrl + K** parancspaletta (oldalak, számlák, kedvezményezettek, gyorsműveletek keresése), mobilon alulról nyíló és lehúzással bezárható ablakok, a kattintás helyéről körben szétterülő témaváltás.
+Mindenhol elérhető: **Ctrl + K** parancspaletta (oldalak, számlák, kedvezményezettek, gyorsműveletek keresése), mobilon alulról nyíló és lehúzással bezárható ablakok, a kattintás helyéről körben szétterülő témaváltás, és az olvasatlan értesítések száma a böngészőfül címében (pl. „(3) Főoldal · FineX”).
 
 A kód felépítése (`frontend/src`):
 
@@ -201,7 +201,7 @@ A kód felépítése (`frontend/src`):
 - Biztonsági tesztek: hamisított / `alg=none` / visszavont / régi verziójú token, zárolás, kérésszám-korlát, idempotencia
 - Párhuzamos utalások integrációs tesztje (a számla nem mehet mínuszba)
 - A tesztek **külön, izolált adatbázist** használnak (Docker container)
-- Frontend: 19 Vitest teszt (`npm test`) – IBAN-ellenőrzés, összegfeldolgozás, űrlapszabályok, és az utalási varázsló
+- Frontend: 21 Vitest teszt (`npm test`) – IBAN-ellenőrzés, összegfeldolgozás, űrlapszabályok, és az utalási varázsló
   teljes folyamata (a dupla kattintás sem küld két utalást); TypeScript típusellenőrzés és ESLint (`npm run build`, `npm run lint`)
 
 ---

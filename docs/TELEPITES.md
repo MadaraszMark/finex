@@ -327,7 +327,7 @@ A `frontend` mappában (ha a Vitest még nincs telepítve: előbb `npm install`)
 ```powershell
 npm test
 ```
-✅ Ha jó: `Test Files  5 passed (5)` és `Tests  19 passed (19)`. Folyamatos futtatás fejlesztés közben: `npm run test:watch`.
+✅ Ha jó: `Test Files  5 passed (5)` és `Tests  21 passed (21)`. Folyamatos futtatás fejlesztés közben: `npm run test:watch`.
 
 ```powershell
 npm run lint
