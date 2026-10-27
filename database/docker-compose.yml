@@ -1,4 +1,4 @@
-# Rögzített projektnév: így a konténer- és volume-nevek nem függnek attól, melyik mappából indul a compose.
+# Rögzített projektnév: a konténer- és volume-nevek nem függnek az indítási mappától
 name: finex
 
 services:
@@ -10,11 +10,17 @@ services:
       POSTGRES_USER: finex
       POSTGRES_PASSWORD: finex123
     ports:
-      - "5432:5432"
+      # Csak erről a gépről érhető el (a helyi hálózat felől nem), mert a jelszó a repóban van
+      - "127.0.0.1:5432:5432"
     volumes:
-      # Új, üres volume: a sémát és a demóadatokat a backend Flyway-migrációi hozzák létre az első induláskor.
-      # A korábbi, Hibernate által létrehozott adatbázis a "finex_finex-db-data" volume-ban érintetlenül megmaradt.
+      # A sémát és a demóadatokat a backend Flyway-migrációi hozzák létre az első induláskor
       - finex-pgdata:/var/lib/postgresql/data
+    # A gyökér compose-ban a backend megvárja, amíg az adatbázis kapcsolatot fogad
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finex -d finex"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     restart: always
 
 volumes:

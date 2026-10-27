@@ -1,0 +1,52 @@
+# A teljes FineX egy paranccsal: docker compose up -d --build --wait
+# Utána: http://localhost:3000 (Swagger UI: http://localhost:3000/api/swagger-ui.html)
+# Leállítás: docker compose down (az adatokkal együtt: docker compose down -v)
+# Az adatbázis ugyanaz a volume, mint fejlesztéskor (database/docker-compose.yml)
+
+name: finex
+
+include:
+  - database/docker-compose.yml
+
+services:
+  backend:
+    build: ./backend
+    container_name: finex-backend
+    environment:
+      FINEX_DB_URL: jdbc:postgresql://postgres:5432/finex
+      FINEX_DB_USERNAME: finex
+      FINEX_DB_PASSWORD: finex123
+      # Az X-Forwarded-For fejlécet csak az nginx állíthatja be, mert a backend portja kívülről zárt
+      FINEX_FORWARD_HEADERS_STRATEGY: framework
+      # Csak a napló időbélyegeihez (az üzleti logika mindig Europe/Budapest szerint számol)
+      TZ: Europe/Budapest
+      # Üresen indításonként véletlen kulcs; állandó kulcshoz .env fájl kell (minta: .env.example)
+      FINEX_JWT_SECRET: ${FINEX_JWT_SECRET:-}
+    # Nincs ports: a backendet csak az nginx éri el a belső hálózaton
+    healthcheck:
+      # A Tomcat csak a teljes indulás (a migrációkkal együtt) után nyitja meg a portot
+      test: ["CMD-SHELL", "nc -z localhost 8080"]
+      interval: 5s
+      timeout: 3s
+      start_period: 60s
+      retries: 30
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: finex-frontend
+    ports:
+      # Csak erről a gépről érhető el; ha a helyi hálózatról (pl. telefonról) is kell: "3000:80"
+      - "127.0.0.1:3000:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
