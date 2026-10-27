@@ -16,7 +16,7 @@ Spring Boot REST API és React webes felület: felhasználók, bankszámlák, ba
 ### 🔧 Technológiák
 
 **Backend**
-- Java 17, Spring Boot 3.5.8, Maven
+- Java 17, Spring Boot 3.5.16, Maven
 - Spring Web, Spring Data JPA (Hibernate), Jakarta Validation, Lombok
 - Spring Security, JWT alapú autentikáció
 - Swagger UI (Springdoc OpenAPI)
@@ -36,8 +36,24 @@ Spring Boot REST API és React webes felület: felhasználók, bankszámlák, ba
 **Tesztelés**
 - JUnit 5, Mockito, Spring Boot Test / MockMvc, `@WebMvcTest` controller slice tesztek
 - Testcontainers + PostgreSQL (repository-, adatbázisszabály- és integrációs tesztek)
+- Vitest + Testing Library (frontend: segédfüggvények, űrlapszabályok, az utalási varázsló teljes folyamata)
+
+**Futtatás**
+- Docker Compose: adatbázis + backend + nginx-szel kiszolgált frontend egy paranccsal
 
 ---
+
+## 🚀 Indítás egy paranccsal (Docker)
+
+Csak a Docker Desktop kell (Java és Node.js nem). A `FineX` mappában:
+
+```bash
+docker compose up -d --build --wait
+```
+
+Az első alkalommal több percig tart (letölti és lefordítja a backendet és a frontendet), utána: **http://localhost:3000**
+(Swagger UI: http://localhost:3000/api/swagger-ui.html). Leállítás: `docker compose down` – az adatok megmaradnak.
+Részletek: [`docs/TELEPITES.md`](docs/TELEPITES.md#8-indítás-egy-paranccsal-docker-compose).
 
 ## 🚀 Indítás (fejlesztői környezet)
 
@@ -84,12 +100,20 @@ A projekt célja, hogy **valós banki funkciókat** modellezzek és gyakoroljak 
 - Az üzleti szabályok paraméterei egy helyen (`finex.*`: napi utalási limit, nyitható számlák száma, kamatláb, kártyalimitek); a frontend a `GET /settings` végpontról olvassa őket, nincs saját másolata
 
 ### Biztonság
-- JWT alapú autentikáció
-- Stateless SecurityConfig
-- Védett endpointok (csak autentikált felhasználóknak)
-- User / Admin szerepkörök, admin végpontok
-- Minden felhasználó csak a saját adatait látja és módosíthatja
-- Belépési napló, 5 sikertelen próbálkozás után átmeneti zárolás
+- JWT alapú autentikáció, stateless SecurityConfig; a jogosultságot a szerver minden kérésnél az adatbázisból veszi
+- Visszavonható tokenek: kijelentkezéskor a token tiltólistára kerül; jelszócsere, letiltás, szerepkör-változás és
+  „kijelentkezés minden eszközről” után a felhasználó összes korábbi tokenje érvénytelen (tokenverzió)
+- A JWT-kulcs csak környezeti változóból jöhet (legalább 32 bájt); ha nincs megadva, minden indításkor véletlen kulcs készül
+- Védett endpointok, User / Admin szerepkörök, admin végpontok; minden felhasználó csak a saját adatait látja és módosíthatja
+- Belépési napló és háromszintű zárolás: e-mail + IP (5 hiba), fiók (20 hiba), IP-cím (20 hiba); egyforma válaszidő
+  létező és nem létező fióknál (a fiókok nem találgathatók ki)
+- Kérésszám-korlát (belépés percenként, regisztráció óránként, IP-címenként; `429` + `Retry-After`) és kérésméret-korlát
+- E-mail-cím módosításához a jelenlegi jelszó kell; jelszó legfeljebb 72 bájt (a BCrypt határa)
+- Bemeneti korlátok mindenhol (szöveghossz, összeg számjegyei, oldalméret legfeljebb 100, lekérdezési időszak legfeljebb 366 nap)
+- Biztonsági fejlécek (CSP, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`), a frontendben nincs inline script
+- Éles profil (`prod`): nincsenek demóadatok és Swagger, és az indulás megtagadva, ha nincs JWT-kulcs vagy maradt demófiók
+- Admin audit napló: minden admin művelet (státusz- és szerepkörváltás, befizetés, sztornó, kategóriák, ticketek,
+  kézi ütemezőfuttatás) visszamenőleg nem módosítható naplóba kerül
 
 ### Felhasználók
 - Regisztráció (automatikus folyószámlával és bankkártyával)
@@ -101,7 +125,9 @@ A projekt célja, hogy **valós banki funkciókat** modellezzek és gyakoroljak 
 - Devizanemek (HUF, EUR, USD)
 - Egyenleg kezelés
 - Státuszok (ACTIVE, BLOCKED, FROZEN, CLOSED)
-- Számlakivonat futó egyenleggel
+- Számlakivonat futó egyenleggel, letöltés CSV-ben (Excelben is jól nyílik, CSV-injekció ellen védve)
+- Devizaváltás a saját számlák között (rögzített demóárfolyamokkal)
+- Készpénzbefizetés csak admin által (az ügyfél nem írhat jóvá magának pénzt)
 
 ### Bankkártyák
 - Kártya minden számlához
@@ -110,8 +136,12 @@ A projekt célja, hogy **valós banki funkciókat** modellezzek és gyakoroljak 
 
 ### Tranzakciók
 - Bevétel / kiadás
-- Számlák közötti átutalás (napi limittel, fedezetellenőrzéssel, párhuzamos utalásoknál is konzisztensen)
-- Kimenő és bejövő tranzakciók
+- Számlák közötti átutalás (napi limittel – devizás számlánál forintértékben –, fedezetellenőrzéssel, párhuzamos utalásoknál is konzisztensen)
+- Idempotencia-kulcs az utalásnál, devizaváltásnál és kártyás fizetésnél: dupla kattintás vagy hálózati újraküldés
+  sem könyvel kétszer
+- Sztornó (admin): a hibás tétel nem törlődik, hanem egy ellentétes tétel hivatkozik rá; egy tétel csak egyszer sztornózható
+- Egyeztetés: SQL-nézet ellenőrzi, hogy minden számla egyenlege megegyezik-e a tranzakcióinak összegével (admin áttekintés)
+- Kimenő és bejövő tranzakciók, az utalás két lába összekapcsolva
 - Egyenleg history (BalanceHistory)
 - Szűrés időszak, összeg, típus, kategória és szöveg szerint
 - Tranzakció kategóriák
@@ -120,10 +150,11 @@ A projekt célja, hogy **valós banki funkciókat** modellezzek és gyakoroljak 
 ### Megtakarítások
 - Megtakarítási számlák célösszeggel
 - Pénz áthelyezése folyószámla ↔ megtakarítás
-- Havi kamatjóváírás
+- Havi kamatjóváírás az előző hónap legalacsonyabb egyenlege után (hónap végi befizetéssel nem játszható ki), havonta egyszer
 
 ### Statisztikák és értesítések
-- Főoldal összesítő, havi bevétel/kiadás, költés kategóriánként
+- Főoldal összesítő, havi bevétel/kiadás, költés kategóriánként, legnagyobb kiadások (a saját számlák közötti
+  mozgások, devizaváltások és sztornók nem torzítják)
 - Értesítések (beérkező utalás, biztonsági események, ügyfélszolgálati válasz)
 
 ### Ügyfélszolgálat
@@ -162,13 +193,16 @@ A kód felépítése (`frontend/src`):
 
 ## 🧪 Tesztelés
 
-- 431 automatizált backend teszt – futtatás a `backend` mappában: `./mvnw test` (a Testcontainers miatt a Dockernek futnia kell)
+- 512 automatizált backend teszt – futtatás a `backend` mappában: `./mvnw test` (a Testcontainers miatt a Dockernek futnia kell)
 - Unit tesztek (mapperek, service-ek Mockitóval)
 - Controller slice tesztek (@WebMvcTest)
-- Repository és adatbázis-szabály tesztek **Testcontainers + PostgreSQL** segítségével
+- Repository és adatbázis-szabály tesztek **Testcontainers + PostgreSQL** segítségével (triggerek, egyedi indexek,
+  sztornó, egyeztető nézetek, kamat minimumegyenleg alapján)
+- Biztonsági tesztek: hamisított / `alg=none` / visszavont / régi verziójú token, zárolás, kérésszám-korlát, idempotencia
 - Párhuzamos utalások integrációs tesztje (a számla nem mehet mínuszba)
 - A tesztek **külön, izolált adatbázist** használnak (Docker container)
-- Frontend: TypeScript típusellenőrzés és ESLint (`npm run build`, `npm run lint`)
+- Frontend: 19 Vitest teszt (`npm test`) – IBAN-ellenőrzés, összegfeldolgozás, űrlapszabályok, és az utalási varázsló
+  teljes folyamata (a dupla kattintás sem küld két utalást); TypeScript típusellenőrzés és ESLint (`npm run build`, `npm run lint`)
 
 ---
 

@@ -10,9 +10,12 @@ A Docker Desktopnak futnia kell. Ebben a mappában:
 docker compose up -d
 ```
 
+(A teljes alkalmazás – adatbázis, backend, frontend – a gyökérben lévő `docker-compose.yml`-lel egy paranccsal is
+indítható, ugyanezzel az adatbázissal: lásd [`docs/TELEPITES.md`](../docs/TELEPITES.md#8-indítás-egy-paranccsal-docker-compose).)
+
 | Beállítás | Érték |
 |---|---|
-| Host, port | `localhost:5432` |
+| Host, port | `localhost:5432` (csak erről a gépről érhető el: `127.0.0.1`) |
 | Adatbázis | `finex` |
 | Felhasználó / jelszó | `finex` / `finex123` (csak fejlesztői érték) |
 | Konténer | `finex-postgres` |
@@ -34,8 +37,19 @@ A fájlok helye: `backend/src/main/resources/db/`
 | `migration/V3__reporting_views.sql` | `v_account_monthly_summary` nézet: havi bevétel/kiadás számlánként (`FILTER` záradék, budapesti idő) |
 | `migration/V4__reference_data.sql` | Törzsadat: tranzakciókategóriák |
 | `demo/V4_1__demo_data.sql` | Demóadatok (felhasználók, számlák, kártyák, fél év tranzakció, megtakarítások, értesítések, ticketek) |
+| `migration/V5__security_hardening.sql` | `users.token_version` (a régi tokenek érvénytelenítése), `revoked_tokens` (kijelentkezett tokenek), a kártyabirtokos neve, kifejezés-alapú egyedi index (havonta legfeljebb egy kamatjóváírás), `savings_min_balance()` függvény (a havi minimumegyenleg a kamathoz), `standing_orders.execution_day` |
+| `migration/V6__audit_log.sql` | `audit_log`: az admin műveletek naplója; trigger tiltja a módosítást és a törlést |
+| `migration/V7__ledger_links_and_reversals.sql` | `related_transaction_id` (az utalás két lába), `reversal_of_id` (sztornó, egyedi: egy tétel csak egyszer sztornózható), trigger: a tétel pénzneme egyezzen a számláéval, a `balance_history` módosíthatatlan, `is_cashflow()` függvény (valódi bevétel/kiadás-e a tétel – a saját számlák közötti mozgás, a devizaváltás és a sztornó nem), a havi nézet ezt használja |
+| `migration/V8__idempotency_keys.sql` | `idempotency_keys`: a már feldolgozott utalások / fizetések kulcsa és válasza (a dupla könyvelés ellen) |
+| `migration/V9__reconciliation_views.sql` | `v_account_reconciliation`, `v_savings_reconciliation`: egyeztető nézetek – a tárolt egyenleg megegyezik-e a tételek összegével (`difference`), megtakarításnál az utolsó mozgás utáni egyenleggel (`balance_after`) is |
 
-A lefuttatott migrációkat a `flyway_schema_history` tábla tartja nyilván. Egy már lefuttatott migrációs fájlt **nem szabad módosítani**; sémaváltozáshoz új fájl kell (`V5__...sql`).
+A lefuttatott migrációkat a `flyway_schema_history` tábla tartja nyilván. Egy már lefuttatott migrációs fájlt **nem szabad módosítani**; sémaváltozáshoz új fájl kell (`V10__...sql`).
+
+Egyeztetés kézzel (pgAdminban vagy `psql`-ben) – üres eredmény = minden számla rendben:
+
+```sql
+SELECT * FROM v_account_reconciliation WHERE difference <> 0;
+```
 
 A tesztek (Testcontainers) csak a `migration` mappát futtatják, a demóadatokat nem.
 
@@ -58,5 +72,4 @@ docker compose up -d
 
 ## Régi adatok
 
-- A Flyway előtti, Hibernate által létrehozott adatbázis a **`finex_finex-db-data`** volume-ban megmaradt, a jelenlegi konténer nem használja. Ha már nincs rá szükség: `docker volume rm finex_finex-db-data`.
-- A `dumps/finex-2026-01-14.backup` mentés (pgAdmin, custom formátum) szintén a régi sémához készült, az új sémába nem tölthető vissza, csak archívumként van meg.
+A Flyway előtti, Hibernate által létrehozott régi adatbázisra nincs szükség. Ha a volume-ja (`finex_finex-db-data`) még megvan a gépen (`docker volume ls`), törölhető: `docker volume rm finex_finex-db-data`.

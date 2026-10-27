@@ -185,6 +185,9 @@ A munka mindig a `main-mmark-dev` ágon folyik; a `main` ezt követi.
 
 Három dolog fut egyszerre: **adatbázis (Docker) → backend (8080) → frontend (5173)**. Ebben a sorrendben indítsd.
 
+> Ha csak használni / bemutatni szeretnéd az alkalmazást (fejlesztés nélkül), elég egyetlen parancs, Java és Node.js
+> nélkül: lásd [8. Indítás egy paranccsal](#8-indítás-egy-paranccsal-docker-compose).
+
 ### 4.1 Adatbázis
 
 A Docker Desktopnak futnia kell. A `FineX` mappából:
@@ -209,7 +212,7 @@ Ellenőrzés:
 ```powershell
 docker ps
 ```
-✅ Ha jó: van egy `finex-postgres` sor, a PORTS oszlopban `0.0.0.0:5432->5432/tcp`.
+✅ Ha jó: van egy `finex-postgres` sor, a PORTS oszlopban `127.0.0.1:5432->5432/tcp` (csak erről a gépről érhető el).
 
 Az adatbázis üresen indul: a sémát és a demóadatokat a backend hozza létre az első indításkor (Flyway).
 A konténer a Docker Desktoppal együtt magától újraindul (`restart: always`).
@@ -230,7 +233,7 @@ Az első futás **több percig** tart (letölti a Mavent és az összes függős
 
 ✅ Ha jó, a napló végén ilyesmi látszik:
 ```
-Successfully applied 5 migrations to schema "public", now at version v4.1
+Successfully applied 10 migrations to schema "public", now at version v9
 Tomcat started on port 8080 (http)
 Started FinexApplication in … seconds
 ```
@@ -268,7 +271,7 @@ npm install
 ```
 
 ✅ Ha jó: `added … packages … in …s` (első alkalommal 1–2 perc). Csak az első alkalommal kell, vagy ha a
-`package.json` változik.
+`package.json` változik (például a frontend-tesztekhez hozzáadott Vitest miatt egyszer újra le kell futtatni).
 
 ```powershell
 npm run dev
@@ -304,7 +307,7 @@ git pull
 
 ## 6. Tesztek
 
-### Backend (431 teszt, kb. 2–4 perc)
+### Backend (512 teszt, kb. 2–4 perc)
 
 A Docker Desktopnak futnia kell (a tesztek saját, ideiglenes PostgreSQL konténert indítanak – a fejlesztői adatbázishoz
 nem nyúlnak). A `backend` mappában, **a futó backendet előtte nem kell leállítani**:
@@ -313,13 +316,18 @@ nem nyúlnak). A `backend` mappában, **a futó backendet előtte nem kell leál
 .\mvnw.cmd test
 ```
 
-✅ Ha jó: `Tests run: 431, Failures: 0, Errors: 0, Skipped: 0` és `BUILD SUCCESS`.
+✅ Ha jó: `Tests run: 512, Failures: 0, Errors: 0, Skipped: 0` és `BUILD SUCCESS`.
 
 Eclipse-ből: jobb klikk a projekten → **Run As → JUnit Test**.
 
 ### Frontend
 
-A `frontend` mappában:
+A `frontend` mappában (ha a Vitest még nincs telepítve: előbb `npm install`):
+
+```powershell
+npm test
+```
+✅ Ha jó: `Test Files  5 passed (5)` és `Tests  19 passed (19)`. Folyamatos futtatás fejlesztés közben: `npm run test:watch`.
 
 ```powershell
 npm run lint
@@ -351,3 +359,71 @@ npm run build
 | Eclipse: piros hibák a Lombok-os kódban | Lombok telepítése (1.3), Eclipse újraindítás, majd Maven → Update Project. |
 | Eclipse: `Project configuration is not up-to-date with pom.xml` | Jobb klikk → Maven → Update Project… |
 | Git: `LF will be replaced by CRLF` figyelmeztetés | Ártalmatlan (`core.autocrlf=true`). |
+| Belépés: „Túl sok bejelentkezési kérés. Várj egy percet…” (HTTP 429) | A kérésszám-korlát védi a belépést és a regisztrációt (IP-címenként percenként 10 belépés, óránként 10 regisztráció). Várj egy percet (a válasz `Retry-After` fejléce megmondja, mennyit). |
+| Belépés: „Túl sok sikertelen bejelentkezési kísérlet. Próbáld újra 15 perc múlva.” | 5 hibás jelszó ugyanarról a gépről → 15 perc zárolás (beállítás: `finex.login-*` az `application.properties`-ben). |
+| Docker Compose: `port is already allocated` (3000 vagy 5432) | A 3000-es portot más program foglalja, vagy a fejlesztői adatbázis-konténer egy régi beállítással fut. `docker ps` → állítsd le a régit, vagy a `docker-compose.yml`-ben írd át a `3000`-et. |
+| Docker Compose: a `--wait` hibával kilép (`container finex-backend is unhealthy`) | A backend nem tudott elindulni: `docker compose logs backend`. A leggyakoribb ok egy rövid `FINEX_JWT_SECRET` a `.env`-ben (legalább 32 karakter). |
+
+---
+
+## 8. Indítás egy paranccsal (Docker Compose)
+
+A gyökérben lévő `docker-compose.yml` mindhárom részt elindítja: az adatbázist (ugyanazt, mint a `database` mappában),
+a backendet és a frontendet (nginx szolgálja ki, és ő továbbítja az `/api/...` kéréseket a backendnek). Ehhez **csak a
+Docker Desktop kell**, Java és Node.js nem. Bemutatóhoz ez a legkényelmesebb.
+
+1. Ha fejlesztői módban fut a backend (Eclipse vagy terminál) vagy a `npm run dev`, azokat állítsd le (`Ctrl + C`, ill.
+   Eclipse-ben a piros Stop gomb) – nem ütköznek, de így biztosan az új verziót látod.
+2. A Docker Desktop fusson. A `FineX` mappában:
+
+```powershell
+docker compose up -d --build --wait
+```
+
+✅ Ha jó (az első alkalommal 5–10 perc, mert letölti és lefordítja a backendet és a frontendet; később másodpercek):
+```
+✔ Container finex-postgres  Healthy
+✔ Container finex-backend   Healthy
+✔ Container finex-frontend  Healthy
+```
+
+3. Nyisd meg: **http://localhost:3000** (Swagger UI: http://localhost:3000/api/swagger-ui.html). A belépési adatok a
+   [`database/README.md`](../database/README.md#demó-felhasználók)-ben vannak.
+
+Hasznos parancsok (a `FineX` mappában):
+
+```powershell
+docker compose ps
+```
+✅ Ha jó: mindhárom konténer `Up … (healthy)`.
+
+```powershell
+docker compose logs -f backend
+```
+A backend naplója (kilépés: `Ctrl + C`, a konténer tovább fut).
+
+```powershell
+docker compose down
+```
+Leállítás. Az adatok megmaradnak (`finex_finex-pgdata` volume), a következő indítás ugyanott folytatja. A
+`docker compose down -v` az adatbázist is törli (a demóadatok a következő indításkor újra betöltődnek).
+
+Tudnivalók:
+- Kódváltozás után a `--build` újrafordítja, ami változott (a Maven- és npm-függőségek gyorsítótárban maradnak).
+- Az adatbázis ugyanaz, mint fejlesztői módban, így a kettő között oda-vissza lehet váltani (csak egyszerre ne fusson
+  a Dockeres és az Eclipse-es backend).
+- A backend portja (8080) nincs kinyitva a gép felé, csak az nginx éri el; a frontend és az adatbázis portja csak
+  erről a gépről érhető el (`127.0.0.1`). Ha telefonról is meg akarod nyitni a helyi hálózaton, a
+  `docker-compose.yml`-ben a `"127.0.0.1:3000:80"` sort írd át `"3000:80"`-ra.
+- JWT-kulcs: ha nincs megadva, minden indításkor véletlen kulcs készül (újraindítás után újra be kell lépni).
+  Állandó kulcshoz másold le a `.env.example`-t `.env` néven a `FineX` mappába, és írd bele a kulcsot (a `.env` nincs a gitben).
+
+---
+
+## 9. Éles üzem (prod profil) – tájékoztatásul
+
+A demóadatok jelszavai a publikus repóban olvashatók, ezért éles környezetben a `prod` profillal kell indítani:
+`SPRING_PROFILES_ACTIVE=prod`. Ilyenkor nincs demóadat és nincs Swagger, és a backend **megtagadja az indulást**, ha
+nincs megadva `FINEX_JWT_SECRET`, vagy ha az adatbázisban demófiók van. A belépés IP-alapú korlátai nginx (vagy más
+fordított proxy) mögött csak `FINEX_FORWARD_HEADERS_STRATEGY=framework` mellett látják a valódi kliens címét – de ezt
+csak akkor szabad bekapcsolni, ha a backend közvetlenül nem érhető el (különben a kliens meghamisíthatná a fejlécet).
