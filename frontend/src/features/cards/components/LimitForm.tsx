@@ -17,8 +17,7 @@ interface LimitFormProps {
   disabled?: boolean
 }
 
-// A napi költési limit: csúszkával gyorsan, a mezőben pontosan állítható, a Mentés gomb csak változáskor aktív.
-// (A komponens kártyánként újraindul, a szülő a kártya azonosítójával kulcsolja.)
+// Napi költési limit csúszkával vagy pontosan; a szülő kártyánként újrakulcsolja
 export default function LimitForm({ card, currency, disabled = false }: LimitFormProps) {
   const updateLimits = useUpdateCardLimits()
   const bounds = limitSliderBounds(currency)

@@ -15,7 +15,7 @@ export function useRecentTransactions(size: number) {
   })
 }
 
-// Keresés lapozva ("További tételek"); szűrőváltáskor az előző találatok halványítva látszanak, amíg az újak megjönnek
+// Szűrőváltáskor az előző találatok halványítva látszanak, amíg az újak megjönnek
 export function useTransactionSearch(filter: TransactionSearchParams) {
   return useInfiniteQuery({
     queryKey: queryKeys.transactionSearch(filter),
@@ -42,7 +42,7 @@ export function useTransactionCategories(id: number | undefined) {
   })
 }
 
-// A kategóriák módosítása után a listák (a sorokban is látszik a kategória) és a statisztikák is frissülnek
+// Kategóriamódosítás után a listák és a statisztikák is frissülnek
 function useCategoryChangeInvalidation() {
   const queryClient = useQueryClient()
   return () => Promise.all([queryKeys.transactions, queryKeys.statistics].map((queryKey) => queryClient.invalidateQueries({ queryKey })))

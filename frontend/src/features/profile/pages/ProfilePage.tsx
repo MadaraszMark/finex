@@ -12,7 +12,7 @@ import PasswordCard from '../components/PasswordCard'
 import PersonalDataCard from '../components/PersonalDataCard'
 import ProfileSkeleton from '../components/ProfileSkeleton'
 
-// Profil és biztonság: összefoglaló kártya, személyes adatok, jelszócsere, belépési napló és megjelenés
+// Profil és biztonság: adatok, jelszócsere, belépési napló és megjelenés
 export default function ProfilePage() {
   const { data: user } = useCurrentUser()
   const [now] = useState(() => new Date())
@@ -63,7 +63,6 @@ export default function ProfilePage() {
             </div>
           </Card>
 
-          {/* Két, egyforma szélességű sor; soronként egyforma magas kártyák, így a hézagok és a szélek egy vonalba esnek */}
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
             <PersonalDataCard key={user.updatedAt} user={user} />
             <PasswordCard />

@@ -1,6 +1,6 @@
 import { ShoppingBag } from 'lucide-react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { getErrorMessage } from '../../../api/client'
@@ -13,6 +13,7 @@ import Select from '../../../components/ui/Select'
 import Switch from '../../../components/ui/Switch'
 import TextField from '../../../components/ui/TextField'
 import { formatMaskedCard, formatMoney, formatSignedMoney, parseAmount } from '../../../lib/format'
+import { newIdempotencyKey } from '../../../lib/idempotency'
 import { useCategories } from '../../transactions/queries'
 import { useCardPayment } from '../queries'
 import { cardPaymentSchema, paymentPresets, type CardPaymentForm } from '../schemas'
@@ -24,13 +25,14 @@ interface CardPaymentDialogProps {
   onClose: () => void
 }
 
-// Demó kártyás fizetés: a backend ellenőrzi a kártya állapotát, a lejáratot, az online fizetés engedélyét,
-// a napi limitet és a fedezetet – a hibaüzenetét itt jelenítjük meg
+// Demó kártyás fizetés; a limitet, a fedezetet és a kártya állapotát a backend ellenőrzi
 export default function CardPaymentDialog({ card, currency, open, onClose }: CardPaymentDialogProps) {
   const payment = useCardPayment()
   const { data: categories = [] } = useCategories()
   const schema = useMemo(() => cardPaymentSchema(currency), [currency])
   const remaining = Math.max(card.dailyLimit - card.spentToday, 0)
+  // Ablakmegnyitásonként egy kulcs: újrapróbáláskor a szerver nem terhel kétszer
+  const [idempotencyKey, setIdempotencyKey] = useState(newIdempotencyKey)
 
   const {
     register,
@@ -50,6 +52,7 @@ export default function CardPaymentDialog({ card, currency, open, onClose }: Car
     onClose()
     reset()
     payment.reset()
+    setIdempotencyKey(newIdempotencyKey())
   }
 
   function applyPreset(preset: (typeof paymentPresets)[number]) {
@@ -64,6 +67,7 @@ export default function CardPaymentDialog({ card, currency, open, onClose }: Car
     payment.mutate(
       {
         id: card.id,
+        idempotencyKey,
         request: {
           merchantName: values.merchantName,
           amount,

@@ -10,7 +10,7 @@ import { cn } from '../../../lib/cn'
 import TransactionRow from '../../transactions/components/TransactionRow'
 import { useRecentTransactions } from '../../transactions/queries'
 
-// A koncepciókép "Legutóbbi tranzakciók" listája az összes számláról, a "Részletek" a Tranzakciók oldalra visz
+// A legutóbbi tranzakciók az összes számláról
 export default function RecentTransactions({ className }: { className?: string }) {
   const transactionsQuery = useRecentTransactions(6)
   const [now] = useState(() => new Date())

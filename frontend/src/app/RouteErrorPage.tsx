@@ -4,8 +4,7 @@ import AuroraBackground from '../components/brand/AuroraBackground'
 import Button from '../components/ui/Button'
 import { buttonStyles } from '../components/ui/buttonStyles'
 
-// Váratlan hiba egy oldal megjelenítése közben (pl. egy új verzió kitelepítése után már nem létező kódrészlet).
-// Az útvonalak "errorElement"-je, így egy hiba nem hagyja üresen a képernyőt.
+// Az útvonalak errorElement-je: egy váratlan hiba ne hagyja üresen a képernyőt
 export default function RouteErrorPage() {
   const error = useRouteError()
   const detail = isRouteErrorResponse(error) ? `${error.status} ${error.statusText}` : error instanceof Error ? error.message : null

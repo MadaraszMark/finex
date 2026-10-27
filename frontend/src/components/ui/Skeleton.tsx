@@ -1,7 +1,6 @@
 import { cn } from '../../lib/cn'
 
-// Betöltés közben a tartalom helyén csillogó "váz" (balról jobbra végigfutó fénysáv), így az oldal nem ugrál,
-// amikor megérkeznek az adatok
+// Csillogó váz a tartalom helyén, hogy az adatok megérkezésekor ne ugráljon az oldal
 export default function Skeleton({ className }: { className?: string }) {
   return (
     <div

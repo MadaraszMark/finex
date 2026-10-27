@@ -1,7 +1,7 @@
 import { SkeletonCard } from '../../../components/skeletons/SkeletonKit'
 import Skeleton from '../../../components/ui/Skeleton'
 
-// A kedvezményezettek váza: a kártyák rácsa (monogram, név és megjegyzés, számlaszám, alul a gombok)
+// A kedvezményezettek váza: a kártyák rácsa
 export default function BeneficiariesSkeleton() {
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">

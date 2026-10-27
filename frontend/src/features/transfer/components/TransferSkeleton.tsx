@@ -1,7 +1,7 @@
 import { SkeletonCard } from '../../../components/skeletons/SkeletonKit'
 import Skeleton from '../../../components/ui/Skeleton'
 
-// Az utalás váza: balra a varázsló (lépésjelző, a lépés tartalma, alul a gombok), jobbra az összefoglaló
+// Az utalás váza: balra a varázsló, jobbra az összefoglaló
 export default function TransferSkeleton() {
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">

@@ -5,6 +5,7 @@ import {
   ChartPie,
   CreditCard,
   Headset,
+  History,
   House,
   Landmark,
   LayoutDashboard,
@@ -20,8 +21,7 @@ import {
 } from 'lucide-react'
 import { SHY } from '../lib/format'
 
-// Az alkalmazás menüje egy helyen: ebből épül az oldalsáv (asztali nézet), az alsó menüsor
-// és a mobilos "Menü" lap. Az útvonalak a backend erőforrásainak nevét követik (/accounts, /cards, …).
+// A menü egy helyen: ebből épül az oldalsáv, az alsó menüsor és a mobilos Menü lap
 
 export interface NavItem {
   label: string
@@ -79,12 +79,13 @@ export const navSections: NavSection[] = [
       { label: 'Számlák kezelése', to: '/admin/accounts', icon: Landmark },
       { label: 'Ticketek', to: '/admin/support-tickets', icon: MessagesSquare },
       { label: 'Belépési napló', to: '/admin/login-logs', icon: ScrollText },
+      { label: 'Audit napló', to: '/admin/audit-log', icon: History },
       { label: 'Kategóriák', to: '/admin/categories', icon: Tags },
     ],
   },
 ]
 
-// Mobilon az alsó menüsor fülei (a középső "Utalás" kiemelt gomb); a többi oldal a "Menü" lapon érhető el
+// Mobilos alsó menüsor (középen a kiemelt Utalás gomb); a többi oldal a Menü lapon van
 export const mobileTabs: { left: NavItem[]; primary: NavItem; right: NavItem[] } = {
   left: [
     { label: 'Főoldal', to: '/', icon: House, end: true },

@@ -1,6 +1,8 @@
-import { ArrowLeft, Plus, SearchX } from 'lucide-react'
+import { ArrowLeft, Download, SearchX } from 'lucide-react'
 import { useState } from 'react'
 import { useParams } from 'react-router'
+import { toast } from 'sonner'
+import { downloadStatementCsv } from '../../../api/accounts'
 import { getErrorMessage, isNotFoundError } from '../../../api/client'
 import ButtonLink from '../../../components/ui/ButtonLink'
 import Button from '../../../components/ui/Button'
@@ -10,13 +12,13 @@ import PageHeader from '../../../components/ui/PageHeader'
 import QueryError from '../../../components/ui/QueryError'
 import Skeleton from '../../../components/ui/Skeleton'
 import { addDays } from '../../../lib/dates'
+import { saveBlob } from '../../../lib/download'
 import { accountTypeLabels, currencyName, formatIsoDate, parseIsoDate } from '../../../lib/format'
 import { useCards } from '../../cards/queries'
 import AccountOverview from '../components/AccountOverview'
 import { AccountDetailSkeleton } from '../components/AccountSkeletons'
 import BalanceChart, { type BalancePoint } from '../components/BalanceChart'
 import CloseAccountCard from '../components/CloseAccountCard'
-import DepositDialog from '../components/DepositDialog'
 import PeriodFilter from '../components/PeriodFilter'
 import PeriodSummary from '../components/PeriodSummary'
 import StatementTable from '../components/StatementTable'
@@ -42,8 +44,7 @@ function AccountNotFound() {
   )
 }
 
-// Számlaadatlap (/accounts/:accountId): egyenleg, számlaszám, kártya; alatta egy időszakszűrő, amely az
-// egyenleggrafikont, az időszak számait és a kivonatot egyszerre szűri; legalul a számla lezárása
+// Számlaadatlap: egy időszakszűrő szűri a grafikont, az összesítést és a kivonatot
 export default function AccountDetailPage() {
   const accountId = Number(useParams().accountId)
   if (!Number.isSafeInteger(accountId) || accountId <= 0) {
@@ -59,7 +60,7 @@ function AccountDetail({ accountId }: { accountId: number }) {
   const { period, today, selectPreset, selectRange } = usePeriod()
   const statementQuery = useStatement(accountId, period.from, period.to)
   const historyQuery = useBalanceHistory(accountId, period.from, period.to)
-  const [depositOpen, setDepositOpen] = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const [now] = useState(() => new Date())
 
   if (isNotFoundError(accountQuery.error)) {
@@ -86,11 +87,10 @@ function AccountDetail({ accountId }: { accountId: number }) {
   const openAccountCount = accountsQuery.data?.filter((item) => item.status !== 'CLOSED').length ?? 1
 
   const statement = statementQuery.data
-  // Az időtengely a (megjelenített) kivonat időszaka: a kezdő nap elejétől a záró nap végéig, a mai napnál csak a
-  // mostani pillanatig. Időszakváltás közben még az előző kivonat látszik, ezért annak az időszakát követjük.
+  // Időtengely: a megjelenített kivonat időszaka (a mai napnál csak a mostani pillanatig)
   const from = parseIsoDate(statement?.from ?? period.from).getTime()
   const to = Math.min(addDays(parseIsoDate(statement?.to ?? period.to), 1).getTime() - 1, now.getTime())
-  // A grafikon a kivonat nyitó egyenlegével indul, az egyenlegtörténet pontjain át a záró egyenlegig tart
+  // A grafikon a nyitó egyenlegtől az egyenlegtörténeten át a záró egyenlegig tart
   const points: BalancePoint[] | undefined =
     statement && historyQuery.data
       ? [
@@ -103,17 +103,28 @@ function AccountDetail({ accountId }: { accountId: number }) {
       : undefined
   const periodLabel = `${formatIsoDate(period.from)} – ${formatIsoDate(period.to)}`
 
+  // A kiválasztott időszak kivonata CSV-fájlban (Excelben megnyitható)
+  async function downloadStatement() {
+    setDownloading(true)
+    try {
+      const csv = await downloadStatementCsv(accountId, period.from, period.to)
+      saveBlob(csv, `finex-kivonat-${period.from}_${period.to}.csv`)
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return (
     <>
       <PageHeader
         eyebrow={`${accountTypeLabels[account.accountType]} · ${currencyName(account.currency)}`}
         title={account.name}
         actions={
-          account.status === 'ACTIVE' && (
-            <Button variant="glass" leftIcon={<Plus />} onClick={() => setDepositOpen(true)}>
-              Befizetés
-            </Button>
-          )
+          <Button variant="glass" leftIcon={<Download />} loading={downloading} onClick={() => void downloadStatement()}>
+            Kivonat letöltése (CSV)
+          </Button>
         }
       />
 
@@ -201,7 +212,6 @@ function AccountDetail({ accountId }: { accountId: number }) {
         </div>
       )}
 
-      <DepositDialog account={account} open={depositOpen} onClose={() => setDepositOpen(false)} />
     </>
   )
 }

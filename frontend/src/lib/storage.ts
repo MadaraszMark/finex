@@ -1,5 +1,4 @@
-// localStorage-hozzáférés hibatűréssel: privát ablakban vagy letiltott tárolásnál a böngésző kivételt dob,
-// ilyenkor az alkalmazás tárolás nélkül (csak a memóriában) működik tovább
+// Hibatűrő localStorage: privát ablakban kivételt dobhat, ilyenkor tárolás nélkül megy tovább
 export const storage = {
   get(key: string): string | null {
     try {

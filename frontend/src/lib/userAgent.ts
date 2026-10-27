@@ -1,4 +1,4 @@
-// A belépési napló böngészőazonosítójából (User-Agent) olvasható eszközleírás: "Chrome · Windows"
+// Eszközleírás a User-Agentből a belépési naplóhoz: "Chrome · Windows"
 
 export function describeUserAgent(userAgent: string | null): string {
   if (!userAgent) {
@@ -34,8 +34,7 @@ export function describeUserAgent(userAgent: string | null): string {
   return os ? `${browser} · ${os}` : browser
 }
 
-// A saját gépről (fejlesztés közben) érkező belépés címe a naplóban "0:0:0:0:0:0:0:1" vagy "127.0.0.1": ez emberi
-// nyelven "helyi gép"; minden más cím változatlanul jelenik meg
+// A saját gépről érkező belépés (::1, 127.x) címe a naplóban "helyi gép"
 export function describeIpAddress(ipAddress: string): string {
   return ipAddress === '0:0:0:0:0:0:0:1' || ipAddress === '::1' || ipAddress.startsWith('127.') ? 'helyi gép' : ipAddress
 }

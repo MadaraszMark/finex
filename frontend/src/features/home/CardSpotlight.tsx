@@ -12,9 +12,7 @@ import { accountTheme } from '../accounts/accountTheme'
 import { useAccounts } from '../accounts/queries'
 import { useCards } from '../cards/queries'
 
-// A főoldal kártyablokkja: az első aktív bankkártya lebegő, az egér mozgására térben megdőlő grafikaként,
-// alatta a mai költés a napi limithez képest. Ha a sor magasabb (a mellette álló lista miatt), a kártyagrafika a
-// szabad hely közepére kerül, a költésjelző pedig a kártya aljára.
+// A főoldal kártyablokkja: az első aktív bankkártya és a mai költés a napi limithez képest
 export default function CardSpotlight({ className }: { className?: string }) {
   const { data: cards } = useCards()
   const { data: accounts } = useAccounts()
@@ -55,7 +53,6 @@ export default function CardSpotlight({ className }: { className?: string }) {
               aria-label={`Bankkártyád: ${formatMaskedCard(card.maskedNumber)}, lejárat: ${formatCardExpiry(card.expiryDate)}`}
               className="relative mx-auto mt-7 w-full max-w-[22rem] [perspective:1200px]"
             >
-              {/* Mögötte egy elfordított, áttetsző "második kártya", mint a belépő oldalon */}
               <motion.div
                 style={{ rotateX, rotateY }}
                 initial={{ opacity: 0, y: 30 }}

@@ -2,11 +2,11 @@ export interface ChartTooltipRow {
   key: string
   label: string
   value: string
-  // A sorozat színe (CSS-változó is lehet); a sor elején rövid vonal jelöli, nem színes szöveg
+  // A sorozat színe (CSS-változó is lehet); a sor elején rövid vonal jelöli
   color: string
 }
 
-// A grafikonok közös buboréka: az érték hangsúlyos, a sorozat neve mellette halványabb (a jelmagyarázatban fordítva)
+// A grafikonok közös buboréka: hangsúlyos érték, mellette halványabb sorozatnév
 export default function ChartTooltip({ title, rows }: { title: string; rows: ChartTooltipRow[] }) {
   return (
     <div className="min-w-44 rounded-2xl border border-border bg-card/95 px-3.5 py-3 text-sm shadow-xl backdrop-blur-xl">

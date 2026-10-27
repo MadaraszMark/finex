@@ -5,13 +5,12 @@ interface MeterProps {
   value: number
   max: number
   label: string
-  // A felolvasóprogram ezt mondja a nyers szám helyett (pl. "12 500 Ft a 200 000 Ft-ból")
+  // A felolvasó ezt mondja a nyers szám helyett (pl. "12 500 Ft a 200 000 Ft-ból")
   valueText: string
   className?: string
 }
 
-// Mérősáv egy határhoz viszonyított értékhez (pl. mai kártyás költés a napi limithez képest). A kitöltés színe
-// a telítettséget jelzi (80%-tól figyelmeztető, a határon piros), a sáv alapja ugyanannak a színnek világos árnyalata.
+// Mérősáv egy határhoz viszonyítva; 80%-tól figyelmeztető, a határon piros
 export default function Meter({ value, max, label, valueText, className }: MeterProps) {
   const ratio = max > 0 ? Math.min(value / max, 1) : 1
   const level = ratio >= 1 ? 'full' : ratio >= 0.8 ? 'high' : 'normal'

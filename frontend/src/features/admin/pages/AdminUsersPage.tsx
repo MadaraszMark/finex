@@ -16,7 +16,7 @@ import { TableRowsSkeleton } from '../components/AdminSkeletons'
 import UserDetailsDialog from '../components/UserDetailsDialog'
 import { useAdminUsers } from '../queries'
 
-// Felhasználók: keresés névre vagy e-mail címre (a címsorban: ?q=…&page=…), táblázat, soronként az ügyfél adatlapja
+// Felhasználók: keresés névre vagy e-mail címre (a címsorban: ?q=…&page=…)
 export default function AdminUsersPage() {
   const [params, setParams] = useSearchParams()
   const search = params.get('q') ?? ''

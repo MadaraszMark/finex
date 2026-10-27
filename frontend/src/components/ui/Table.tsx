@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from 'react'
 import { cn } from '../../lib/cn'
 
-// Egységes táblázatok az admin felülethez: keskeny képernyőn vízszintesen görgethető, sorai egér alatt kiemelődnek
+// Admin táblázatok: keskeny képernyőn vízszintesen görgethetők
 
 export function Table({ caption, children, minWidth = '44rem' }: { caption: string; children: ReactNode; minWidth?: string }) {
   return (

@@ -1,17 +1,18 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { queryKeys } from '../../api/queryKeys'
-import { getCategorySpending, getMonthlySummary, getSummary } from '../../api/statistics'
-import { searchTransactions } from '../../api/transactions'
-import { isIncoming } from '../../lib/format'
+import { getCategorySpending, getMonthlySummary, getSummary, getTopExpenses } from '../../api/statistics'
 
-// Szűrőváltáskor az előző adatok látszanak (halványítva), amíg az újak megérkeznek: nincs ugrálás, nincs villanás
+// Az előző adat csak azonos pénznemnél (kulcs 3. eleme) marad, különben rossz jellel látszana
+function keepPreviousOfSameCurrency<T>(currency: string | undefined) {
+  return (previous: T | undefined, previousQuery?: { queryKey: readonly unknown[] }) => (previousQuery?.queryKey[2] === currency ? previous : undefined)
+}
 
 export function useSummary(currency: string | undefined) {
   return useQuery({
     queryKey: queryKeys.summary(currency ?? ''),
     queryFn: () => getSummary(currency ?? 'HUF'),
     enabled: currency !== undefined,
-    placeholderData: keepPreviousData,
+    placeholderData: keepPreviousOfSameCurrency(currency),
   })
 }
 
@@ -20,7 +21,7 @@ export function useMonthlySummary(currency: string | undefined, months = 6) {
     queryKey: queryKeys.monthlySummary(currency ?? '', months),
     queryFn: () => getMonthlySummary(months, currency ?? 'HUF'),
     enabled: currency !== undefined,
-    placeholderData: keepPreviousData,
+    placeholderData: keepPreviousOfSameCurrency(currency),
   })
 }
 
@@ -29,18 +30,16 @@ export function useCategorySpending(currency: string | undefined, from: string, 
     queryKey: queryKeys.categorySpending(currency ?? '', from, to),
     queryFn: () => getCategorySpending(from, to, currency ?? 'HUF'),
     enabled: currency !== undefined,
-    placeholderData: keepPreviousData,
+    placeholderData: keepPreviousOfSameCurrency(currency),
   })
 }
 
-// Az időszak legnagyobb kiadásai: a backend összeg szerint rendezve adja a tételeket (bevételt is), ebből
-// maradnak a kimenő, adott pénznemű tételek
+// A legnagyobb kiadásokat a backend szűri (saját számlák közti mozgás és sztornó nem számít)
 export function useTopExpenses(currency: string | undefined, from: string, to: string, count = 5) {
   return useQuery({
     queryKey: queryKeys.topExpenses(currency ?? '', from, to),
-    queryFn: () => searchTransactions({ from, to }, 0, 50, 'amount,desc'),
+    queryFn: () => getTopExpenses(from, to, currency ?? 'HUF', count),
     enabled: currency !== undefined,
-    placeholderData: keepPreviousData,
-    select: (page) => page.content.filter((item) => !isIncoming(item.type) && item.currency === currency).slice(0, count),
+    placeholderData: keepPreviousOfSameCurrency(currency),
   })
 }

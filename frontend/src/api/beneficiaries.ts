@@ -1,7 +1,7 @@
 import { api } from './client'
 import type { BeneficiaryRequest, BeneficiaryResponse } from './types'
 
-// BeneficiaryController (/beneficiaries): a bejelentkezett felhasználó kedvezményezettjei, név szerint rendezve
+// BeneficiaryController (/beneficiaries): a felhasználó kedvezményezettjei, név szerint
 
 export async function getBeneficiaries(): Promise<BeneficiaryResponse[]> {
   const { data } = await api.get<BeneficiaryResponse[]>('/beneficiaries')

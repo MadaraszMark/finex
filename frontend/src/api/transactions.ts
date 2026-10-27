@@ -1,10 +1,19 @@
 import { api } from './client'
-import type { Page, TransactionCategoryLink, TransactionListItem, TransactionResponse, TransactionSearchParams, TransferRequest, TransferResponse } from './types'
+import type {
+  ExchangeRequest,
+  ExchangeResponse,
+  Page,
+  TransactionCategoryLink,
+  TransactionListItem,
+  TransactionResponse,
+  TransactionSearchParams,
+  TransferRequest,
+  TransferResponse,
+} from './types'
 
 // TransactionController (/transactions) és TransactionCategoryController (/transaction-categories)
 
-// A bejelentkezett felhasználó összes számlájának tételei között keres, alapból a legújabb elöl
-// (a statisztika a legnagyobb összegűeket kéri: sort = "amount,desc")
+// Keresés a felhasználó összes számlájának tételei között, alapból a legújabb elöl
 export async function searchTransactions(filter: TransactionSearchParams, page = 0, size = 20, sort = 'createdAt,desc'): Promise<Page<TransactionListItem>> {
   const { data } = await api.get<Page<TransactionListItem>>('/transactions', {
     params: { ...filter, page, size, sort },
@@ -17,9 +26,15 @@ export async function getTransaction(id: number): Promise<TransactionResponse> {
   return data
 }
 
-// Utalás egy saját számláról; a backend ellenőrzi az IBAN-t, a fedezetet, a napi limitet és a devizanemet
-export async function transfer(request: TransferRequest): Promise<TransferResponse> {
-  const { data } = await api.post<TransferResponse>('/transactions/transfer', request)
+// Utalás; az Idempotency-Key miatt a kétszer elküldött utalás csak egyszer könyvelődik
+export async function transfer({ request, idempotencyKey }: { request: TransferRequest; idempotencyKey: string }): Promise<TransferResponse> {
+  const { data } = await api.post<TransferResponse>('/transactions/transfer', request, { headers: { 'Idempotency-Key': idempotencyKey } })
+  return data
+}
+
+// Devizaváltás két saját számla között a bank árfolyamán (szintén Idempotency-Key-jel)
+export async function exchange({ request, idempotencyKey }: { request: ExchangeRequest; idempotencyKey: string }): Promise<ExchangeResponse> {
+  const { data } = await api.post<ExchangeResponse>('/transactions/exchange', request, { headers: { 'Idempotency-Key': idempotencyKey } })
   return data
 }
 

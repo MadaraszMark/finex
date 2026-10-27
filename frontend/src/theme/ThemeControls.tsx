@@ -12,8 +12,7 @@ const themeOptions: SegmentedOption<ThemePreference>[] = [
   { value: 'system', label: 'Rendszer', icon: <Monitor /> },
 ]
 
-// Háromállású témaválasztó a menükbe (a "Rendszer" az operációs rendszer beállítását követi).
-// Az új téma a megnyomott gombtól induló körben terül szét.
+// Háromállású témaválasztó; az új téma a megnyomott gombtól induló körben terül szét
 export function ThemeSwitcher({ className }: { className?: string }) {
   const { preference } = useTheme()
 

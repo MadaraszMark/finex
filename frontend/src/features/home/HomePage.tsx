@@ -13,9 +13,7 @@ import BalanceOverview from './components/BalanceOverview'
 import HomeSkeleton from './components/HomeSkeleton'
 import RecentTransactions from './components/RecentTransactions'
 
-// Főoldal: a koncepcióképhez hasonlóan elöl a számlakártyák, alattuk az áttekintés (teljes egyenleg, havi
-// bevétel és kiadás, grafikon, megtakarítások), a legutóbbi tranzakciók és a bankkártya a mai költéssel.
-// Minden sor ugyanarra a 3 oszlopos rácsra illeszkedik (azonos hézagokkal), egy soron belül a kártyák egyforma magasak.
+// Főoldal: minden sor ugyanarra a 3 oszlopos rácsra illeszkedik, egyforma magas kártyákkal
 export default function HomePage() {
   const { data: user } = useCurrentUser()
   const [today] = useState(() => formatLongDate(new Date()))
@@ -32,7 +30,6 @@ export default function HomePage() {
         description="Így állnak ma a pénzügyeid."
       />
 
-      {/* A számlák betöltéséig a teljes oldal váza látszik (ugyanabban az elrendezésben, mint a kész oldal) */}
       {accountsQuery.isPending ? (
         <HomeSkeleton />
       ) : (

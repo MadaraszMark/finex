@@ -2,7 +2,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
 import TextField, { type TextFieldProps } from './TextField'
 
-// Jelszómező a koncepcióképek "szem" ikonjával: megmutatja vagy elrejti a beírt jelszót
+// Jelszómező szem ikonnal: megmutatja vagy elrejti a beírt jelszót
 export default function PasswordField(props: Omit<TextFieldProps, 'type' | 'rightSlot'>) {
   const [visible, setVisible] = useState(false)
 

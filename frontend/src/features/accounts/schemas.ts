@@ -10,7 +10,7 @@ export const openAccountSchema = z.object({
 
 export type OpenAccountForm = z.infer<typeof openAccountSchema>
 
-// Összegmező: a beírt szöveget értelmezi (szóköz, tizedesvessző); forintnál csak egész összeg lehet
+// Összegmező: szóközt és tizedesvesszőt is elfogad; forintnál csak egész összeg
 export function amountSchema(currency: string, max: number, maxMessage: string) {
   return z
     .string()

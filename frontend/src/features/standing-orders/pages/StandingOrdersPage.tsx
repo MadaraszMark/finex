@@ -23,7 +23,7 @@ import { useCancelStandingOrder, useStandingOrders } from '../queries'
 
 const nextDateFormatter = new Intl.DateTimeFormat('hu-HU', { month: 'short', day: 'numeric', weekday: 'long' })
 
-// Az aktív megbízások havi terhe pénznemenként (a heti megbízás egy hónapra átszámítva: 52 hét / 12 hónap)
+// Az aktív megbízások havi terhe pénznemenként (a heti megbízás × 52 / 12)
 function monthlyTotals(orders: StandingOrderResponse[]) {
   const totals = new Map<string, number>()
   for (const order of orders) {
@@ -90,8 +90,7 @@ function OrderCard({ order, account, now, onEdit, onCancel }: OrderCardProps) {
   )
 }
 
-// Rendszeres átutalások: az aktív megbízások a következő teljesítéssel, a havi teher összesítve, módosítás és
-// megszüntetés; a megszüntetettek összecsukva a lista végén
+// Rendszeres átutalások; a megszüntetettek összecsukva a lista végén
 export default function StandingOrdersPage() {
   const ordersQuery = useStandingOrders()
   const { data: accounts = [] } = useAccounts()

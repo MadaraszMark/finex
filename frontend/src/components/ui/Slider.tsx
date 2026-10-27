@@ -7,12 +7,11 @@ interface SliderProps extends Omit<ComponentProps<'input'>, 'type' | 'value' | '
   max: number
   step: number
   onValueChange: (value: number) => void
-  // A felolvasóprogram ezt mondja a nyers szám helyett (pl. "200 000 Ft")
+  // A felolvasó ezt mondja a nyers szám helyett (pl. "200 000 Ft")
   valueText?: string
 }
 
-// Csúszka a natív range mezőre építve (billentyűzettel a nyilakkal, Page Up/Down-nal is állítható).
-// A kitöltött rész szélességét a --slider-fill változó adja, a kinézet az index.css .finex-range szabályaiban van.
+// Natív range csúszka; a kitöltést a --slider-fill adja, a kinézet az index.css-ben van
 export default function Slider({ value, min, max, step, onValueChange, valueText, className, style, ...props }: SliderProps) {
   const clamped = Math.min(Math.max(value, min), max)
   const percent = max > min ? ((clamped - min) / (max - min)) * 100 : 0

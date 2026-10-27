@@ -15,8 +15,7 @@ interface StatementTableProps {
   refreshing?: boolean
 }
 
-// A kivonat tételei időrendben, a tétel utáni (futó) egyenleggel, mint egy banki kivonaton.
-// Hosszú időszaknál részletekben jelenik meg; mobilon az egyenleg az összeg alá kerül.
+// A kivonat tételei futó egyenleggel; hosszú időszaknál részletekben jelenik meg
 export default function StatementTable({ items, currency, refreshing = false }: StatementTableProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 

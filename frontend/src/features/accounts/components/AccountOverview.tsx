@@ -21,8 +21,7 @@ interface AccountOverviewProps {
   now: Date
 }
 
-// A számlaadatlap felső kártyája: az egyenleg (a nap egyetlen nagy száma), az állapot, a számlaszám másolással
-// és a számlához tartozó bankkártya
+// A számlaadatlap felső kártyája: egyenleg, állapot, számlaszám és a hozzá tartozó bankkártya
 export default function AccountOverview({ account, card, now }: AccountOverviewProps) {
   const theme = accountTheme(account)
 

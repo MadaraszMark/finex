@@ -11,9 +11,7 @@ import { useBreadcrumb } from './useBreadcrumb'
 // A billentyűparancs jelölése a gyorskereső gombján (Macen ⌘, máshol Ctrl)
 const shortcutLabel = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘ K' : 'Ctrl K'
 
-// Felső sáv: mobilon a logó, asztali nézetben a menübeli hely ("Pénzmozgás › Utalás"); jobbra a gyorskereső,
-// a csengő és a profilmenü. Az oldal tetején átlátszó (mögötte a lila fejlécsáv látszik), görgetéskor fokozatosan
-// saját lila üveghátteret kap.
+// Felső sáv: az oldal tetején átlátszó, görgetéskor fokozatosan lila üveghátteret kap
 export default function TopBar({ onOpenSearch }: { onOpenSearch: () => void }) {
   const breadcrumb = useBreadcrumb()
   const title = useRouteTitle()

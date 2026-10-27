@@ -13,7 +13,7 @@ import { CategoryRowsSkeleton } from './StatisticsSkeleton'
 
 const percentFormatter = new Intl.NumberFormat('hu-HU', { maximumFractionDigits: 0 })
 
-// Ennyi kategória látszik alapból (a többi egy gombbal nyitható le), így a kártya a mellette álló listával egy magas
+// Ennyi kategória látszik alapból, így a kártya a szomszédjával egy magas
 const VISIBLE_COUNT = 6
 
 interface CategorySpendingProps {
@@ -23,9 +23,7 @@ interface CategorySpendingProps {
   refreshing?: boolean
 }
 
-// Költés kategóriánként rangsorolt sávokkal: egy sorozat, ezért egy szín; a sáv hossza az összeg, mellette az
-// összeg és a részarány felirattal (így nincs szükség buborékra, és felolvasóval is minden érték elérhető).
-// Kördiagram helyett, mert 13 kategóriánál a hasonló méretű cikkek nem összehasonlíthatók.
+// Rangsorolt sávok kördiagram helyett: sok kategóriánál a hasonló cikkek nem összehasonlíthatók
 export default function CategorySpending({ data, currency, periodLabel, refreshing = false }: CategorySpendingProps) {
   const total = data?.reduce((sum, item) => sum + item.totalAmount, 0) ?? 0
   const max = data?.[0]?.totalAmount ?? 0
@@ -34,7 +32,6 @@ export default function CategorySpending({ data, currency, periodLabel, refreshi
 
   return (
     <Card className="flex flex-col p-5 sm:p-6">
-      {/* A leírás egy sor (csak az időszak), mint a szomszédos kártyáé, így a két lista sorai egy vonalban kezdődnek */}
       <CardHeader title="Költés kategóriánként" description={periodLabel} />
 
       <div className={cn('mt-5 transition-opacity duration-300', refreshing && 'opacity-50')}>

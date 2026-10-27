@@ -20,7 +20,7 @@ interface CategoryDialogProps {
   onClose: () => void
 }
 
-// Kategória létrehozása vagy szerkesztése: név és ikon, felül élő előnézettel (így jelenik meg a tranzakcióknál)
+// Kategória létrehozása vagy szerkesztése élő előnézettel
 export default function CategoryDialog({ category, onClose }: CategoryDialogProps) {
   // Bezáráskor a tartalom a kiúszó animáció alatt is a korábbi kategóriát mutatja
   const [shown, setShown] = useState(category)

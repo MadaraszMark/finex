@@ -1,8 +1,7 @@
 import { SkeletonCard, SkeletonCardHeader, SkeletonRows, SkeletonStatTile } from '../../../components/skeletons/SkeletonKit'
 import Skeleton from '../../../components/ui/Skeleton'
 
-// A főoldal váza a valódi 3 oszlopos rácson: számlakártyák, az áttekintés mutatói, a grafikon a megtakarításokkal,
-// alul a legutóbbi tranzakciók és a bankkártya
+// A főoldal váza a valódi 3 oszlopos rácson
 export default function HomeSkeleton() {
   return (
     <>

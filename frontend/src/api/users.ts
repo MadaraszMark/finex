@@ -1,7 +1,7 @@
 import { api } from './client'
-import type { ChangePasswordRequest, LoginLogListItem, Page, UpdateUserRequest, UserResponse } from './types'
+import type { AuthResponse, ChangePasswordRequest, LoginLogListItem, Page, UpdateUserRequest, UserResponse } from './types'
 
-// UserController (/users) és LoginLogController (/login-logs): a bejelentkezett felhasználó saját adatai
+// UserController és LoginLogController: a bejelentkezett felhasználó saját adatai
 
 export async function getMe(): Promise<UserResponse> {
   const { data } = await api.get<UserResponse>('/users/me')
@@ -13,9 +13,16 @@ export async function updateMe(request: UpdateUserRequest): Promise<UserResponse
   return data
 }
 
-// Jelszócsere: a jelenlegi jelszót is meg kell adni (a backend ellenőrzi)
-export async function changePassword(request: ChangePasswordRequest): Promise<void> {
-  await api.put('/users/me/password', request)
+// Jelszócsere: a többi eszköz tokenje érvénytelen lesz, ez a munkamenet új tokent kap
+export async function changePassword(request: ChangePasswordRequest): Promise<AuthResponse> {
+  const { data } = await api.put<AuthResponse>('/users/me/password', request)
+  return data
+}
+
+// Kijelentkezés minden más eszközről: a régi tokenek érvénytelenek, ez a munkamenet újat kap
+export async function logoutEverywhere(): Promise<AuthResponse> {
+  const { data } = await api.post<AuthResponse>('/users/me/logout-all')
+  return data
 }
 
 // A saját belépési napló (sikeres és sikertelen próbálkozások), a legújabb elöl

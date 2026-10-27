@@ -26,7 +26,7 @@ interface NewTicketDialogProps {
   onCreated: (ticket: SupportTicketResponse) => void
 }
 
-// Új kérdés az ügyfélszolgálatnak (egyszerre egy megválaszolatlan ticket lehet, ezt a backend ellenőrzi)
+// Új kérdés; egyszerre egy megválaszolatlan ticket lehet (a backend ellenőrzi)
 export default function NewTicketDialog({ open, onClose, onCreated }: NewTicketDialogProps) {
   const createTicket = useCreateTicket()
   const {

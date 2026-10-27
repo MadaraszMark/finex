@@ -11,8 +11,7 @@ interface NotificationItemProps {
   compact?: boolean
 }
 
-// Egy értesítés: típus szerinti ikon, cím (olvasatlannál félkövér, sárga ponttal), üzenet és időpont.
-// Kattintásra olvasottá válik, és oda visz, ahol az esemény részletei vannak.
+// Egy értesítés; kattintásra olvasottá válik, és az esemény részleteihez visz
 export default function NotificationItem({ notification, now, onOpen, compact = false }: NotificationItemProps) {
   const meta = notificationMeta[notification.type]
 

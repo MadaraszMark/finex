@@ -12,7 +12,7 @@ export const staggerItem: Variants = {
   show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24 } },
 }
 
-// Kártya megjelenése: előbb maga a kártya úszik be, utána a benne lévő elemek (staggerItem) egymás után
+// Előbb a kártya úszik be, utána a benne lévő elemek egymás után
 export const cardReveal: Variants = {
   hidden: { opacity: 0, y: 24 },
   show: {

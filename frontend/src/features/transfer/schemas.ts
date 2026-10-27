@@ -3,8 +3,7 @@ import { formatMoney } from '../../lib/format'
 import { isValidIban } from '../../lib/iban'
 import { amountSchema } from '../accounts/schemas'
 
-// Közös mezőszabályok az utaláshoz, a kedvezményezetthez és a rendszeres átutaláshoz (TransferRequest,
-// CreateBeneficiaryRequest, CreateStandingOrderRequest)
+// Közös mezőszabályok: utalás, kedvezményezett és rendszeres átutalás
 export const ibanField = z
   .string()
   .trim()
@@ -16,8 +15,7 @@ export const partnerNameField = z.string().trim().min(1, 'Add meg a címzett nev
 
 export const messageField = z.string().trim().max(255, 'Legfeljebb 255 karakter lehet.')
 
-// Az összeg szabálya a forrásszámla pénznemétől függ (forintnál egész összeg), ezért a séma pénznemenként készül.
-// A napi limit a backend beállítása (GET /settings); amíg nem töltődött be, csak a backend ellenőrzi.
+// Pénznemenként készül; a napi limitet (GET /settings) betöltés előtt csak a backend ellenőrzi
 export function transferSchema(currency: string, dailyLimit: number | undefined) {
   return z.object({
     fromAccountId: z.string().min(1, 'Válaszd ki, melyik számládról utalsz.'),

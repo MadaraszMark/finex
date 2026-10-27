@@ -1,7 +1,7 @@
 import { SkeletonCard, SkeletonChips } from '../../../components/skeletons/SkeletonKit'
 import Skeleton from '../../../components/ui/Skeleton'
 
-// Az értesítések sorainak váza (napfejléccel): ikon, cím, üzenet és időpont
+// Az értesítések sorainak váza (napfejléccel)
 export function NotificationRowsSkeleton({ count }: { count: number }) {
   return (
     <div>
@@ -22,7 +22,7 @@ export function NotificationRowsSkeleton({ count }: { count: number }) {
   )
 }
 
-// Az Értesítések oldal váza: a szűrő pirulák és a napok szerint csoportosított lista
+// Az Értesítések oldal váza: szűrők és a napok szerinti lista
 export default function NotificationsSkeleton() {
   return (
     <SkeletonCard className="p-4 sm:p-6">

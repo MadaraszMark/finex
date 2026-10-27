@@ -36,7 +36,7 @@ export default function RegisterPage() {
 
   const password = useWatch({ control, name: 'password' })
 
-  // Sikeres regisztráció után a felhasználó rögtön be is van jelentkezve (a backend számlát és kártyát nyitott neki)
+  // Regisztráció után rögtön be is van jelentkezve (a backend számlát és kártyát nyitott)
   const registerMutation = useMutation({
     mutationFn: registerUser,
     onSuccess: (response) => {

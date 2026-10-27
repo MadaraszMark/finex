@@ -37,7 +37,7 @@ interface RecipientStepProps {
   knownTarget: boolean
 }
 
-// 2. lépés: kinek utalsz? Kedvezményezett a listából, saját másik számla, vagy új címzett IBAN-nal
+// 2. lépés: kedvezményezett, saját másik számla vagy új címzett IBAN-nal
 export default function RecipientStep({ mode, onModeChange, beneficiaries, ownAccounts, ownerName, knownTarget }: RecipientStepProps) {
   const {
     register,

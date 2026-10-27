@@ -36,11 +36,11 @@ function totals(months: MonthlySummaryResponse[]) {
   return { income, outcome, net: income - outcome, savingRate: income > 0 ? ((income - outcome) / income) * 100 : undefined }
 }
 
-// Statisztika: egy szűrősor (időszak, pénznem) az összes alatta lévő számot és grafikont egyszerre szűri;
-// a szűrés a címsorban marad (?months=6&currency=HUF)
+// Statisztika: egy szűrősor szűr mindent, a címsorban tárolva (?months=6&currency=HUF)
 export default function StatisticsPage() {
   const [params, setParams] = useSearchParams()
-  const { data: accounts = [] } = useAccounts()
+  const accountsQuery = useAccounts()
+  const accounts = accountsQuery.data ?? []
   const [today] = useState(() => new Date())
 
   const available = currencies.filter((currency) => accounts.some((account) => account.currency === currency && account.status !== 'CLOSED'))
@@ -49,7 +49,7 @@ export default function StatisticsPage() {
   const period: PeriodValue = periodOptions.some((option) => option.value === params.get('months')) ? (params.get('months') as PeriodValue) : '6'
   const months = Number(period)
 
-  // Ugyanaz az időszak a grafikonnak (utolsó N naptári hónap) és a kategóriáknak (az első hónap elejétől máig)
+  // Közös időszak a grafikonnak és a kategóriáknak: az utolsó N naptári hónap
   const from = toIsoDate(addMonths(today, -(months - 1)))
   const to = toIsoDate(today)
   const periodLabel = `${formatIsoDate(from)} – ${formatIsoDate(to)}`
@@ -82,6 +82,18 @@ export default function StatisticsPage() {
       ]
     : undefined
 
+  // A pénznem a számlákból jön: nélkülük a többi lekérdezés el sem indulna (örök váz helyett hiba)
+  if (accountsQuery.isError) {
+    return (
+      <>
+        <PageHeader title="Statisztika" description="Mire megy el a pénzed?" />
+        <Card>
+          <QueryError message={getErrorMessage(accountsQuery.error)} retrying={accountsQuery.isFetching} onRetry={() => void accountsQuery.refetch()} />
+        </Card>
+      </>
+    )
+  }
+
   return (
     <>
       <PageHeader title="Statisztika" description="Mire megy el a pénzed?" />
@@ -112,7 +124,6 @@ export default function StatisticsPage() {
                       <tile.icon aria-hidden className={cn('size-4', tile.iconClass)} />
                       {tile.label}
                     </dt>
-                    {/* A szám a csempe szélességéhez igazodik, így keskeny csempén sem törik szét */}
                     <dd className="mt-auto pt-1.5 text-[clamp(1.125rem,12cqi,1.5rem)] font-extrabold tracking-tight break-words text-foreground">{tile.value}</dd>
                   </Card>
                 ))
@@ -125,7 +136,6 @@ export default function StatisticsPage() {
         </>
       )}
 
-      {/* Két egyforma szélességű, egyforma magas kártya: a középvonaluk a mutatók sorának középső hézagára esik */}
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         {categoriesQuery.isError ? (
           <Card>

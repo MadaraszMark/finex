@@ -1,10 +1,8 @@
 import AuroraBackground from '../../../components/brand/AuroraBackground'
-import { BrandDecorations } from '../../../components/brand/Decorations'
 import { SkeletonField } from '../../../components/skeletons/SkeletonKit'
 import Skeleton from '../../../components/ui/Skeleton'
 
-// A belépés és a regisztráció váza, amíg az oldal kódja első alkalommal letöltődik: a lila háttér, a fejléc,
-// balra a címsorok, jobbra az üveghatású űrlapkártya – ugyanott és akkorában, mint az AuthLayout elemei
+// A belépés és a regisztráció váza, amíg az oldal kódja első alkalommal letöltődik
 export function AuthSkeleton() {
   return (
     <div role="status" aria-busy="true" className="relative isolate flex min-h-dvh flex-col overflow-hidden">
@@ -37,26 +35,40 @@ export function AuthSkeleton() {
   )
 }
 
-// A nyitóképernyő váza: a márka színátmenete, középen a cím helye, alul a két gomb
+// A nyitóképernyő váza (ugyanaz az elrendezés, mint a WelcomePage-en)
 export function WelcomeSkeleton() {
   return (
-    <div role="status" aria-busy="true" className="relative min-h-dvh overflow-hidden bg-brand-gradient">
+    <div role="status" aria-busy="true" className="relative isolate flex min-h-dvh flex-col overflow-hidden">
       <span className="sr-only">Az oldal betöltése…</span>
-      <BrandDecorations />
-      <div aria-hidden className="relative mx-auto flex min-h-dvh max-w-md flex-col px-6 pt-6 pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
-        <div className="flex justify-end">
+      <AuroraBackground />
+      <div aria-hidden className="flex flex-1 flex-col">
+        <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 pt-5 sm:px-10 sm:pt-6">
+          <Skeleton className="h-10 w-28 rounded-xl bg-white/15" />
           <Skeleton className="size-11 rounded-2xl bg-white/15" />
-        </div>
-        <div className="flex flex-1 flex-col items-center justify-center py-12">
-          <Skeleton className="h-16 w-48 rounded-2xl bg-white/20 sm:h-20" />
-          <Skeleton className="mt-6 size-16 rounded-full bg-white/15" />
-          <Skeleton className="mt-6 h-5 w-64 rounded-md bg-white/15" />
-          <Skeleton className="mt-2 h-5 w-48 rounded-md bg-white/15" />
-        </div>
-        <div className="space-y-4">
-          <Skeleton className="h-14 rounded-2xl bg-white/15" />
-          <div className="h-px bg-white/20" />
-          <Skeleton className="h-14 rounded-2xl bg-white/15" />
+        </header>
+        <main className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 gap-10 px-4 pt-8 pb-8 sm:items-center sm:px-10 sm:py-10 xl:grid-cols-[minmax(0,1fr)_30rem] xl:gap-16">
+          <section className="flex flex-col">
+            <div className="flex flex-1 flex-col items-center justify-center sm:flex-none xl:items-start">
+              <Skeleton className="h-9 w-40 rounded-full bg-white/15" />
+              <Skeleton className="mt-6 h-10 w-64 max-w-full rounded-xl bg-white/20 min-[400px]:h-12 sm:h-16 sm:w-96 xl:h-[4.75rem] xl:w-[28rem]" />
+              <Skeleton className="mt-2 h-10 w-48 max-w-full rounded-xl bg-white/20 min-[400px]:h-12 sm:h-16 sm:w-72 xl:h-[4.75rem] xl:w-80" />
+              <Skeleton className="mt-5 h-5 w-80 max-w-full rounded-md bg-white/15" />
+              <Skeleton className="mt-2 h-5 w-56 max-w-full rounded-md bg-white/15" />
+            </div>
+            <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center xl:justify-start">
+              <Skeleton className="h-14 rounded-2xl bg-white/15 sm:w-60" />
+              <div className="h-px bg-white/20 sm:hidden" />
+              <Skeleton className="h-14 rounded-2xl bg-white/15 sm:w-60" />
+            </div>
+          </section>
+          <div className="hidden h-80 w-[30rem] justify-self-end xl:block">
+            <Skeleton className="mt-14 h-56 w-[22rem] rounded-[1.75rem] bg-white/15" />
+          </div>
+        </main>
+        <div className="mx-auto hidden w-full max-w-6xl grid-cols-2 gap-4 px-4 pb-8 sm:grid sm:px-10 lg:grid-cols-4 lg:gap-6">
+          {[0, 1, 2, 3].map((index) => (
+            <Skeleton key={index} className="h-44 rounded-3xl bg-white/10" />
+          ))}
         </div>
       </div>
     </div>

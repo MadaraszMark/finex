@@ -3,8 +3,7 @@ import { cn } from '../../lib/cn'
 
 type AuroraVariant = 'screen' | 'band'
 
-// A fényfoltok elhelyezése: teljes képernyőn (belépő oldalak) a világos folt alul "derengés", az alacsony, széles
-// fejlécsávban viszont fehéres párának hatna, ezért ott mélyebb lila foltok úsznak az alsó részen
+// A széles fejlécsávban a világos folt párának hatna, ezért ott alul mélyebb lila foltok vannak
 const blobs: Record<AuroraVariant, string[]> = {
   screen: [
     '-top-48 -left-40 size-[38rem] bg-fuchsia-400/45 motion-safe:animate-aurora-1 dark:bg-brand-600/55',
@@ -18,13 +17,11 @@ const blobs: Record<AuroraVariant, string[]> = {
   ],
 }
 
-// A belépő oldalak és az oldalfejlécek animált háttere: a márka lila színátmenete, rajta lassan úszó, elmosott
-// fényfoltok ("aurora") és egy finom pöttyháló. Világos módban élénk lila, sötét módban mély ibolya.
+// A belépő oldalak és az oldalfejlécek animált aurora háttere
 export default function AuroraBackground({ variant = 'screen' }: { variant?: AuroraVariant }) {
   const rootRef = useRef<HTMLDivElement>(null)
 
-  // A foltok animációja az oldal betöltésének pillanatához igazodik, nem a saját megjelenéséhez: oldalváltáskor
-  // (amikor új fejléc, és vele új háttér jön létre) így ott folytatják az úszást, ahol az előző oldalon tartottak
+  // Az animáció az oldal betöltéséhez igazodik, így oldalváltáskor ott folytatódik, ahol tartott
   useLayoutEffect(() => {
     for (const animation of rootRef.current?.getAnimations({ subtree: true }) ?? []) {
       animation.startTime = 0

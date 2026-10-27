@@ -32,7 +32,6 @@ export default function Button({
     >
       {loading ? <Spinner /> : leftIcon}
       {children}
-      {/* A jobb oldali ikon (pl. nyíl) egérrel fölé állva kicsit előrecsúszik */}
       {!loading && rightIcon && <span className="flex transition-transform duration-200 group-hover:translate-x-1">{rightIcon}</span>}
     </button>
   )

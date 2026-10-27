@@ -1,8 +1,7 @@
 import { useSearchParams } from 'react-router'
 import type { TransactionSearchParams, TransactionType } from '../../api/types'
 
-// A tranzakciók szűrése a címsorban tárolódik (?q=tesco&type=OUTCOME&from=2026-09-01…): így megosztható,
-// frissítés után is megmarad, és a böngésző Vissza gombja az előző szűrésre lép vissza.
+// A szűrés a címsorban tárolódik: megosztható, frissítés után megmarad, a Vissza gomb is működik
 
 export type FilterParam = 'q' | 'account' | 'type' | 'category' | 'from' | 'to' | 'min' | 'max'
 
@@ -19,7 +18,7 @@ function nonNegative(value: string | null): number | undefined {
   return value && Number.isFinite(number) && number >= 0 ? number : undefined
 }
 
-// A címsor paramétereiből a backend szűrője (az érvénytelen értékek egyszerűen kimaradnak)
+// A címsor paramétereiből a backend szűrője (az érvénytelen értékek kimaradnak)
 export function parseFilter(params: URLSearchParams): TransactionSearchParams {
   const type = params.get('type')
   const from = params.get('from')
@@ -41,7 +40,7 @@ export function useTransactionFilter() {
   const filter = parseFilter(params)
   const activeCount = Object.values(filter).filter((value) => value !== undefined).length
 
-  // A keresőmező gépelés közbeni változása ne töltse tele az előzményeket: azt helyben cseréljük
+  // Gépelés közben helyben cseréljük a címet (replace), hogy ne teljen meg az előzmény
   function update(patch: Partial<Record<FilterParam, string | undefined>>, options: { replace?: boolean } = {}) {
     setParams(
       (current) => {
@@ -65,10 +64,10 @@ export function useTransactionFilter() {
     setParams(new URLSearchParams())
   }
 
-  // A megnyitott tétel adatlapja is a címsorban van (?tx=123): a Vissza gomb bezárja, és linkelhető (pl. a nyugtáról)
+  // A megnyitott tétel is a címsorban van (?tx=123), így linkelhető
   const selectedId = positiveInt(params.get('tx'))
 
-  // Megnyitáskor új előzmény-bejegyzés keletkezik (a Vissza gomb bezárja), bezáráskor csak cseréljük a címet
+  // Megnyitáskor új előzmény (a Vissza bezárja), bezáráskor csak cseréljük a címet
   function select(id: number | undefined) {
     setParams(
       (current) => {

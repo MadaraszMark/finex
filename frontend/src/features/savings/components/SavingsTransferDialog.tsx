@@ -25,7 +25,7 @@ interface SavingsTransferDialogProps {
   onClose: () => void
 }
 
-// Befizetés a megtakarításra egy folyószámláról, vagy kivét a folyószámlára (csak azonos pénznemű, aktív számlával)
+// Befizetés vagy kivét (csak azonos pénznemű, aktív folyószámlával)
 export default function SavingsTransferDialog({ savings, direction, accounts, open, onClose }: SavingsTransferDialogProps) {
   const transfer = useSavingsTransfer()
   const deposit = direction === 'deposit'

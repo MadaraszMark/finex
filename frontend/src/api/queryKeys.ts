@@ -1,6 +1,4 @@
-// A React Query gyorsítótár kulcsai egy helyen: így egy módosítás után pontosan tudjuk, mit kell újratölteni
-// (pl. utalás után a számlákat és a tranzakciókat). Az előtagok hierarchikusak: a ['accounts'] érvénytelenítése
-// a számlalistát, az egyes számlákat, a kivonatokat és az egyenlegtörténetet is frissíti.
+// Hierarchikus React Query kulcsok: egy előtag érvénytelenítése az alatta lévőket is frissíti
 export const queryKeys = {
   settings: ['settings'] as const,
   me: ['users', 'me'] as const,
@@ -20,6 +18,9 @@ export const queryKeys = {
   adminTickets: (status: string) => ['admin', 'tickets', status] as const,
   adminTicket: (id: number) => ['admin', 'tickets', 'detail', id] as const,
   adminLoginLogs: (filter: object, page: number) => ['admin', 'login-logs', filter, page] as const,
+  adminAuditLog: (filter: object, page: number) => ['admin', 'audit-log', filter, page] as const,
+  adminAccountTransactions: (accountId: number, page: number) => ['admin', 'accounts', 'transactions', accountId, page] as const,
+  adminReconciliation: ['admin', 'reconciliation'] as const,
 
   accounts: ['accounts'] as const,
   account: (id: number) => ['accounts', id] as const,

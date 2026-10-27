@@ -8,15 +8,13 @@ interface SwitchProps {
   label: string
   description?: string
   disabled?: boolean
-  // Mentés közben a gomb letiltott, a csúszkán pörgő ikon jelzi a folyamatot
   loading?: boolean
-  // "danger": bekapcsolva piros (pl. "Kártya tiltása")
+  // danger: bekapcsolva piros (pl. Kártya tiltása)
   tone?: 'default' | 'danger'
   className?: string
 }
 
-// Kétállású kapcsoló felirattal és rövid magyarázattal (pl. online fizetés engedélyezése).
-// Szemantikailag role="switch" gomb, így billentyűzettel (Szóköz, Enter) és felolvasóval is kezelhető.
+// Kétállású kapcsoló (role="switch"), billentyűzettel és felolvasóval is kezelhető
 export default function Switch({ checked, onCheckedChange, label, description, disabled, loading, tone = 'default', className }: SwitchProps) {
   const labelId = useId()
   const descriptionId = useId()

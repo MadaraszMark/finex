@@ -8,8 +8,7 @@ export function useCards() {
   return useQuery({ queryKey: queryKeys.cards, queryFn: getMyCards })
 }
 
-// A kártyaműveletek a frissített kártyát adják vissza: a gyorsítótárban kicseréljük, így a lista nem töltődik újra.
-// Az összesítő (aktív kártyák száma) viszont változhat, ezért az frissül.
+// A visszakapott kártyát a gyorsítótárban cseréljük (nincs újratöltés); az összesítő frissül
 function useCardUpdate<TVariables>(mutationFn: (variables: TVariables) => Promise<CardResponse>) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -33,10 +32,10 @@ export function useUpdateCardLimits() {
   return useCardUpdate(({ id, request }: { id: number; request: UpdateCardLimitsRequest }) => updateCardLimits(id, request))
 }
 
-// A fizetés pénzmozgás: az egyenleg, a mai költés, a tranzakciók és a statisztikák is frissülnek
+// A fizetés pénzmozgás: az egyenleg, a mai költés és a tételek is frissülnek
 export function useCardPayment() {
   return useMutation({
-    mutationFn: ({ id, request }: { id: number; request: CardPaymentRequest }) => payWithCard(id, request),
+    mutationFn: ({ id, request, idempotencyKey }: { id: number; request: CardPaymentRequest; idempotencyKey: string }) => payWithCard(id, request, idempotencyKey),
     onSuccess: invalidateMoneyQueries,
   })
 }

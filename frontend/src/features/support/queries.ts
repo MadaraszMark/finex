@@ -6,7 +6,7 @@ export function useMyTickets() {
   return useQuery({ queryKey: queryKeys.tickets, queryFn: () => getMyTickets(), select: (page) => page.content })
 }
 
-// A megnyitott ticket félpercenként frissül, így az ügyfélszolgálat válasza magától megjelenik (lezárás után már nem)
+// A megnyitott ticket félpercenként frissül (lezárás után már nem)
 export function useTicket(id: number | undefined) {
   return useQuery({
     queryKey: queryKeys.ticket(id ?? 0),
@@ -27,7 +27,7 @@ export function useCreateTicket() {
   })
 }
 
-// Az elküldött üzenet után a backend a teljes ticketet adja vissza: ezt tesszük a gyorsítótárba
+// A backend a teljes ticketet adja vissza: ezt tesszük a gyorsítótárba
 export function useSendTicketMessage() {
   const queryClient = useQueryClient()
   return useMutation({

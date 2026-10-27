@@ -9,7 +9,7 @@ interface EmptyStateProps {
   className?: string
 }
 
-// Üres lista vagy még nem elérhető tartalom helyén: ikon, rövid magyarázat és egy lehetséges következő lépés
+// Üres lista helyén: ikon, rövid magyarázat és egy lehetséges következő lépés
 export default function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
   return (
     <div className={cn('flex flex-col items-center px-6 py-12 text-center', className)}>

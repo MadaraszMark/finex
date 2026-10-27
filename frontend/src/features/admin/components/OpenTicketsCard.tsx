@@ -9,8 +9,7 @@ import Skeleton from '../../../components/ui/Skeleton'
 import { formatRelativeTime } from '../../../lib/format'
 import { useAdminTickets } from '../queries'
 
-// Az áttekintő ticket-kártyája: a legfrissebb, még válaszra váró kérdések (legfeljebb három), mindegyik közvetlenül
-// a ticket beszélgetésére visz
+// A legfrissebb (legfeljebb három) válaszra váró ticket az áttekintőn
 export default function OpenTicketsCard() {
   const ticketsQuery = useAdminTickets('OPEN')
   const [now] = useState(() => new Date())

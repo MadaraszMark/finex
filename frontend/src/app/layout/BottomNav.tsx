@@ -17,7 +17,6 @@ function TabLink({ item }: { item: NavItem }) {
         <>
           <item.icon className="size-6" />
           <span>{item.label}</span>
-          {/* A koncepcióképen az aktív fül alatti pont; animáltan követi a kiválasztott fület */}
           {isActive && (
             <motion.span layoutId="tab-active" className="absolute -bottom-0.5 size-1.5 rounded-full bg-primary" transition={{ type: 'spring', bounce: 0.3, duration: 0.5 }} />
           )}
@@ -48,7 +47,7 @@ function PrimaryTab({ item }: { item: NavItem }) {
   )
 }
 
-// Mobilos alsó menüsor (a koncepciókép alapján); a "Menü" fül az összes többi oldalt tartalmazó lapot nyitja
+// Mobilos alsó menüsor; a Menü fül a többi oldalt tartalmazó lapot nyitja
 export default function BottomNav({ onOpenMenu }: { onOpenMenu: () => void }) {
   return (
     <nav aria-label="Alsó menü" className="fixed inset-x-0 bottom-0 z-40 rounded-t-[1.75rem] border-t border-white/70 bg-card/85 pb-safe shadow-[0_-8px_30px_-12px_rgb(28_21_48/0.18)] backdrop-blur-2xl lg:hidden dark:border-white/10">

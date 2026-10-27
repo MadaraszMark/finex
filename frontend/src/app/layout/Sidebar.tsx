@@ -11,9 +11,7 @@ import { logout } from '../../session/session'
 import { useCurrentUser } from '../../session/useCurrentUser'
 import { visibleSections, type NavItem } from '../navigation'
 
-// Keskenyebb asztali képernyőn (1024–1279 px) az oldalsáv csak ikonokból álló sáv: a menüpont neve ilyenkor
-// egérrel fölé állva vagy fókuszban buborékban látszik (fix pozícióval, hogy az oldalsáv görgethető menüje ne vágja le),
-// a felolvasóprogramok pedig mindig a link címkéjéből kapják meg
+// Ikonsávnál a név fix pozíciójú buborékban jelenik meg, hogy a görgethető menü ne vágja le
 function SidebarLink({ item }: { item: NavItem }) {
   const [tipTop, setTipTop] = useState<number>()
   const label = item.label.replaceAll(SHY, '')
@@ -42,7 +40,6 @@ function SidebarLink({ item }: { item: NavItem }) {
     >
       {({ isActive }) => (
         <>
-          {/* Az aktív menüpont háttere animáltan "átcsúszik" az új menüpontra */}
           {isActive && (
             <motion.span
               layoutId="sidebar-active"
@@ -67,8 +64,7 @@ function SidebarLink({ item }: { item: NavItem }) {
   )
 }
 
-// Asztali nézet oldalsávja mély ibolya háttéren (világos módban is), lassan úszó fényfoltokkal: menüszakaszok
-// (adminnak az adminisztrációs rész is), alul a belépett felhasználó
+// Asztali oldalsáv: menüszakaszok, alul a belépett felhasználó
 export default function Sidebar() {
   const { data: user } = useCurrentUser()
   const isAdmin = user?.role === 'ADMIN'
@@ -76,8 +72,7 @@ export default function Sidebar() {
   const navRef = useRef<HTMLElement>(null)
   const { pathname } = useLocation()
 
-  // Az aktív menüpont mindig látszik (pl. az adminisztráció menüpontjai a hosszú menü alján vannak; ezek csak a
-  // felhasználó adatainak betöltése után jelennek meg, ezért a szerepkör változására is újra ellenőrizzük)
+  // Görget az aktív menüpontig; az admin pontok csak a szerepkör betöltése után jelennek meg
   useEffect(() => {
     navRef.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: 'nearest' })
   }, [pathname, isAdmin])

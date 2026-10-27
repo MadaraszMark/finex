@@ -16,7 +16,6 @@ export function useSavings() {
   return useQuery({ queryKey: queryKeys.savings, queryFn: getSavings })
 }
 
-// A mozgások lapozva ("További mozgások")
 export function useSavingsTransactions(id: number | undefined) {
   return useInfiniteQuery({
     queryKey: queryKeys.savingsTransactions(id ?? 0),
@@ -27,7 +26,7 @@ export function useSavingsTransactions(id: number | undefined) {
   })
 }
 
-// Nyitás (kezdő befizetéssel), befizetés, kivét és lezárás pénzmozgás a folyószámla és a megtakarítás között
+// Nyitás, befizetés, kivét és lezárás: pénzmozgás a folyószámla és a megtakarítás között
 export function useCreateSavings() {
   return useMutation({ mutationFn: createSavings, onSuccess: invalidateMoneyQueries })
 }
@@ -47,7 +46,7 @@ export function useCloseSavings() {
   })
 }
 
-// A név és a célösszeg módosítása nem mozgat pénzt, elég a megtakarítások listáját frissíteni
+// A név és a célösszeg módosítása nem mozgat pénzt, elég a listát frissíteni
 export function useUpdateSavings() {
   const queryClient = useQueryClient()
   return useMutation({

@@ -55,8 +55,7 @@ interface TransactionFiltersProps {
   onClear: () => void
 }
 
-// A szűrők egy blokkban, a lista fölött: kereső, típus és időszak mindig látszik, a számla, kategória, egyedi
-// dátum és összeghatár a "Részletes szűrés" alatt (mobilon így nem foglal egy képernyőnyi helyet)
+// Szűrők; a ritkábbak a "Részletes szűrés" alatt, hogy mobilon ne foglaljanak egy képernyőt
 export default function TransactionFilters({ filter, activeCount, accounts, categories, onChange, onClear }: TransactionFiltersProps) {
   const detailsId = useId()
   const [today] = useState(() => new Date())
@@ -64,7 +63,7 @@ export default function TransactionFilters({ filter, activeCount, accounts, cate
     () => filter.accountId !== undefined || filter.categoryId !== undefined || filter.minAmount !== undefined || filter.maxAmount !== undefined,
   )
 
-  // A kereső szövege helyben változik, a címsorba 300 ms szünet után kerül (nem minden leütésnél indul új keresés)
+  // A kereső szövege 300 ms szünet után kerül a címsorba (nem minden leütésre keres)
   const [searchText, setSearchText] = useState(filter.search ?? '')
   const [syncedSearch, setSyncedSearch] = useState(filter.search ?? '')
   if ((filter.search ?? '') !== syncedSearch) {

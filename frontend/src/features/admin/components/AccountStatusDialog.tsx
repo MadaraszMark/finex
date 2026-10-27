@@ -18,12 +18,11 @@ const options: { status: AccountStatus; label: string; icon: LucideIcon; descrip
   { status: 'CLOSED', label: 'Lezárva', icon: Archive, description: 'Végleges: a kártyája megszűnik, a rendszeres átutalásai leállnak.' },
 ]
 
-// Egy számla állapotának módosítása. A lezárt számla végleges, lezárni pedig csak nulla egyenlegűt lehet
-// (mindkettőt a backend is ellenőrzi); a tulajdonos minden változásról értesítést kap.
+// Számlaállapot módosítása: a lezárás végleges, és csak nulla egyenlegnél lehetséges
 export default function AccountStatusDialog({ account, onClose }: { account: AccountResponse | undefined; onClose: () => void }) {
   const updateStatus = useUpdateAccountStatus()
 
-  // Bezáráskor a tartalom a kiúszó animáció alatt is látszik; új számlánál az előző választás törlődik
+  // A kiúszó animáció alatt is látszik a tartalom; új számlánál a választás törlődik
   const [shown, setShown] = useState(account)
   const [target, setTarget] = useState<AccountStatus>()
   if (account && account !== shown) {

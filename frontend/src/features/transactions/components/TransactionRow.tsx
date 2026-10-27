@@ -12,8 +12,7 @@ interface TransactionRowProps {
   timeOnly?: boolean
 }
 
-// Egy tétel a listákban (a koncepciókép "Legutóbbi tranzakciók" sora): kategóriaikon, partner, kategória,
-// előjeles összeg (a jóváírás zöld) és az idő ("12 perce", "Tegnap", "szept. 28.")
+// Egy tétel a listákban: kategóriaikon, partner, előjeles összeg és relatív idő
 export default function TransactionRow({ transaction, now, onSelect, timeOnly = false }: TransactionRowProps) {
   const incoming = isIncoming(transaction.type)
   const category = transaction.categories[0]
@@ -31,10 +30,19 @@ export default function TransactionRow({ transaction, now, onSelect, timeOnly = 
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate font-bold text-foreground">{transaction.partnerName ?? typeLabel}</span>
-        <span className="block truncate text-sm text-muted-foreground">{category?.name ?? transaction.message ?? typeLabel}</span>
+        <span className="block truncate text-sm text-muted-foreground">
+          {transaction.reversalOfId !== null ? 'Sztornó · ' : transaction.reversed ? 'Sztornózva · ' : ''}
+          {category?.name ?? transaction.message ?? typeLabel}
+        </span>
       </span>
       <span className="shrink-0 text-right">
-        <span className={cn('block font-bold tabular-nums', incoming ? 'text-emerald-700 dark:text-emerald-400' : 'text-foreground')}>
+        <span
+          className={cn(
+            'block font-bold tabular-nums',
+            incoming ? 'text-emerald-700 dark:text-emerald-400' : 'text-foreground',
+            transaction.reversed && 'text-muted-foreground line-through',
+          )}
+        >
           {formatSignedMoney(signedAmount(transaction.type, transaction.amount), transaction.currency)}
         </span>
         <span className="block text-sm text-muted-foreground">

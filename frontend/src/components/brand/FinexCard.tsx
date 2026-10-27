@@ -3,16 +3,13 @@ import type { CardStatus } from '../../api/types'
 import { cn } from '../../lib/cn'
 
 interface FinexCardProps {
-  // A kártya adatai a backendből; ha hiányoznak (pl. a belépő oldal illusztrációján), a kártya nem mutat kitalált
-  // nevet vagy számot, csak a márkát és a chipet
+  // Ha hiányoznak, a kártya nem mutat kitalált nevet vagy számot, csak a márkát és a chipet
   holderName?: string
   maskedNumber?: string
   expiry?: string
-  // "glass": lila háttérre (belépő oldal), "solid": bármilyen háttérre (pl. a főoldal világos felületén is)
+  // glass: lila háttérre, solid: bármilyen háttérre
   variant?: 'glass' | 'solid'
-  // Letiltott vagy megszűnt kártyán lakat és felirat jelenik meg, a megszűnt kártya szürke
   status?: CardStatus
-  // A háttér felülírható (pl. a devizaszámla kártyája a számla színvilágát kapja)
   className?: string
 }
 
@@ -29,7 +26,7 @@ const statusLabels: Partial<Record<CardStatus, string>> = {
   CANCELLED: 'Megszűnt',
 }
 
-// A FineX bankkártya grafikája (belépő oldal, főoldal, Kártyák oldal); időnként fényvillanás fut végig rajta
+// A FineX bankkártya grafikája, időnként végigfutó fényvillanással
 export default function FinexCard({
   holderName,
   maskedNumber,
@@ -56,7 +53,7 @@ export default function FinexCard({
         <Nfc className="size-6 text-white/80" />
       </div>
       <div className="relative mt-5 h-9 w-12 rounded-lg bg-[linear-gradient(135deg,#fde68a,#f59e0b)] opacity-90 shadow-inner" />
-      {/* A kártyaszám mindig egy sorban marad: keskeny kártyán (kis telefon) arányosan kisebb a betű */}
+      {/* Keskeny kártyán arányosan kisebb a betű, hogy a szám egy sorban maradjon */}
       {maskedNumber && (
         <p className="relative mt-5 font-mono text-[length:min(1.25rem,calc(100cqw/15))] tracking-[0.18em] whitespace-nowrap">{maskedNumber}</p>
       )}

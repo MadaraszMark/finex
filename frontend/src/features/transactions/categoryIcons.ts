@@ -38,9 +38,7 @@ import {
 import { createElement, type ReactElement } from 'react'
 import type { TransactionType } from '../../api/types'
 
-// A kategóriák ikonja a backend törzsadatában (V4__reference_data.sql) lucide-név, pl. "shopping-cart".
-// Csak az itt felsorolt ikonok kerülnek a csomagba (az admin ezek közül választhat új kategóriához);
-// ismeretlen névnél a tétel típusának ikonja látszik.
+// A kategóriaikon a törzsadatban lucide-név; csak az itt felsoroltak kerülnek a csomagba
 const categoryIcons: Record<string, LucideIcon> = {
   'shopping-cart': ShoppingCart,
   utensils: Utensils,
@@ -77,7 +75,7 @@ const categoryIcons: Record<string, LucideIcon> = {
 // Az ikonválasztó kínálata (a backend legfeljebb 20 karakteres nevet fogad el)
 export const categoryIconNames = Object.keys(categoryIcons)
 
-// Az ikonok neve a felolvasóprogramoknak és a buboréksúgónak (az admin ikonválasztójában)
+// Az ikonok neve a felolvasóknak és a súgónak (admin ikonválasztó)
 export const categoryIconLabels: Record<string, string> = {
   'shopping-cart': 'Bevásárlókocsi',
   utensils: 'Evőeszköz',
@@ -118,8 +116,7 @@ const typeIcons: Record<TransactionType, LucideIcon> = {
   TRANSFER_OUT: ArrowUpRight,
 }
 
-// A tétel ikonja kész elemként (a kategóriáé, ha van, egyébként a típusé). Elemet ad vissza, nem komponenst,
-// így a hívó renderelés közben nem "hoz létre" komponenst.
+// Kész elemet ad vissza, nem komponenst, így renderelés közben nem jön létre új komponens
 export function transactionIcon(type: TransactionType, categoryIconName: string | null | undefined, className: string): ReactElement {
   const icon = (categoryIconName && categoryIcons[categoryIconName]) || typeIcons[type]
   return createElement(icon, { 'aria-hidden': true, className })

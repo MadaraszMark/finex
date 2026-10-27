@@ -14,7 +14,7 @@ interface BalanceChartProps {
   currency: string
   from: number
   to: number
-  // Időszakváltás közben az előző grafikon halványítva marad a helyén (nincs ugrálás, nincs villanás)
+  // Időszakváltás közben az előző grafikon halványítva marad (nincs villanás)
   refreshing?: boolean
 }
 
@@ -30,8 +30,7 @@ function evenTicks(from: number, to: number, count: number): number[] {
   return Array.from({ length: count }, (_, index) => Math.round(from + index * step))
 }
 
-// Az egyenleg alakulása lépcsős vonallal (az egyenleg a tételeknél ugrik, közben nem változik), halvány kitöltéssel.
-// Egy sorozat, ezért nincs jelmagyarázat; a végponton a záró egyenleg felirata, a pontos értékek a kivonatban.
+// Lépcsős egyenleggörbe: az egyenleg csak a tételeknél ugrik, közben nem változik
 export default function BalanceChart({ points, currency, from, to, refreshing = false }: BalanceChartProps) {
   const reduceMotion = useReducedMotion()
   const formatTick = (value: number) => (to - from > 100 * DAY ? monthFormatter : dayFormatter).format(value)

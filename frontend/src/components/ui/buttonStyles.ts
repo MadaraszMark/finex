@@ -1,6 +1,6 @@
 import { cn } from '../../lib/cn'
 
-// A gombok stílusa külön függvényben van, így ugyanúgy néz ki a <button> és a navigáló <Link> is
+// Külön függvény, hogy a <button> és a navigáló <Link> is ugyanúgy nézzen ki
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'glass' | 'deep'
 export type ButtonSize = 'sm' | 'md' | 'lg'
@@ -24,16 +24,15 @@ const shine =
   'hover:before:translate-x-[400%]'
 
 const variants: Record<ButtonVariant, string> = {
-  // A koncepcióképek "Belépés" gombja: lila színátmenet, lila fényű árnyékkal
   primary: `bg-brand-gradient text-white shadow-glow hover:-translate-y-px hover:brightness-110 ${shine}`,
   secondary: 'bg-muted text-foreground hover:bg-brand-100 dark:hover:bg-brand-950',
   outline: 'border border-border bg-card text-foreground hover:border-brand-300 hover:text-primary',
   ghost: 'text-muted-foreground hover:bg-muted hover:text-foreground',
   danger: 'bg-danger-solid text-white hover:brightness-110',
-  // Lila háttéren: áttetsző, üveghatású (nyitóképernyő "Bejelentkezés")
+  // Lila háttérre: áttetsző, üveghatású
   glass: 'border border-white/45 bg-white/15 text-white backdrop-blur-md hover:bg-white/25',
-  // Lila háttéren: sötét ibolya (nyitóképernyő "Regisztráció")
-  deep: 'bg-brand-950/60 text-white backdrop-blur-md hover:bg-brand-950/75',
+  // Lila háttérre; sötét módban beleolvadna a háttérbe, ezért ott színátmenetes
+  deep: `bg-brand-950/60 text-white backdrop-blur-md hover:bg-brand-950/75 dark:bg-brand-gradient dark:shadow-glow dark:hover:brightness-110 ${shine}`,
 }
 
 const sizes: Record<ButtonSize, string> = {
@@ -48,7 +47,7 @@ export function buttonStyles({ variant = 'primary', size = 'md', fullWidth = fal
 
 export type IconButtonTone = 'default' | 'light'
 
-// Kerek sarkú, négyzetes ikongomb (pl. a fejléc csengője); a "light" változat lila háttérre való
+// Négyzetes ikongomb; a light változat lila háttérre való
 export function iconButtonStyles(tone: IconButtonTone = 'default', className?: string): string {
   return cn(
     'relative inline-flex size-11 shrink-0 items-center justify-center rounded-2xl transition duration-200 ' +

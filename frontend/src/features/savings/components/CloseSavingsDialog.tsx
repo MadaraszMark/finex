@@ -15,7 +15,7 @@ interface CloseSavingsDialogProps {
   onClose: () => void
 }
 
-// Lezárás: a teljes egyenleg a kiválasztott (azonos pénznemű, aktív) folyószámlára kerül, a cél megszűnik
+// Lezárás: a teljes egyenleg egy azonos pénznemű, aktív folyószámlára kerül
 export default function CloseSavingsDialog({ savings, accounts, open, onClose }: CloseSavingsDialogProps) {
   const closeSavings = useCloseSavings()
   const eligible = accounts.filter((account) => account.status === 'ACTIVE' && account.currency === savings.currency)

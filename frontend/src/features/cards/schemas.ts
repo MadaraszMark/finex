@@ -1,8 +1,7 @@
 import { z } from 'zod'
 import { amountSchema } from '../accounts/schemas'
 
-// A napi limit határai (UpdateCardLimitsRequest: 0 és 5 000 000 között). A csúszka a szokásos tartományt fedi le,
-// a pontos összeg ennél nagyobb is lehet a beviteli mezőben.
+// A napi limit felső határa; a csúszka csak a szokásos tartományt fedi le
 export const MAX_DAILY_LIMIT = 5_000_000
 
 export function limitSliderBounds(currency: string): { max: number; step: number } {
@@ -20,7 +19,7 @@ export function cardPaymentSchema(currency: string) {
 
 export type CardPaymentForm = z.infer<ReturnType<typeof cardPaymentSchema>>
 
-// Gyors kitöltés a demó fizetéshez: kereskedő, kategória (név szerint a törzsadatból) és hogy online-e
+// Gyors kitöltés a demó fizetéshez (a kategória név szerint a törzsadatból)
 export const paymentPresets = [
   { merchantName: 'Tesco', categoryName: 'Élelmiszer', online: false },
   { merchantName: 'Wolt', categoryName: 'Étterem, kávézó', online: true },

@@ -21,7 +21,7 @@ export function AccountsSkeleton() {
   )
 }
 
-// A számlaadatlap váza: az egyenleg-kártya, az időszakszűrő, a grafikon és az időszak számai, a kivonat és a lezárás
+// A számlaadatlap váza: egyenleg, időszakszűrő, grafikon, kivonat és lezárás
 export function AccountDetailSkeleton() {
   return (
     <>

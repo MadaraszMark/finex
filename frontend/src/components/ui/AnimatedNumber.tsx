@@ -7,8 +7,7 @@ interface AnimatedNumberProps {
   className?: string
 }
 
-// Összeg, amely az előző értékről (első megjelenéskor nulláról) animáltan "pörög" az újra, React-renderelés
-// nélkül (közvetlenül a szöveget írja). A felolvasóprogram csak a végleges értéket kapja meg.
+// Pörgő összeg React-renderelés nélkül; a felolvasó csak a végleges értéket kapja meg
 export default function AnimatedNumber({ value, format, className }: AnimatedNumberProps) {
   const reduceMotion = useReducedMotion()
   const motionValue = useMotionValue(reduceMotion ? value : 0)

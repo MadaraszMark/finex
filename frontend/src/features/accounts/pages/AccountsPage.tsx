@@ -1,4 +1,4 @@
-import { Archive, ChevronDown, Plus } from 'lucide-react'
+import { Archive, ArrowRightLeft, ChevronDown, Plus } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useState } from 'react'
 import { getErrorMessage } from '../../../api/client'
@@ -13,10 +13,11 @@ import { staggerContainer, staggerItem } from '../../../lib/motion'
 import AccountCard from '../components/AccountCard'
 import { AccountsSkeleton } from '../components/AccountSkeletons'
 import NewAccountTile from '../components/NewAccountTile'
+import ExchangeDialog from '../components/ExchangeDialog'
 import OpenAccountDialog from '../components/OpenAccountDialog'
 import { useAccounts } from '../queries'
 
-// A nyitott számlák egyenlege pénznemenként összesítve (a különböző pénznemek nem adhatók össze)
+// Egyenlegek pénznemenként (a különböző pénznemek nem adhatók össze)
 function totalsByCurrency(accounts: AccountResponse[]) {
   const totals = new Map<string, { total: number; count: number }>()
   for (const account of accounts) {
@@ -29,13 +30,15 @@ function totalsByCurrency(accounts: AccountResponse[]) {
 export default function AccountsPage() {
   const accountsQuery = useAccounts()
   const [opening, setOpening] = useState(false)
+  const [exchanging, setExchanging] = useState(false)
 
   const accounts = accountsQuery.data ?? []
   const openAccounts = accounts.filter((account) => account.status !== 'CLOSED')
   const closedAccounts = accounts.filter((account) => account.status === 'CLOSED')
-  // A nyitható számlák száma a backend beállítása (GET /settings)
   const { data: settings } = useBankSettings()
   const limitReached = settings !== undefined && openAccounts.length >= settings.maxAccountsPerUser
+  // Váltani két különböző pénznemű aktív számla között lehet
+  const canExchange = new Set(accounts.filter((account) => account.status === 'ACTIVE').map((account) => account.currency)).size > 1
 
   return (
     <>
@@ -43,9 +46,16 @@ export default function AccountsPage() {
         title="Számlák"
         description="Folyószámláid egy helyen: egyenleg, számlaszám és kivonat."
         actions={
-          <Button variant="glass" leftIcon={<Plus />} disabled={accountsQuery.isPending || limitReached} onClick={() => setOpening(true)}>
-            Új számla
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {canExchange && (
+              <Button variant="glass" leftIcon={<ArrowRightLeft />} onClick={() => setExchanging(true)}>
+                Devizaváltás
+              </Button>
+            )}
+            <Button variant="glass" leftIcon={<Plus />} disabled={accountsQuery.isPending || limitReached} onClick={() => setOpening(true)}>
+              Új számla
+            </Button>
+          </div>
         }
       />
 
@@ -70,7 +80,6 @@ export default function AccountsPage() {
 
           <Card className="mt-6 p-6">
             <CardHeader title="Összesítés" description="A nyitott számlák egyenlege pénznemenként." />
-            {/* A csempék mindig kitöltik a sort (két pénznemnél fele-fele), nem marad üres oszlop */}
             <dl className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(min(14rem,100%),1fr))] gap-3">
               {totalsByCurrency(openAccounts).map((item) => (
                 <div key={item.currency} className="rounded-2xl bg-muted/70 p-4">
@@ -101,6 +110,7 @@ export default function AccountsPage() {
       )}
 
       <OpenAccountDialog open={opening} onClose={() => setOpening(false)} openAccountCount={openAccounts.length} />
+      <ExchangeDialog accounts={accounts} open={exchanging} onClose={() => setExchanging(false)} />
     </>
   )
 }

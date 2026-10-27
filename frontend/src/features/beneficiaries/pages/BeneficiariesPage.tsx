@@ -30,7 +30,7 @@ function searchable(value: string): string {
   return value.toLowerCase().replace(/\s/g, '')
 }
 
-// Kedvezményezettek: a gyakori címzettek kártyákon, egy érintéses utalással, szerkesztéssel és törléssel
+// Kedvezményezettek: gyakori címzettek egy érintéses utalással
 export default function BeneficiariesPage() {
   const beneficiariesQuery = useBeneficiaries()
   const deleteBeneficiary = useDeleteBeneficiary()
@@ -113,7 +113,6 @@ export default function BeneficiariesPage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-lg font-bold text-foreground">{beneficiary.name}</p>
-                    {/* Megjegyzés nélkül is megtartja a sor magasságát, így a szomszédos kártyák számlaszáma egy vonalban marad */}
                     <p className="min-h-5 truncate text-sm text-muted-foreground">{beneficiary.note}</p>
                   </div>
                   {beneficiary.internal && (

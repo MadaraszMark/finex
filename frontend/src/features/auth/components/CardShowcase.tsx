@@ -5,8 +5,7 @@ import FinexCard from '../../../components/brand/FinexCard'
 import type { PointerParallax } from '../../../hooks/usePointerParallax'
 import { cn } from '../../../lib/cn'
 
-// A bankkártya mellett pár másodpercenként másik funkció úszik be. Szándékosan nem kitalált tranzakciók és összegek:
-// belépés előtt nincs kinek az adatait mutatni, a felület pedig csak valódi (backendből jövő) adatot jelenít meg.
+// Váltakozó funkcióbemutató; szándékosan nincs benne kitalált tranzakció vagy összeg
 const liveEvents = [
   { icon: Zap, title: 'Azonnali utalás', detail: 'FineX-es számlák között pillanatok alatt' },
   { icon: ShieldCheck, title: 'Kártyatiltás egy érintéssel', detail: 'Elveszett kártya? Azonnal letilthatod.' },
@@ -72,8 +71,7 @@ function SavingsGoal() {
   )
 }
 
-// A belépő oldal "kirakata" nagy képernyőn: lebegő, az egérrel együtt döntő bankkártya (személyes adatok nélkül),
-// mellette váltakozó funkcióbemutató és egy töltődő megtakarítási sáv – számok nélkül, pusztán illusztráció
+// Nagy képernyős "kirakat": az egérrel döntő bankkártya, személyes adatok és számok nélkül
 export default function CardShowcase({ pointer, className }: { pointer: PointerParallax; className?: string }) {
   const rotateX = useTransform(pointer.y, (value) => value * -16)
   const rotateY = useTransform(pointer.x, (value) => value * 20)

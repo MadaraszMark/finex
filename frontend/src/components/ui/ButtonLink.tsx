@@ -8,7 +8,7 @@ interface ButtonLinkProps extends LinkProps, Omit<ButtonStyleOptions, 'className
   className?: string
 }
 
-// Gombnak kinéző navigációs link (pl. "Regisztráció →"): szemantikailag link marad, mert oldalt vált
+// Gombnak kinéző link: szemantikailag link marad, mert oldalt vált
 export default function ButtonLink({ variant, size, fullWidth, leftIcon, rightIcon, className, children, ...props }: ButtonLinkProps) {
   return (
     <Link className={buttonStyles({ variant, size, fullWidth, className })} {...props}>

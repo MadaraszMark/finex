@@ -16,7 +16,7 @@ interface TransferOverviewProps {
   compact?: boolean
 }
 
-// Az utalás adatai egy listában: az áttekintés lépésben és (nagy képernyőn) gépelés közben is, oldalt
+// Az utalás adatai: az áttekintés lépésben és nagy képernyőn oldalt is
 export default function TransferOverview({ source, toAccountNumber, partnerName, amount, message, categoryName, internal, compact = false }: TransferOverviewProps) {
   const currency = source?.currency ?? 'HUF'
   const parsedAmount = parseAmount(amount)

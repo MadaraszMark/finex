@@ -40,8 +40,7 @@ function groupByDay(items: TransactionListItem[], now: Date): DayGroup[] {
   return groups
 }
 
-// Tranzakciók: szűrők a lista fölött (a címsorban tárolva), a találatok napok szerint, lapozva;
-// egy tételre kattintva megnyílik az adatlapja
+// Tranzakciók: szűrők a címsorban, a találatok napok szerint, lapozva
 export default function TransactionsPage() {
   const { filter, activeCount, update, clear, selectedId, select } = useTransactionFilter()
   const searchQuery = useTransactionSearch(filter)
@@ -73,7 +72,6 @@ export default function TransactionsPage() {
           <h2 className="text-lg font-bold text-foreground" aria-live="polite">
             {searchQuery.isPending ? 'Tételek' : `${total} tétel`}
           </h2>
-          {/* Új keresés közben a lista elhalványul, mellette ez a felirat pulzál (pörgő ikon helyett) */}
           {searchQuery.isFetching && !searchQuery.isFetchingNextPage && !searchQuery.isPending && (
             <span className="text-sm font-medium text-muted-foreground motion-safe:animate-pulse">Keresés…</span>
           )}

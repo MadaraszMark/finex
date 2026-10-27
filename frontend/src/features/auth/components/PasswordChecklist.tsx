@@ -3,7 +3,7 @@ import { motion } from 'motion/react'
 import { cn } from '../../../lib/cn'
 import { passwordRules } from '../schemas'
 
-// Gépelés közben mutatja, mely jelszó-követelmények teljesülnek már (a pipa "felugrik", amikor teljesül)
+// Gépelés közben mutatja, mely jelszó-követelmények teljesülnek már
 export default function PasswordChecklist({ password }: { password: string }) {
   return (
     <ul aria-label="Jelszó követelmények" className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5">

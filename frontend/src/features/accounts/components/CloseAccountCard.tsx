@@ -10,7 +10,7 @@ import { Card } from '../../../components/ui/Card'
 import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import { useCloseAccount } from '../queries'
 
-// A backend szabálya szerint csak nulla egyenlegű, nem utolsó nyitott számla zárható le; itt előre jelezzük, miért nem
+// Backend szabály: csak nulla egyenlegű, nem utolsó nyitott számla zárható le
 function closeBlocker(account: AccountResponse, openAccountCount: number): string | null {
   if (account.balance !== 0) {
     return 'Csak nulla egyenlegű számla zárható le. Előbb utald át a pénzt egy másik számládra.'

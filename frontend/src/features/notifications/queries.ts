@@ -3,7 +3,7 @@ import { getNotifications, getUnreadCount, markAllAsRead, markAsRead } from '../
 import { queryKeys } from '../../api/queryKeys'
 import type { NotificationResponse, Page } from '../../api/types'
 
-// Percenként frissül, illetve amikor a felhasználó visszatér a böngészőfülre (pl. beérkező utalás értesítése)
+// Percenként frissül, és amikor a felhasználó visszatér a böngészőfülre
 export function useUnreadCount() {
   return useQuery({
     queryKey: queryKeys.unreadNotifications,
@@ -13,7 +13,6 @@ export function useUnreadCount() {
   })
 }
 
-// Az értesítések lapozva ("Korábbiak")
 export function useNotifications() {
   return useInfiniteQuery({
     queryKey: queryKeys.notificationList,
@@ -23,7 +22,6 @@ export function useNotifications() {
   })
 }
 
-// A csengő lenyíló listája: a legfrissebb néhány értesítés
 export function useLatestNotifications(enabled: boolean) {
   return useQuery({
     queryKey: [...queryKeys.notifications, 'latest'],
@@ -33,10 +31,10 @@ export function useLatestNotifications(enabled: boolean) {
   })
 }
 
-// A "notifications" előtagú gyorsítótár: a jelvény száma, a csengő listája (egy oldal) és a lapozott lista
+// A "notifications" előtag alatt: jelvényszám, csengőlista és lapozott lista
 type NotificationCache = number | Page<NotificationResponse> | InfiniteData<Page<NotificationResponse>> | undefined
 
-// Egy gyorsítótárbeli adat úgy, mintha a szerver már olvasottra állította volna az értesítést (vagy mindet)
+// A gyorsítótár olvasottra állítva, mintha a szerver már megtette volna
 function withRead(data: NotificationCache, target: number | 'all'): NotificationCache {
   if (data === undefined) {
     return data
@@ -51,8 +49,7 @@ function withRead(data: NotificationCache, target: number | 'all'): Notification
   return 'pages' in data ? { ...data, pages: data.pages.map(markPage) } : markPage(data)
 }
 
-// Olvasottnak jelöléskor a csengő jelvénye és a listák azonnal frissülnek (optimista frissítés, nem kell a szerverre
-// várni); hiba esetén visszaáll az előző állapot, a végén pedig minden a szerver szerint töltődik újra
+// Optimista frissítés: azonnal olvasott, hiba esetén visszaáll az előző állapot
 function useOptimisticRead<T>(mutationFn: (variables: T) => Promise<unknown>, target: (variables: T) => number | 'all') {
   const queryClient = useQueryClient()
   return useMutation({

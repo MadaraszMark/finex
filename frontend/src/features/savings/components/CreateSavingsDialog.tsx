@@ -21,7 +21,7 @@ interface CreateSavingsDialogProps {
   accounts: AccountResponse[]
 }
 
-// Új megtakarítási cél: név, a folyószámla (ez adja a pénznemet és a kezdő összeget), opcionális célösszeg
+// Új megtakarítási cél; a pénznemet és a kezdő összeget a választott folyószámla adja
 export default function CreateSavingsDialog({ open, onClose, accounts }: CreateSavingsDialogProps) {
   const createSavings = useCreateSavings()
   const activeAccounts = accounts.filter((account) => account.status === 'ACTIVE')

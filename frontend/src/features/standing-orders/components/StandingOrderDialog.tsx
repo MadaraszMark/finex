@@ -24,13 +24,13 @@ const amountInputFormatter = new Intl.NumberFormat('hu-HU', { maximumFractionDig
 interface StandingOrderDialogProps {
   open: boolean
   onClose: () => void
-  // Megadva módosítás (csak az összeg, a közlemény, a gyakoriság és a következő dátum változhat), egyébként új megbízás
+  // Megadva módosítás (a számla és a címzett nem változhat), egyébként új megbízás
   order?: StandingOrderResponse
   accounts: AccountResponse[]
   beneficiaries: BeneficiaryResponse[]
 }
 
-// Rendszeres átutalás létrehozása vagy módosítása. A szülő megnyitáskor újrakulcsolja, így mindig friss értékekkel indul.
+// Rendszeres átutalás létrehozása vagy módosítása (a szülő megnyitáskor újrakulcsolja)
 export default function StandingOrderDialog({ open, onClose, order, accounts, beneficiaries }: StandingOrderDialogProps) {
   const [today] = useState(() => toIsoDate(new Date()))
   const createOrder = useCreateStandingOrder()

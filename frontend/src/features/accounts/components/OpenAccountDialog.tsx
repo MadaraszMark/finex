@@ -31,7 +31,6 @@ interface OpenAccountDialogProps {
 export default function OpenAccountDialog({ open, onClose, openAccountCount }: OpenAccountDialogProps) {
   const navigate = useNavigate()
   const openAccount = useOpenAccount()
-  // A nyitható számlák száma a backend beállítása (GET /settings)
   const { data: settings } = useBankSettings()
   const limitReached = settings !== undefined && openAccountCount >= settings.maxAccountsPerUser
 

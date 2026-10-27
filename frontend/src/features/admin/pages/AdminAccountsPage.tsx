@@ -1,4 +1,4 @@
-import { Landmark, SlidersHorizontal } from 'lucide-react'
+import { Banknote, Landmark, ReceiptText, SlidersHorizontal } from 'lucide-react'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { getErrorMessage } from '../../../api/client'
@@ -16,6 +16,8 @@ import { cn } from '../../../lib/cn'
 import { accountStatusLabels, formatMoney, formatShortIban } from '../../../lib/format'
 import { accountStatusTones } from '../accountStatus'
 import AccountStatusDialog from '../components/AccountStatusDialog'
+import AccountTransactionsDialog from '../components/AccountTransactionsDialog'
+import AdminDepositDialog from '../components/AdminDepositDialog'
 import { TableRowsSkeleton } from '../components/AdminSkeletons'
 import UserDetailsDialog from '../components/UserDetailsDialog'
 import { useAdminAccounts } from '../queries'
@@ -34,14 +36,15 @@ function parseStatus(value: string | null): AccountStatus | undefined {
   return statusOptions.find((option) => option.value === value && option.value !== 'ALL')?.value as AccountStatus | undefined
 }
 
-// Számlák kezelése: szűrés állapot szerint (a címsorban: ?status=…&page=…), soronként állapotváltás,
-// az ügyfél neve helyett az azonosítója látszik – rákattintva megnyílik az adatlapja
+// Számlák kezelése: állapotszűrés a címsorban (?status=…&page=…), soronként állapotváltás
 export default function AdminAccountsPage() {
   const [params, setParams] = useSearchParams()
   const status = parseStatus(params.get('status'))
   const page = Math.max(Number(params.get('page')) || 0, 0)
   const accountsQuery = useAdminAccounts(status, page)
   const [managed, setManaged] = useState<AccountResponse>()
+  const [depositing, setDepositing] = useState<AccountResponse>()
+  const [inspecting, setInspecting] = useState<AccountResponse>()
   const [userId, setUserId] = useState<number>()
 
   const accounts = accountsQuery.data?.content ?? []
@@ -94,11 +97,21 @@ export default function AdminAccountsPage() {
                       <Badge tone={accountStatusTones[account.status]}>{accountStatusLabels[account.status]}</Badge>
                     </Td>
                     <Td className="text-right">
-                      {account.status !== 'CLOSED' && (
-                        <Button variant="outline" size="sm" leftIcon={<SlidersHorizontal />} onClick={() => setManaged(account)}>
-                          Kezelés
+                      <span className="inline-flex flex-wrap justify-end gap-2">
+                        <Button variant="ghost" size="sm" leftIcon={<ReceiptText />} onClick={() => setInspecting(account)}>
+                          Tételek
                         </Button>
-                      )}
+                        {account.status === 'ACTIVE' && (
+                          <Button variant="ghost" size="sm" leftIcon={<Banknote />} onClick={() => setDepositing(account)}>
+                            Befizetés
+                          </Button>
+                        )}
+                        {account.status !== 'CLOSED' && (
+                          <Button variant="outline" size="sm" leftIcon={<SlidersHorizontal />} onClick={() => setManaged(account)}>
+                            Kezelés
+                          </Button>
+                        )}
+                      </span>
                     </Td>
                   </Tr>
                 ))}
@@ -119,6 +132,8 @@ export default function AdminAccountsPage() {
       </Card>
 
       <AccountStatusDialog account={managed} onClose={() => setManaged(undefined)} />
+      <AdminDepositDialog account={depositing} onClose={() => setDepositing(undefined)} />
+      <AccountTransactionsDialog account={inspecting} onClose={() => setInspecting(undefined)} />
       <UserDetailsDialog userId={userId} onClose={() => setUserId(undefined)} />
     </>
   )

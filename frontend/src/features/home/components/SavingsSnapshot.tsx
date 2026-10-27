@@ -11,8 +11,7 @@ import { useSavings } from '../../savings/queries'
 
 const percentFormatter = new Intl.NumberFormat('hu-HU', { maximumFractionDigits: 0 })
 
-// A főoldal megtakarítás-kártyája a grafikon mellett: a kiválasztott pénznemben félretett összeg és a célok
-// (legfeljebb négy) haladása – mind a backendből
+// Megtakarítások a kiválasztott pénznemben, legfeljebb négy cél haladásával
 export default function SavingsSnapshot({ currency, total }: { currency: string; total: number | undefined }) {
   const savingsQuery = useSavings()
   const goals = (savingsQuery.data ?? []).filter((savings) => savings.currency === currency && savings.status !== 'CLOSED').slice(0, 4)

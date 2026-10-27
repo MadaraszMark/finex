@@ -7,16 +7,12 @@ interface ModalShellProps {
   onClose: () => void
   labelledBy: string
   describedBy?: string
-  // "responsive": mobilon alul (felcsúszó lap), nagyobb képernyőn középen; "top": mindig felül (gyorskereső)
+  // responsive: mobilon alul, nagyobb képernyőn középen; top: mindig felül (gyorskereső)
   placement?: 'responsive' | 'top'
   children: ReactNode
 }
 
-// A felugró ablakok közös kerete a natív <dialog> elemre építve: a böngésző kezeli a fókuszcsapdát, és a háttér
-// közben nem kezelhető (inert). A megjelenéshez és az eltűnéshez szükséges animációkat a motion végzi, ezért:
-// - az Escape nem zárja be azonnal (cancel), hanem az onClose-t hívja, és a szülő AnimatePresence-e animál ki;
-// - a sötétített, elmosott háttér saját elem (a ::backdrop nem animálható), kattintásra ez is bezár;
-// - nyitva tartás alatt az oldal nem görgethető, bezáráskor a fókusz visszakerül a megnyitó elemre (dialog.close()).
+// Natív <dialog> (fókuszcsapda, inert háttér); a ::backdrop nem animálható, ezért saját háttér van
 export default function ModalShell({ onClose, labelledBy, describedBy, placement = 'responsive', children }: ModalShellProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
 

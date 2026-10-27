@@ -10,7 +10,7 @@ import type { TransferForm } from '../schemas'
 
 const amountInputFormatter = new Intl.NumberFormat('hu-HU', { maximumFractionDigits: 2 })
 
-// 3. lépés: mennyit és milyen közleménnyel (a kategória nem kötelező, a statisztikákban segít)
+// 3. lépés: összeg és közlemény (a kategória nem kötelező)
 export default function AmountStep({ source, categories }: { source: AccountResponse | undefined; categories: CategoryResponse[] }) {
   const {
     register,

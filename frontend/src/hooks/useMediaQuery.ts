@@ -1,7 +1,6 @@
 import { useSyncExternalStore } from 'react'
 
-// Egy CSS média-lekérdezés aktuális állapota (pl. "(min-width: 640px)"), átméretezéskor frissül.
-// A useSyncExternalStore miatt renderelés közben is megbízhatóan olvasható, nincs villanás.
+// Egy CSS média-lekérdezés aktuális állapota, villanás nélkül (useSyncExternalStore)
 export function useMediaQuery(query: string): boolean {
   return useSyncExternalStore(
     (onChange) => {

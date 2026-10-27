@@ -16,8 +16,7 @@ interface SegmentedControlProps<T extends string> {
   className?: string
 }
 
-// Rádiógomb-csoport "pirula" stílusban: a kijelölés animáltan csúszik át (motion layoutId).
-// Billentyűzettel a nyilakkal lehet váltani, a csoportba egyetlen Tab-lépés visz be.
+// Rádiógomb-csoport pirula stílusban, animáltan átcsúszó kijelöléssel
 export default function SegmentedControl<T extends string>({ label, value, options, onChange, className }: SegmentedControlProps<T>) {
   const indicatorId = useId()
   const buttonsRef = useRef<Array<HTMLButtonElement | null>>([])

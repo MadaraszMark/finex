@@ -15,8 +15,7 @@ interface ConfirmDialogProps {
   tone?: 'danger' | 'primary'
 }
 
-// Megerősítés egy nehezen visszafordítható művelet előtt (pl. számla lezárása): figyelmeztető ikon, a következmény
-// leírása, alul a "Mégse" és a (veszélyes műveletnél piros) megerősítő gomb
+// Megerősítés egy nehezen visszafordítható művelet előtt (pl. számla lezárása)
 export default function ConfirmDialog({
   open,
   onClose,

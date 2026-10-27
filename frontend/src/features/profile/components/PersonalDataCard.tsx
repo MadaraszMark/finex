@@ -1,40 +1,49 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Mail, Phone, UserRound } from 'lucide-react'
-import { useForm } from 'react-hook-form'
+import { Lock, Mail, Phone, UserRound } from 'lucide-react'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { getErrorMessage, getFieldErrors } from '../../../api/client'
 import type { UserResponse } from '../../../api/types'
 import Alert from '../../../components/ui/Alert'
 import Button from '../../../components/ui/Button'
 import { Card, CardHeader } from '../../../components/ui/Card'
+import PasswordField from '../../../components/ui/PasswordField'
 import TextField from '../../../components/ui/TextField'
 import { useUpdateProfile } from '../queries'
 import { profileSchema, type ProfileForm } from '../schemas'
 
-const fields = ['lastName', 'firstName', 'email', 'phone'] as const
+const fields = ['lastName', 'firstName', 'email', 'phone', 'currentPassword'] as const
 
-// Személyes adatok módosítása; a Mentés gomb csak változtatás után aktív
+// E-mail-cseréhez a jelszó is kell, hogy ellopott munkamenettel ne legyen átvehető a fiók
 export default function PersonalDataCard({ user }: { user: UserResponse }) {
   const updateProfile = useUpdateProfile()
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     setError,
     formState: { errors, isDirty },
   } = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { lastName: user.lastName, firstName: user.firstName, email: user.email, phone: user.phone ?? '' },
+    defaultValues: { lastName: user.lastName, firstName: user.firstName, email: user.email, phone: user.phone ?? '', currentPassword: '' },
   })
+  const email = useWatch({ control, name: 'email' })
+  const emailChanged = email.trim().toLowerCase() !== user.email.toLowerCase()
 
   function onSubmit(values: ProfileForm) {
+    if (emailChanged && !values.currentPassword) {
+      setError('currentPassword', { message: 'Az e-mail cím módosításához add meg a jelenlegi jelszavad.' })
+      return
+    }
+
     updateProfile.mutate(
-      { ...values, phone: values.phone || undefined },
+      { ...values, phone: values.phone || undefined, currentPassword: emailChanged ? values.currentPassword : undefined },
       {
         onSuccess: (updated) => {
-          reset({ lastName: updated.lastName, firstName: updated.firstName, email: updated.email, phone: updated.phone ?? '' })
-          toast.success('Mentettük az adataidat')
+          reset({ lastName: updated.lastName, firstName: updated.firstName, email: updated.email, phone: updated.phone ?? '', currentPassword: '' })
+          toast.success('Mentettük az adataidat', emailChanged ? { description: 'Mostantól az új e-mail címeddel lépj be.' } : undefined)
         },
         onError: (error) => {
           Object.entries(getFieldErrors(error)).forEach(([field, message]) => {
@@ -56,6 +65,15 @@ export default function PersonalDataCard({ user }: { user: UserResponse }) {
           <TextField label="Keresztnév" autoComplete="given-name" error={errors.firstName?.message} {...register('firstName')} />
         </div>
         <TextField label="E-mail cím" type="email" autoComplete="email" leftIcon={<Mail />} error={errors.email?.message} {...register('email')} />
+        {emailChanged && (
+          <PasswordField
+            label="Jelenlegi jelszó (az e-mail cím módosításához)"
+            autoComplete="current-password"
+            leftIcon={<Lock />}
+            error={errors.currentPassword?.message}
+            {...register('currentPassword')}
+          />
+        )}
         <TextField
           label="Telefonszám (nem kötelező)"
           type="tel"
@@ -68,7 +86,6 @@ export default function PersonalDataCard({ user }: { user: UserResponse }) {
 
         {updateProfile.isError && <Alert tone="danger">{getErrorMessage(updateProfile.error)}</Alert>}
 
-        {/* A gomb a kártya aljára kerül, így a szomszédos kártya gombjával egy vonalban áll */}
         <div className="mt-auto flex justify-end">
           <Button type="submit" loading={updateProfile.isPending} disabled={!isDirty}>
             Mentés

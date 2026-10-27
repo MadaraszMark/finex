@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { addDays, addMonths, endOfMonth, startOfMonth, toIsoDate } from '../../lib/dates'
 
-// A számlaadatlap időszaka: ez szűri az egyenleggrafikont és a kivonatot is. A címsorban tárolódik
-// (?period=90d vagy ?from=2026-09-01&to=2026-09-15), így megosztható, és a Vissza gomb is működik vele.
+// Az időszak a címsorban tárolódik (?period=90d vagy ?from=…&to=…), így megosztható
 
 export type PeriodPreset = '30d' | 'this-month' | 'last-month' | '90d' | '365d'
 
@@ -23,6 +22,13 @@ export const periodPresets: { value: PeriodPreset; label: string }[] = [
 
 const DEFAULT_PRESET: PeriodPreset = '30d'
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+// A szerver legfeljebb ennyi napos kivonatot és egyenlegtörténetet ad egyszerre
+export const MAX_PERIOD_DAYS = 366
+
+function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
+}
 
 export function presetRange(preset: PeriodPreset, today: Date): { from: string; to: string } {
   switch (preset) {
@@ -48,8 +54,7 @@ function isPreset(value: string | null): value is PeriodPreset {
 function parsePeriod(params: URLSearchParams, today: Date): Period {
   const from = params.get('from')
   const to = params.get('to')
-  // Egyedi időszak: két érvényes dátum, a kezdő nem későbbi a zárónál, és a záró nem a jövőben van
-  if (from && to && ISO_DATE.test(from) && ISO_DATE.test(to) && from <= to && to <= toIsoDate(today)) {
+  if (from && to && ISO_DATE.test(from) && ISO_DATE.test(to) && from <= to && to <= toIsoDate(today) && daysBetween(from, to) <= MAX_PERIOD_DAYS) {
     return { preset: 'custom', from, to }
   }
   const preset = params.get('period')

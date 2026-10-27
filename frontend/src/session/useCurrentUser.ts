@@ -3,7 +3,7 @@ import { queryKeys } from '../api/queryKeys'
 import { getMe } from '../api/users'
 import { useSession } from './useSession'
 
-// A bejelentkezett felhasználó adatai (GET /users/me). Belépéskor a válaszból már a gyorsítótárban vannak.
+// A bejelentkezett felhasználó (GET /users/me); belépéskor már a gyorsítótárban van
 export function useCurrentUser() {
   const session = useSession()
 

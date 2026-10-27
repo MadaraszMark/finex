@@ -20,20 +20,18 @@ import AppLayout from './layout/AppLayout'
 import RootLayout from './RootLayout'
 import RouteErrorPage from './RouteErrorPage'
 
-// Az oldalak kódja csak akkor töltődik le, amikor a felhasználó először megnyitja őket (külön fájl minden oldalnak)
+// Lazy route: az oldal kódja csak az első megnyitáskor töltődik le
 function page(load: () => Promise<{ default: ComponentType }>) {
   return async () => ({ Component: (await load()).default })
 }
 
-// Első betöltéskor, amíg az oldal kódja letöltődik, a helyén az oldal váza látszik (hydrateFallbackElement): pörgő
-// töltésjelző helyett ugyanabban az elrendezésben, mint az elkészült oldal. A belső oldalaknál a valódi oldalsáv és
-// fejléc már látszik, csak a tartalom helyén van váz.
+// Betöltés közben pörgő karika helyett az oldal váza látszik (hydrateFallbackElement)
 
 export const router = createBrowserRouter([
   {
     element: <RootLayout />,
     errorElement: <RouteErrorPage />,
-    // Tartalék, ha egy útvonalnak nincs saját váza (mindegyiknek van): üres háttér, töltésjelző nélkül
+    // Tartalék, ha egy útvonalnak nincs saját váza
     hydrateFallbackElement: <div className="min-h-dvh bg-background" />,
     children: [
       // Csak kijelentkezve (bejelentkezett felhasználót továbbirányít)
@@ -46,7 +44,7 @@ export const router = createBrowserRouter([
             handle: { title: 'Üdvözlünk' },
             hydrateFallbackElement: <WelcomeSkeleton />,
           },
-          // A belépés és a regisztráció közös kerete: váltáskor a háttér helyben marad, csak az űrlap cserélődik
+          // Közös keret: belépés és regisztráció között csak az űrlap cserélődik, a háttér marad
           {
             lazy: page(() => import('../features/auth/AuthLayout')),
             hydrateFallbackElement: <AuthSkeleton />,
@@ -202,7 +200,7 @@ export const router = createBrowserRouter([
                 ),
               },
 
-              // Adminisztráció: csak ADMIN szerepkörrel (a backend /admin/** végpontjai is ezt követelik meg)
+              // Adminisztráció: csak ADMIN szerepkörrel (a backend is ezt követeli meg)
               {
                 path: 'admin',
                 element: <RequireAdmin />,
@@ -236,6 +234,12 @@ export const router = createBrowserRouter([
                     lazy: page(() => import('../features/admin/pages/AdminLoginLogsPage')),
                     handle: { title: 'Belépési napló' },
                     hydrateFallbackElement: <AdminRouteSkeleton pathname="/admin/login-logs" />,
+                  },
+                  {
+                    path: 'audit-log',
+                    lazy: page(() => import('../features/admin/pages/AdminAuditLogPage')),
+                    handle: { title: 'Audit napló' },
+                    hydrateFallbackElement: <AdminRouteSkeleton pathname="/admin/audit-log" />,
                   },
                   {
                     path: 'categories',

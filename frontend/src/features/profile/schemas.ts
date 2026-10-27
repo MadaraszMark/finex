@@ -1,9 +1,10 @@
 import { z } from 'zod'
 import { newPasswordField, personalDataFields } from '../auth/schemas'
 
-// A backend szabályai (UpdateUserRequest, ChangePasswordRequest), a regisztrációval közös mezőkkel
+// A backend szabályai (UpdateUserRequest, ChangePasswordRequest)
 
-export const profileSchema = z.object(personalDataFields)
+// A jelenlegi jelszó csak e-mail-cserénél kötelező (ezt az űrlap ellenőrzi, ott van a régi cím)
+export const profileSchema = z.object({ ...personalDataFields, currentPassword: z.string().max(100) })
 
 export type ProfileForm = z.infer<typeof profileSchema>
 

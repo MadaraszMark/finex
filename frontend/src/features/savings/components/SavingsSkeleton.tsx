@@ -1,7 +1,7 @@
 import { SkeletonCard, SkeletonCardHeader } from '../../../components/skeletons/SkeletonKit'
 import Skeleton from '../../../components/ui/Skeleton'
 
-// A megtakarítások váza: a célok kártyái (név, gyűrű az összeggel, várható kamat, gombok) és az összesítés
+// A megtakarítások váza: a célok kártyái és az összesítés
 export default function SavingsSkeleton() {
   return (
     <>

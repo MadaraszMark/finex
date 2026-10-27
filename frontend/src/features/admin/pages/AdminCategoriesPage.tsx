@@ -20,8 +20,7 @@ import { AdminCategoriesSkeleton } from '../components/AdminSkeletons'
 import CategoryDialog from '../components/CategoryDialog'
 import { useDeleteCategory } from '../queries'
 
-// Tranzakciókategóriák kezelése: létrehozás, átnevezés, ikoncsere és törlés
-// (tranzakcióhoz már hozzárendelt kategória nem törölhető – ezt a backend jelzi)
+// Kategóriák kezelése; használatban lévő kategória nem törölhető (a backend jelzi)
 export default function AdminCategoriesPage() {
   const categoriesQuery = useCategories()
   const deleteCategory = useDeleteCategory()

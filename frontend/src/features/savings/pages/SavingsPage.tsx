@@ -23,8 +23,7 @@ import SavingsTransferDialog from '../components/SavingsTransferDialog'
 import { useSavings } from '../queries'
 import { estimatedMonthlyInterest } from '../schemas'
 
-// Melyik ablak van (vagy volt utoljára) nyitva, melyik megtakarításhoz. Bezáráskor csak az "open" vált hamisra, így az
-// ablak kiúszó animációja lefut; a kulcs minden megnyitáskor nő, így az űrlap mindig friss értékekkel indul.
+// Bezáráskor csak az "open" vált hamisra (lefut a kiúszó animáció); a kulcs megnyitásonként nő
 type DialogTarget = { kind: 'create' } | { kind: SavingsAction; savings: SavingsAccountResponse }
 type DialogState = DialogTarget & { open: boolean }
 
@@ -42,7 +41,7 @@ function totalsByCurrency(savings: SavingsAccountResponse[]) {
   return [...totals.entries()]
 }
 
-// Megtakarítások: a célok kártyákon (haladás, egyenleg, kamat), felettük az összesítés; a műveletek ablakokban
+// Megtakarítások: összesítés és a célok kártyái, a műveletek ablakokban
 export default function SavingsPage() {
   const savingsQuery = useSavings()
   const { data: accounts = [] } = useAccounts()

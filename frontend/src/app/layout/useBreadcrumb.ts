@@ -6,7 +6,7 @@ export interface Breadcrumb {
   label: string
 }
 
-// Hol jár a felhasználó a menü szerint (pl. "Pénzmozgás / Tranzakciók"): a leghosszabb illeszkedő menüpont nyer
+// Morzsamenü a menü alapján: a leghosszabb illeszkedő menüpont nyer
 export function useBreadcrumb(): Breadcrumb | null {
   const { pathname } = useLocation()
 

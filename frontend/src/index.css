@@ -1,13 +1,13 @@
 @import 'tailwindcss';
 @import '@fontsource-variable/plus-jakarta-sans';
 
-/* Sötét mód: a <html> elem "dark" osztálya kapcsolja be (lásd theme/themeStore.ts és index.html) */
+/* Sötét mód: a <html> elem dark osztálya kapcsolja be (theme/themeStore.ts) */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-sans: 'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, sans-serif;
 
-  /* FineX lila – a docs/images koncepcióképek árnyalatai (bg-brand-500, text-brand-700, …) */
+  /* FineX lila márkaszínek (bg-brand-500, text-brand-700, …) */
   --color-brand-50: #f6f2ff;
   --color-brand-100: #ede5ff;
   --color-brand-200: #dccdff;
@@ -20,7 +20,7 @@
   --color-brand-900: #462873;
   --color-brand-950: #2a1650;
 
-  /* A koncepciókép csengőjének sárga jelzőpontja */
+  /* A csengő sárga jelzőpontja */
   --color-accent: #facc15;
 
   --shadow-card: 0 1px 2px rgb(28 21 48 / 0.04), 0 12px 32px -20px rgb(28 21 48 / 0.25);
@@ -127,8 +127,7 @@
   }
 }
 
-/* Szemantikus színek világos és sötét értékkel. A komponensek ezeket használják (bg-card, text-muted-foreground, …),
-   így a sötét módhoz nem kell mindenhova külön dark: előtag. */
+/* Szemantikus színek világos és sötét értékkel, így nem kell mindenhova dark: előtag */
 :root {
   /* A natív vezérlők (dátumválasztó, legördülő lista, görgetősáv) is a témát követik */
   color-scheme: light;
@@ -143,12 +142,11 @@
   --ring: #a878f5;
   --success: #059669;
   --danger: #e11d48;
-  /* Kitöltött piros felület fehér szöveggel/ikonnal (gomb, figyelmeztető jelvény): mindkét témában ugyanaz, 4,7:1 kontraszt */
+  /* Kitöltött piros felület fehér tartalommal: mindkét témában ugyanaz (4,7:1 kontraszt) */
   --danger-solid: #e11d48;
   --warning: #d97706;
 
-  /* Grafikonok: a bevétel/kiadás színpárja ellenőrzött (fényerő, telítettség,
-     színtévesztő-biztos elkülönülés, kontraszt a kártya hátterén); a rácsvonal egy árnyalattal tér el a felülettől */
+  /* Grafikonszínek: a bevétel/kiadás pár színtévesztő-biztos és jól kontrasztos */
   --chart-income: #059669;
   --chart-outcome: #7c45d1;
   --chart-balance: #7c45d1;
@@ -195,7 +193,7 @@
   --color-chart-grid: var(--chart-grid);
 }
 
-/* A márka színátmenete: világosabb lila jobb felül, mélyebb ibolya bal alul (mint a koncepcióképeken) */
+/* A márka színátmenete: világosabb lila jobb felül, mélyebb ibolya bal alul */
 @utility bg-brand-gradient {
   background-image:
     radial-gradient(90% 70% at 100% 0%, rgb(255 255 255 / 0.18), transparent 60%),
@@ -208,8 +206,7 @@
   color: transparent;
 }
 
-/* Az oldalfejléc lila sávjának alja: az utolsó 8rem-en lágyan (nem egyenletesen) olvad bele az oldal hátterébe,
-   így nem látszik éles határ ott, ahol az elhalványulás elkezdődik */
+/* A fejlécsáv alja lágyan, nem egyenletesen halványul, így nincs éles határ */
 @utility mask-fade-bottom {
   mask-image: linear-gradient(
     to bottom,
@@ -221,8 +218,7 @@
   );
 }
 
-/* Az egér követése a kattintható kártyákon: halvány fényfolt ott, ahol a kurzor van (hooks/useSpotlight.ts állítja
-   a --spot-x / --spot-y változókat). A színe a --spot-color változóval felülírható (pl. a színes számlakártyákon fehér). */
+/* Egérkövető fényfolt (useSpotlight.ts); a színe a --spot-color változóval felülírható */
 @utility spotlight {
   position: relative;
 
@@ -260,8 +256,7 @@
     scrollbar-color: var(--color-border) transparent;
   }
 
-  /* A görgetősáv helye mindig le van foglalva: felugró ablak nyitásakor (az oldal görgetése ilyenkor tiltott)
-     így nem ugrik oldalra a tartalom */
+  /* Lefoglalt görgetősáv-hely, hogy ablaknyitáskor ne ugorjon oldalra a tartalom */
   html {
     -webkit-tap-highlight-color: transparent;
     scrollbar-gutter: stable;
@@ -284,7 +279,7 @@
 }
 
 @layer components {
-  /* Csúszka (components/ui/Slider.tsx): a sáv kitöltött része a márka színátmenete, a fogantyú fehér, lila kerettel */
+  /* Csúszka (Slider.tsx): színátmenetes kitöltés, fehér fogantyú lila kerettel */
   .finex-range {
     height: 1.75rem;
     appearance: none;
@@ -357,7 +352,7 @@
   }
 }
 
-/* Témaváltás: a böngésző alapértelmezett áttűnése helyett a theme/themeTransition.ts kör alakú felfedése fut */
+/* A böngésző áttűnése helyett a themeTransition.ts kör alakú felfedése fut */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;
@@ -376,7 +371,7 @@ html [data-sonner-toaster][data-sonner-theme] {
   --normal-text: var(--foreground);
 }
 
-/* Üveghatású buborékok mély, lila árnyalatú árnyékkal (mint a felugró ablakok) */
+/* Üveghatású buborékok mély, lila árnyékkal */
 html [data-sonner-toaster] [data-sonner-toast] {
   padding: 14px 16px;
   backdrop-filter: blur(18px);

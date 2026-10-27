@@ -1,7 +1,7 @@
 import { SkeletonCard, SkeletonChips, SkeletonRows } from '../../../components/skeletons/SkeletonKit'
 import Skeleton from '../../../components/ui/Skeleton'
 
-// A tranzakciólista sorainak váza (napfejléccel), a lista betöltése közben
+// A tranzakciólista sorainak váza (napfejléccel)
 export function TransactionListSkeleton({ rows = 6 }: { rows?: number }) {
   return (
     <div className="mt-4">
@@ -11,7 +11,7 @@ export function TransactionListSkeleton({ rows = 6 }: { rows?: number }) {
   )
 }
 
-// A Tranzakciók oldal váza: a szűrők kártyája (kereső, típus és időszak) és a lista
+// A Tranzakciók oldal váza: a szűrők kártyája és a lista
 export default function TransactionsSkeleton() {
   return (
     <>

@@ -3,15 +3,21 @@ import type {
   AccountResponse,
   AccountStatus,
   AdminDashboardResponse,
+  AuditAction,
+  AuditLogResponse,
   CategoryRequest,
   CategoryResponse,
+  DepositRequest,
   JobRunResponse,
   LoginLogResponse,
   LoginStatus,
   Page,
+  ReconciliationResponse,
   SupportTicketListItem,
   SupportTicketResponse,
   TicketStatus,
+  TransactionListItem,
+  TransactionResponse,
   UserDetailsResponse,
   UserListItem,
   UserResponse,
@@ -21,8 +27,7 @@ import type {
 
 // Az adminisztrátori végpontok (/admin/**): a backend csak ADMIN szerepkörrel engedi őket
 
-// Lapozott lista paraméterei a legújabb elemmel elöl. Azonos létrehozási időnél (pl. a demóadatoknál) az azonosító
-// dönt, így egy módosítás után sem "ugrál" a sorrend. A több sort paramétert a Spring sort=…&sort=… alakban várja.
+// Legújabb elöl; azonos létrehozási időnél az id dönt, így a sorrend nem ugrál
 function newestFirst(params: Record<string, string | number | undefined>): URLSearchParams {
   const search = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) {
@@ -35,8 +40,6 @@ function newestFirst(params: Record<string, string | number | undefined>): URLSe
   return search
 }
 
-// --- Áttekintés és ütemezett feladatok ---
-
 export async function getAdminDashboard(): Promise<AdminDashboardResponse> {
   const { data } = await api.get<AdminDashboardResponse>('/admin/dashboard')
   return data
@@ -46,8 +49,6 @@ export async function runJob(job: 'savings-interest' | 'standing-orders'): Promi
   const { data } = await api.post<JobRunResponse>(`/admin/jobs/${job}`)
   return data
 }
-
-// --- Felhasználók ---
 
 export async function searchUsers(search: string, page = 0, size = 20): Promise<Page<UserListItem>> {
   const { data } = await api.get<Page<UserListItem>>('/admin/users', { params: newestFirst({ search, page, size }) })
@@ -69,8 +70,6 @@ export async function updateUserRole(id: number, role: UserRole): Promise<UserRe
   return data
 }
 
-// --- Számlák ---
-
 export async function getAllAccounts(status: AccountStatus | undefined, page = 0, size = 20): Promise<Page<AccountResponse>> {
   const { data } = await api.get<Page<AccountResponse>>('/admin/accounts', { params: newestFirst({ status, page, size }) })
   return data
@@ -80,8 +79,6 @@ export async function updateAccountStatus(id: number, status: AccountStatus): Pr
   const { data } = await api.patch<AccountResponse>(`/admin/accounts/${id}/status`, { status })
   return data
 }
-
-// --- Ügyfélszolgálat ---
 
 export async function getAllTickets(status: TicketStatus | undefined, page = 0, size = 50): Promise<Page<SupportTicketListItem>> {
   const { data } = await api.get<Page<SupportTicketListItem>>('/admin/support-tickets', { params: { status, page, size } })
@@ -104,8 +101,6 @@ export async function updateTicketStatus(id: number, status: TicketStatus): Prom
   return data
 }
 
-// --- Belépési napló ---
-
 export interface LoginLogFilter {
   status?: LoginStatus
   userId?: number
@@ -118,8 +113,6 @@ export async function searchLoginLogs(filter: LoginLogFilter, page = 0, size = 3
   const { data } = await api.get<Page<LoginLogResponse>>('/admin/login-logs', { params: { ...filter, page, size } })
   return data
 }
-
-// --- Kategóriák ---
 
 export async function createCategory(request: CategoryRequest): Promise<CategoryResponse> {
   const { data } = await api.post<CategoryResponse>('/admin/categories', request)
@@ -134,4 +127,40 @@ export async function updateCategory(id: number, request: CategoryRequest): Prom
 // Használatban lévő kategória nem törölhető (a backend hibát ad)
 export async function deleteCategory(id: number): Promise<void> {
   await api.delete(`/admin/categories/${id}`)
+}
+
+// Készpénzbefizetés egy ügyfél számlájára (jóváírást csak az admin rögzíthet)
+export async function depositToAccount(accountId: number, request: DepositRequest): Promise<AccountResponse> {
+  const { data } = await api.post<AccountResponse>(`/admin/accounts/${accountId}/deposit`, request)
+  return data
+}
+
+// Egy számla tételei (a sztornóhoz), legfrissebb elöl
+export async function getAccountTransactions(accountId: number, page = 0, size = 10): Promise<Page<TransactionListItem>> {
+  const { data } = await api.get<Page<TransactionListItem>>(`/admin/accounts/${accountId}/transactions`, { params: { page, size } })
+  return data
+}
+
+// Sztornó: az eredeti tétel megmarad, egy ellentétes irányú javító tétel semlegesíti
+export async function reverseTransaction(id: number, reason: string): Promise<TransactionResponse> {
+  const { data } = await api.post<TransactionResponse>(`/admin/transactions/${id}/reverse`, { reason })
+  return data
+}
+
+// Főkönyvi egyeztetés: a tárolt egyenlegek megegyeznek-e a könyvelt tételekkel
+export async function getReconciliation(): Promise<ReconciliationResponse> {
+  const { data } = await api.get<ReconciliationResponse>('/admin/reconciliation')
+  return data
+}
+
+export interface AuditLogFilter {
+  action?: AuditAction
+  actorId?: number
+  from?: string
+  to?: string
+}
+
+export async function searchAuditLog(filter: AuditLogFilter, page = 0, size = 30): Promise<Page<AuditLogResponse>> {
+  const { data } = await api.get<Page<AuditLogResponse>>('/admin/audit-log', { params: { ...filter, page, size } })
+  return data
 }

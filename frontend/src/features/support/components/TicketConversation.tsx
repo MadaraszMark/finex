@@ -11,7 +11,7 @@ import TicketStatusBadge from './TicketStatusBadge'
 
 interface TicketConversationProps {
   ticket: SupportTicketResponse
-  // Ki nézi: az ügyfél (a saját üzenetei jobbra) vagy az ügyfélszolgálat (a munkatársak üzenetei jobbra)
+  // Ki nézi: ügyfél vagy ügyfélszolgálat (a saját oldal üzenetei jobbra)
   viewer: 'customer' | 'staff'
   onSend: (message: string) => Promise<unknown>
   sending: boolean
@@ -27,8 +27,7 @@ function allMessages(ticket: SupportTicketResponse): TicketMessageResponse[] {
   return [{ id: 0, authorName: ticket.userFullName, staff: false, message: ticket.message, createdAt: ticket.createdAt }, ...ticket.messages]
 }
 
-// Egy ticket beszélgetése csevegő nézetben: a saját üzenetek jobbra (lila buborék), a másik félé balra; napváltáskor
-// elválasztó, alul az üzenetküldő (Ctrl + Enter is küld). Új üzenetnél a lista magától az aljára görget.
+// Csevegő nézet; Ctrl + Enter is küld, új üzenetnél a lista az aljára görget
 export default function TicketConversation({ ticket, viewer, onSend, sending, sendError, headerActions, backButton }: TicketConversationProps) {
   const [draft, setDraft] = useState('')
   const listRef = useRef<HTMLDivElement>(null)
@@ -66,7 +65,6 @@ export default function TicketConversation({ ticket, viewer, onSend, sending, se
 
   return (
     <div className="flex h-full min-h-[32rem] flex-col">
-      {/* Keskeny képernyőn az állapot (és a műveletek) a cím alá tördelődik, hogy a címnek legyen helye */}
       <div className="flex flex-wrap items-start gap-3 border-b border-border pb-4">
         {backButton}
         <div className="min-w-0 flex-1 basis-48">

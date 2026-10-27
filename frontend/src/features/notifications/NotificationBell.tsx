@@ -9,7 +9,7 @@ import NotificationItem from './components/NotificationItem'
 import { useLatestNotifications, useMarkAllAsRead, useUnreadCount } from './queries'
 import { useOpenNotification } from './useOpenNotification'
 
-// A csengő lenyíló panelje: a legfrissebb értesítések, "Mind olvasott" és az összes értesítés oldala
+// A csengő lenyíló panelje a legfrissebb értesítésekkel
 function BellPanel({ close, unread }: { close: () => void; unread: number }) {
   const latestQuery = useLatestNotifications(true)
   const markAllAsRead = useMarkAllAsRead()
@@ -68,8 +68,7 @@ function BellPanel({ close, unread }: { close: () => void; unread: number }) {
   )
 }
 
-// A koncepcióképek csengője (a lila felső sávon üveghatású): olvasatlan értesítésnél sárga jelvény mutatja a számukat,
-// kattintásra lenyílik a legfrissebb értesítések listája
+// Értesítési csengő: olvasatlan értesítésnél sárga jelvény mutatja a számukat
 export default function NotificationBell() {
   const { data: count = 0 } = useUnreadCount()
 

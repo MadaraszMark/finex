@@ -24,8 +24,7 @@ interface StatCardProps {
   className?: string
 }
 
-// Egy mutató kártyán: címke ikonnal, az összeg (a kártya szélességéhez igazodó betűmérettel, így keskeny oszlopban
-// sem törik szét) és egy magyarázó sor. Pénznemváltáskor az összeg nulláról számol fel, nem a régiből "pörög át".
+// Egy mutató; pénznemváltáskor az összeg nulláról számol fel (nem a régiből pörög át)
 function StatCard({ icon, label, value, currency, meta, className }: StatCardProps) {
   return (
     <Card className={cn('@container flex flex-col p-5 sm:p-6', className)}>
@@ -46,9 +45,7 @@ function StatCard({ icon, label, value, currency, meta, className }: StatCardPro
   )
 }
 
-// A főoldal áttekintése egy pénznemben, a számlakártyák 3 oszlopos rácsához igazodva: felül három mutató (teljes
-// egyenleg, havi bevétel és kiadás), alattuk a havi grafikon (két oszlop széles) és a megtakarítások. A pénznemek
-// csak azok, amelyekben a felhasználónak nyitott számlája van; minden adat a backendből jön.
+// A főoldal áttekintése egy pénznemben (csak amelyikben a felhasználónak számlája van)
 export default function BalanceOverview({ accounts }: { accounts: AccountResponse[] }) {
   const available = currencies.filter((currency) => accounts.some((account) => account.currency === currency))
   const [selected, setSelected] = useState<string>()

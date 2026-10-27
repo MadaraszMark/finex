@@ -1,7 +1,7 @@
 import { api } from './client'
-import type { AccountResponse, BalanceHistoryItem, CreateAccountRequest, DepositRequest, StatementResponse } from './types'
+import type { AccountResponse, BalanceHistoryItem, CreateAccountRequest, StatementResponse } from './types'
 
-// AccountController (/accounts) és BalanceHistoryController (/balance-history): a bejelentkezett felhasználó számlái
+// AccountController és BalanceHistoryController: a bejelentkezett felhasználó számlái
 
 // Az összes számla (a lezártak is), nyitás szerinti sorrendben
 export async function getMyAccounts(): Promise<AccountResponse[]> {
@@ -25,9 +25,9 @@ export async function closeAccount(id: number): Promise<void> {
   await api.delete(`/accounts/${id}`)
 }
 
-// Demó készpénzbefizetés (pl. ATM-en)
-export async function deposit(accountId: number, request: DepositRequest): Promise<AccountResponse> {
-  const { data } = await api.post<AccountResponse>(`/accounts/${accountId}/deposit`, request)
+// Számlakivonat CSV-fájlban (Excelhez); a from és a to "ÉÉÉÉ-HH-NN", mindkét nap beleszámít
+export async function downloadStatementCsv(accountId: number, from: string, to: string): Promise<Blob> {
+  const { data } = await api.get<Blob>(`/accounts/${accountId}/statement.csv`, { params: { from, to }, responseType: 'blob' })
   return data
 }
 

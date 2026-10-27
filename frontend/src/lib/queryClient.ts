@@ -15,8 +15,7 @@ export const queryClient = new QueryClient({
   },
 })
 
-// Pénzmozgás (befizetés, kártyás fizetés, utalás, megtakarítás) után minden érintett adat frissül: egyenlegek,
-// kivonatok, egyenlegtörténet, a kártyák mai költése, tranzakciók, megtakarítások, statisztikák és az értesítések
+// Pénzmozgás után minden érintett adat frissül (egyenlegek, kártyák, tételek, statisztikák, …)
 export function invalidateMoneyQueries() {
   return Promise.all(
     [queryKeys.accounts, queryKeys.cards, queryKeys.transactions, queryKeys.savings, queryKeys.statistics, queryKeys.notifications].map((queryKey) =>

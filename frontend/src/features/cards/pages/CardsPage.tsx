@@ -11,8 +11,7 @@ import CardsSkeleton from '../components/CardsSkeleton'
 import CardSettings from '../components/CardSettings'
 import { useCards } from '../queries'
 
-// Kártyák: bal oldalon (mobilon felül) a kártyák, mellettük a kiválasztott kártya beállításai.
-// A kiválasztott kártya a címsorban van (?card=7), így a számlaadatlapról közvetlenül ide lehet linkelni.
+// Kártyák; a kiválasztott kártya a címsorban van (?card=7), így ide lehet linkelni
 export default function CardsPage() {
   const cardsQuery = useCards()
   const accountsQuery = useAccounts()

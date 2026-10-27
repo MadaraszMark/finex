@@ -9,9 +9,7 @@ import SessionWatcher from '../session/SessionWatcher'
 import { useTheme } from '../theme/useTheme'
 import { router } from './router'
 
-// Az értesítő buborékok a világos/sötét témát követik (külön komponens, hogy témaváltáskor csak ez rajzolódjon újra).
-// Saját rétegük (popover) a böngésző legfelső rétegében van, és minden felugró ablak megnyitásakor újra a tetejére
-// kerül (lib/topLayer): így a visszajelzés a nyitott ablak fölött is látszik, nem vész el a sötétített háttér mögött.
+// Saját popover-rétegben, hogy a buborék a nyitott ablak fölött is látsszon (lib/topLayer)
 function ThemedToaster() {
   const { resolved } = useTheme()
   const layerRef = useRef<HTMLDivElement>(null)
@@ -38,11 +36,10 @@ function ThemedToaster() {
   )
 }
 
-// Az alkalmazás gyökere: adatlekérés (React Query), animációk, útvonalak és értesítő buborékok
+// Az alkalmazás gyökere: adatlekérés, animációk, útvonalak és értesítő buborékok
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Aki az operációs rendszerben kikapcsolta az animációkat, annak mozgás nélkül jelenik meg minden */}
       <MotionConfig reducedMotion="user">
         <SessionWatcher />
         <RouterProvider router={router} />

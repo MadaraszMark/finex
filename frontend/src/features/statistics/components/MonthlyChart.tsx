@@ -12,7 +12,6 @@ import { currencyName, formatCompactNumber, formatMoney, formatMonth, formatSign
 
 type View = 'chart' | 'table'
 
-// A két sorozat (bevétel, kiadás) színei színtévesztők számára is megkülönböztethetők; a jelmagyarázat mindig látszik
 const series = [
   { key: 'income', label: 'Bevétel', color: 'var(--chart-income)', swatch: 'bg-chart-income' },
   { key: 'outcome', label: 'Kiadás', color: 'var(--chart-outcome)', swatch: 'bg-chart-outcome' },
@@ -32,16 +31,13 @@ function periodText(months: number): string {
   return months === 1 ? 'Ez a hónap' : `Az elmúlt ${months} hónap`
 }
 
-// Havi bevétel és kiadás csoportosított oszlopokban (vékony oszlopok, lekerekített tető, 2 px rés a párok között),
-// buborékkal és táblázatos nézettel (ugyanazok az adatok akadálymentesen, szövegként)
+// Havi bevétel és kiadás oszlopokban, akadálymentes táblázatos nézettel
 export default function MonthlyChart({ data, currency, months = 6, refreshing = false }: MonthlyChartProps) {
   const reduceMotion = useReducedMotion()
   const [view, setView] = useState<View>('chart')
   const empty = data?.every((month) => month.income === 0 && month.outcome === 0) ?? false
 
   return (
-    // A kártya kitölti a rendelkezésére álló magasságot (pl. a főoldalon a mellette álló kártyáéhoz igazodik), a grafikon
-    // legalább 15rem magas
     <Card className="flex flex-col p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <CardHeader title="Bevétel és kiadás" description={`${periodText(months)} · ${currencyName(currency)}`} />
@@ -71,8 +67,7 @@ export default function MonthlyChart({ data, currency, months = 6, refreshing = 
         ) : empty ? (
           <p className="flex min-h-60 flex-1 items-center justify-center text-center text-sm text-muted-foreground">Az elmúlt hónapokban nem volt forgalom ebben a pénznemben.</p>
         ) : view === 'chart' ? (
-          // Rögzített 15rem-es alapmagasság (a ResponsiveContainer 100%-a ehhez képest számol); ha a kártya magasabb
-          // (pl. a főoldalon a mellette álló kártyához nyúlik), a grafikon kitölti a többletet is
+          // 15rem alapmagasság a ResponsiveContainernek; magasabb kártyán kitölti a többletet
           <div className="h-60 grow">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data} barGap={2} barCategoryGap="28%" margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>

@@ -12,7 +12,7 @@ interface AccountOptionProps {
   showBalance?: boolean
 }
 
-// Választható számla (rádiógombként): a számla színvilágának csíkja, neve, rövidített számlaszáma és egyenlege
+// Választható számla rádiógombként
 export default function AccountOption({ account, selected, onSelect, showBalance = true }: AccountOptionProps) {
   return (
     <button

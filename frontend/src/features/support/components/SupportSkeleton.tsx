@@ -1,7 +1,7 @@
 import { SkeletonCard, SkeletonChips } from '../../../components/skeletons/SkeletonKit'
 import Skeleton from '../../../components/ui/Skeleton'
 
-// Egy beszélgetés váza: fejléc (cím, azonosító, állapot), üzenetbuborékok felváltva, alul az üzenetíró
+// Egy beszélgetés váza: fejléc, felváltva üzenetbuborékok, alul az üzenetíró
 export function ConversationSkeleton() {
   return (
     <div className="flex h-full min-h-[32rem] flex-col">
@@ -31,8 +31,7 @@ export function ConversationSkeleton() {
   )
 }
 
-// Az ügyfélszolgálat (és az admin ticketkezelő) váza: balra a ticketek listája, jobbra a beszélgetés, egyforma
-// magasan; az adminnál a lista fölött az állapotszűrő
+// Az ügyfélszolgálat (és az admin ticketkezelő) váza: lista és beszélgetés
 export default function SupportSkeleton({ filters = false }: { filters?: boolean }) {
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]">

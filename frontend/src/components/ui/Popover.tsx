@@ -3,17 +3,17 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { cn } from '../../lib/cn'
 
 interface PopoverProps {
-  // A nyitógomb tartalma és a felolvasóprogramoknak szóló címkéje
+  // A nyitógomb tartalma és a felolvasónak szóló címkéje
   trigger: ReactNode
   label: string
-  // A panel tartalma; a close() hívással bezárható (pl. egy linkre kattintás után)
+  // A panel tartalma; a close() hívással bezárható
   children: (close: () => void) => ReactNode
   align?: 'start' | 'end'
   triggerClassName?: string
   panelClassName?: string
 }
 
-// Lenyíló panel (pl. a profilmenü). Kívülre kattintva vagy Escape-re bezárul, és a fókusz visszakerül a gombra.
+// Lenyíló panel: kívülre kattintva vagy Escape-re bezárul, a fókusz visszakerül a gombra
 export default function Popover({ trigger, label, children, align = 'end', triggerClassName, panelClassName }: PopoverProps) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)

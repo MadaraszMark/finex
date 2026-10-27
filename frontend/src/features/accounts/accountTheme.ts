@@ -5,8 +5,7 @@ interface AccountTheme {
   glow: string
 }
 
-// Pénznemenként saját színvilág, mint a koncepcióképen (a forintszámla lila, a devizaszámla türkiz kártya).
-// A színátmenetek elég sötétek ahhoz, hogy a fehér felirat mindenhol jól olvasható legyen.
+// Pénznemenként saját színátmenet, elég sötét ahhoz, hogy a fehér felirat jól olvasható legyen
 const themes: Record<string, AccountTheme> = {
   HUF: {
     surface: 'bg-[linear-gradient(135deg,#a878f5_0%,#8a4fe0_45%,#5f33b5_100%)]',

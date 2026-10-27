@@ -14,8 +14,7 @@ interface ChipGroupProps<T extends string> {
   className?: string
 }
 
-// Választógombok "pirulákként" (pl. időszak: 30 nap, Ez a hónap, …). A SegmentedControl-lal szemben keskeny
-// képernyőn több sorba tördelődik. Rádiócsoportként működik: nyilakkal lehet váltani, egyetlen Tab-lépés visz be.
+// Pirula-választó: a SegmentedControl-lal szemben keskeny képernyőn több sorba tördelődik
 export default function ChipGroup<T extends string>({ label, value, options, onChange, className }: ChipGroupProps<T>) {
   const buttonsRef = useRef<Array<HTMLButtonElement | null>>([])
   const selectedIndex = options.findIndex((option) => option.value === value)

@@ -1,8 +1,7 @@
 import { motion } from 'motion/react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
-// A tartalom magasságának változását (pl. belépés ↔ regisztráció) simán, rugószerűen animálja.
-// A belső elem valódi magasságát ResizeObserver méri; a -m-2/p-2 pár miatt a mezők fókuszkerete nem vágódik le.
+// Magasságváltás animálva; a -m-2/p-2 pár miatt a mezők fókuszkerete nem vágódik le
 export default function AnimatedHeight({ children }: { children: ReactNode }) {
   const innerRef = useRef<HTMLDivElement>(null)
   const [height, setHeight] = useState<number | 'auto'>('auto')

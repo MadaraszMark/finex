@@ -2,12 +2,11 @@ import { z } from 'zod'
 import { parseAmount } from '../../lib/format'
 import { amountSchema } from '../accounts/schemas'
 
-// Az űrlapok szabályai a backend validációját követik (CreateSavingsAccountRequest, UpdateSavingsAccountRequest,
-// SavingsTransferRequest). Az összegek pénzneme a kiválasztott folyószámláé, ezért a sémák pénznemenként készülnek.
+// A backend validációját követi; a sémák a folyószámla pénzneme szerint készülnek
 
 const nameField = z.string().trim().min(1, 'Add meg, mire gyűjtesz.').max(100, 'Legfeljebb 100 karakter lehet.')
 
-// Nem kötelező összeg (pl. célösszeg, kezdő befizetés): üresen maradhat, egyébként érvényes összeg kell
+// Nem kötelező összeg (pl. célösszeg): üresen maradhat, egyébként érvényes kell
 function optionalAmount(currency: string, min: number, minMessage: string) {
   return z
     .string()

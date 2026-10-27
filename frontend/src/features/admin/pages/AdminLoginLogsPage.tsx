@@ -33,7 +33,7 @@ const statusOptions: { value: StatusFilter; label: string }[] = [
 
 const filterParams: FilterParam[] = ['status', 'user', 'ip', 'from', 'to']
 
-// A szűrők a címsorban vannak (?status=FAILED&ip=…&from=…&to=…&user=…&page=…), így egy keresés linkként továbbküldhető
+// A szűrők a címsorban vannak, így egy keresés linkként továbbküldhető
 function readFilter(params: URLSearchParams): LoginLogFilter {
   const status = params.get('status')
   return {
@@ -45,7 +45,7 @@ function readFilter(params: URLSearchParams): LoginLogFilter {
   }
 }
 
-// Belépési napló biztonsági vizsgálathoz: ki, mikor, honnan és milyen eszközről lépett be (vagy próbált belépni)
+// Belépési napló biztonsági vizsgálathoz: ki, mikor, honnan és milyen eszközről
 export default function AdminLoginLogsPage() {
   const [params, setParams] = useSearchParams()
   const filter = readFilter(params)
@@ -89,7 +89,7 @@ export default function AdminLoginLogsPage() {
 
       <Card className="p-5 sm:p-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_12rem_12rem]">
-          {/* Az IP-cím pontos egyezésre szűr, ezért Enterre vagy a mezőből kilépve keres (nem minden leütésre) */}
+          {/* Az IP pontos egyezésre szűr, ezért Enterre vagy kilépéskor keres */}
           <form
             key={filter.ipAddress ?? ''}
             onSubmit={(event) => {

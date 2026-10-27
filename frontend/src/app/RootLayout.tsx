@@ -4,7 +4,7 @@ import { useRouteTitle } from '../hooks/useRouteTitle'
 import { SHY } from '../lib/format'
 import NavigationProgress from './NavigationProgress'
 
-// Minden oldal közös gyökere: böngészőfül címe, betöltésjelző csík és görgetési pozíció visszaállítása
+// Közös gyökér: fülcím, betöltésjelző csík és görgetési pozíció visszaállítása
 export default function RootLayout() {
   const title = useRouteTitle()
   const navigation = useNavigation()

@@ -13,7 +13,7 @@ interface CardHeaderProps {
   className?: string
 }
 
-// Kártya fejléce: cím, rövid leírás és opcionális művelet (pl. "Részletek" link a jobb oldalon)
+// Kártya fejléce: cím, rövid leírás és opcionális művelet
 export function CardHeader({ title, description, action, className }: CardHeaderProps) {
   return (
     <div className={cn('flex items-start justify-between gap-4', className)}>

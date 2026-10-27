@@ -3,8 +3,7 @@ import type { StatementResponse } from '../../../api/types'
 import { cn } from '../../../lib/cn'
 import { formatMoney, formatSignedMoney } from '../../../lib/format'
 
-// A kivonat számai az időszakra: nyitó és záró egyenleg, jóváírások és terhelések összege.
-// Az értékek a szöveg színét viselik, az irányt a színes ikon jelzi mellettük.
+// Az időszak számai: nyitó és záró egyenleg, jóváírások és terhelések összege
 export default function PeriodSummary({ statement, refreshing = false }: { statement: StatementResponse; refreshing?: boolean }) {
   const tiles = [
     { label: 'Nyitó egyenleg', value: formatMoney(statement.openingBalance, statement.currency), icon: Flag, tone: 'neutral' },

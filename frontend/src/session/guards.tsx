@@ -4,15 +4,13 @@ import ForbiddenPage from '../features/errors/ForbiddenPage'
 import { useCurrentUser } from './useCurrentUser'
 import { useSessionState } from './useSession'
 
-// Útvonalvédelem: a router ezekbe csomagolja a védett, illetve csak vendégeknek szóló oldalakat.
-// A valódi jogosultság-ellenőrzés a backendben van, ez csak a felületet irányítja a megfelelő helyre.
+// Útvonalvédelem csak a felületen; a valódi jogosultság-ellenőrzés a backendben van
 
 interface RedirectState {
   from?: Location
 }
 
-// Csak bejelentkezve. Kilépés után a belépő oldalra, új látogatót a főoldalról a nyitóképernyőre visz;
-// lejárt munkamenetnél megjegyzi, hol járt a felhasználó, és belépés után oda viszi vissza.
+// Csak bejelentkezve; lejárt munkamenet után a belépés oda visz vissza, ahol járt
 export function RequireAuth() {
   const { session, endReason } = useSessionState()
   const location = useLocation()
@@ -29,7 +27,7 @@ export function RequireAuth() {
   return <Navigate to="/login" replace state={{ from: location } satisfies RedirectState} />
 }
 
-// Csak kijelentkezve (nyitóképernyő, belépés, regisztráció). Belépés után innen irányít tovább.
+// Csak kijelentkezve; belépés után innen irányít tovább
 export function GuestOnly() {
   const { session } = useSessionState()
   const location = useLocation()
@@ -42,8 +40,7 @@ export function GuestOnly() {
   return <Outlet />
 }
 
-// Csak ADMIN szerepkörrel (a szerepkört a GET /users/me válaszából ismerjük). Amíg ez betöltődik, a kért admin oldal
-// váza látszik (töltésjelző helyett).
+// Csak ADMIN szerepkörrel; amíg a GET /users/me betöltődik, az admin oldal váza látszik
 export function RequireAdmin() {
   const { data: user, isPending, isError } = useCurrentUser()
   const location = useLocation()

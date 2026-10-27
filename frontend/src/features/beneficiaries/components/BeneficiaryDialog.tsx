@@ -17,11 +17,11 @@ import { beneficiarySchema, type BeneficiaryForm } from '../schemas'
 interface BeneficiaryDialogProps {
   open: boolean
   onClose: () => void
-  // Megadva szerkesztés, egyébként új kedvezményezett (a szülő kulcsolja, így mindig friss értékekkel nyílik)
+  // Megadva szerkesztés, egyébként új kedvezményezett (a szülő újrakulcsolja)
   beneficiary?: BeneficiaryResponse
 }
 
-// Kedvezményezett felvétele vagy módosítása: név, számlaszám (élő IBAN-ellenőrzéssel) és megjegyzés
+// Kedvezményezett felvétele vagy módosítása (élő IBAN-ellenőrzéssel)
 export default function BeneficiaryDialog({ open, onClose, beneficiary }: BeneficiaryDialogProps) {
   const createBeneficiary = useCreateBeneficiary()
   const updateBeneficiary = useUpdateBeneficiary()

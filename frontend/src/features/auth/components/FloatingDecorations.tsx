@@ -2,8 +2,7 @@ import { motion, useTransform } from 'motion/react'
 import { DotGrid, Waves } from '../../../components/brand/Decorations'
 import type { PointerParallax } from '../../../hooks/usePointerParallax'
 
-// A koncepcióképek díszítőelemei (hullámok, pöttyrács, körök) különböző "mélységben":
-// az egér mozgására eltérő mértékben és irányban mozdulnak el, ettől térhatású a háttér
+// Díszítőelemek különböző "mélységben": az egérre eltérően mozdulnak, ettől térhatású a háttér
 export default function FloatingDecorations({ pointer }: { pointer: PointerParallax }) {
   const nearX = useTransform(pointer.x, (value) => value * -60)
   const nearY = useTransform(pointer.y, (value) => value * -60)
@@ -12,7 +11,6 @@ export default function FloatingDecorations({ pointer }: { pointer: PointerParal
 
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-      {/* A nagyobb elemek mobilon rálógnának a címre, ezért csak nagyobb képernyőn jelennek meg */}
       <motion.div style={{ x: nearX, y: nearY }} className="absolute top-24 right-[6%] hidden w-44 text-white/40 md:block">
         <Waves strokeWidth={11} className="motion-safe:animate-float" />
       </motion.div>
@@ -26,7 +24,6 @@ export default function FloatingDecorations({ pointer }: { pointer: PointerParal
         <DotGrid rows={4} columns={4} />
       </motion.div>
 
-      {/* Körök: egy nagy szaggatott gyűrű és két áttetsző korong (az egérrel együtt finoman elmozdulnak) */}
       <motion.div style={{ x: farX, y: farY }} className="absolute -bottom-40 -left-40 size-[26rem]">
         <div className="size-full rounded-full border-2 border-dashed border-white/15" />
       </motion.div>

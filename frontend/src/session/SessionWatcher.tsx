@@ -5,8 +5,7 @@ import { useSession } from './useSession'
 // A böngésző időzítője legfeljebb ~24,8 napot tud várni
 const MAX_TIMEOUT_MS = 2_147_483_647
 
-// A token lejáratakor (AuthResponse.expiresAt) automatikusan kilépteti a felhasználót,
-// nem kell megvárni, hogy a következő kérés 401-et kapjon
+// A token lejáratakor automatikusan kiléptet, nem kell megvárni a következő 401-et
 export default function SessionWatcher() {
   const session = useSession()
 

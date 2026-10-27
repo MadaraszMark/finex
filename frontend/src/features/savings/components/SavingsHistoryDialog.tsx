@@ -16,7 +16,7 @@ const typeInfo: Record<SavingsTransactionType, { label: string; icon: typeof Spa
   INTEREST: { label: 'Kamatjóváírás', icon: Sparkles, sign: 1 },
 }
 
-// A megtakarítás mozgásai (befizetés, kivét, havi kamat) a mozgás utáni egyenleggel, lapozva
+// A megtakarítás mozgásai a mozgás utáni egyenleggel, lapozva
 export default function SavingsHistoryDialog({ savings, open, onClose }: { savings: SavingsAccountResponse; open: boolean; onClose: () => void }) {
   const historyQuery = useSavingsTransactions(savings.id)
   const items = historyQuery.data?.pages.flatMap((page) => page.content) ?? []

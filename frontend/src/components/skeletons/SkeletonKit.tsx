@@ -4,15 +4,13 @@ import AuroraBackground from '../brand/AuroraBackground'
 import { cardSurface } from '../ui/cardStyles'
 import Skeleton from '../ui/Skeleton'
 
-// Betöltéskori vázak a valódi elemek helyén és méretében: kártya, kártyafejléc, listasorok, mutatócsempe és az
-// oldalfejléc a lila sávon. Az oldalankénti vázak (features/*/components/…Skeleton) ezekből épülnek fel, így az adatok
-// megérkezésekor a tartalom pontosan a váz helyére kerül, semmi sem ugrik (pörgő töltésjelző helyett).
+// Betöltéskori vázak a valódi elemek méretében; az oldalankénti …Skeleton-ök ezekből épülnek
 
 export function SkeletonCard({ className, children }: { className?: string; children?: ReactNode }) {
   return <div className={cn(cardSurface, 'flex flex-col p-5 sm:p-6', className)}>{children}</div>
 }
 
-// A kártyafejléc (cím és leírás), jobbra opcionálisan egy művelet (pl. "Részletek →")
+// Kártyafejléc: cím, leírás, jobbra opcionálisan egy művelet
 export function SkeletonCardHeader({ action = false, description = true, className }: { action?: boolean; description?: boolean; className?: string }) {
   return (
     <div className={cn('flex items-start justify-between gap-4', className)}>
@@ -57,7 +55,7 @@ export function SkeletonStatTile({ meta = false, className }: { meta?: boolean; 
   )
 }
 
-// Címkés beviteli mező (címke és a mező)
+// Címkés beviteli mező
 export function SkeletonField({ className }: { className?: string }) {
   return (
     <div className={className}>
@@ -84,7 +82,7 @@ export interface PageHeaderSkeletonProps {
   action?: boolean
 }
 
-// Az oldalfejléc váza a lila sávon, a PageHeader méreteivel: felirat, cím, leírás és jobbra a művelet gombja
+// Az oldalfejléc váza a lila sávon, a PageHeader méreteivel
 export function PageHeaderSkeleton({ eyebrow = false, description = true, action = false }: PageHeaderSkeletonProps) {
   return (
     <div className="relative mb-8 lg:mb-10">
@@ -103,8 +101,7 @@ export function PageHeaderSkeleton({ eyebrow = false, description = true, action
   )
 }
 
-// Egy teljes oldal váza (fejléc + tartalom), amíg az oldal kódja első betöltéskor letöltődik; a felolvasóprogram
-// egyszer bemondja, hogy az oldal töltődik
+// Teljes oldal váza a kód első letöltése közben; a felolvasó egyszer bemondja, hogy tölt
 export function PageSkeleton({ header, children }: { header?: PageHeaderSkeletonProps; children: ReactNode }) {
   return (
     <div role="status" aria-busy="true">

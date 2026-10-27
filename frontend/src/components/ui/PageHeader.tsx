@@ -15,9 +15,7 @@ interface PageHeaderProps {
   className?: string
 }
 
-// Az oldalak fejléce a belépő oldalak lila "aurora" hátterén. A sáv képernyőszélességű (a tartalmi oszlop levágja),
-// felfelé a felső sáv mögé fut ki, alul pedig beleolvad az oldal hátterébe, így az első kártya félig "rácsúszik".
-// A cím szavanként élesedik ki, a díszítések az egér mozgására finoman elmozdulnak.
+// Oldalfejléc a lila aurora sávon; alul beleolvad a háttérbe, így az első kártya rácsúszik
 export default function PageHeader({ title, highlight, description, eyebrow, actions, className }: PageHeaderProps) {
   const pointer = usePointerParallax()
   const nearX = useTransform(pointer.x, (value) => value * -36)

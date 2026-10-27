@@ -47,7 +47,7 @@ function readStoredSession(): Session | null {
   }
 }
 
-// A korábbi verzió csak a tokent tárolta, ezen a kulcson
+// Elavult kulcs (csak a tokent tárolta) törlése
 storage.remove('finex.token')
 
 let state: SessionState = { session: readStoredSession(), endReason: null }
@@ -57,10 +57,15 @@ function setState(next: SessionState) {
   listeners.forEach((listener) => listener())
 }
 
-// Ha egy másik böngészőfülön be- vagy kilépnek, ez a fül is követi
+const externalChangeListeners = new Set<Listener>()
+
+// Másik fül be-/kilépését is követi; tokenváltáskor előbb a feliratkozók értesülnek
 window.addEventListener('storage', (event) => {
   if (event.key === STORAGE_KEY) {
     const session = readStoredSession()
+    if (session?.token !== state.session?.token) {
+      externalChangeListeners.forEach((listener) => listener())
+    }
     setState({ session, endReason: session ? null : 'logout' })
   }
 })
@@ -89,6 +94,14 @@ export const sessionStore = {
     listeners.add(listener)
     return () => {
       listeners.delete(listener)
+    }
+  },
+
+  // Egy másik fülön történt be- vagy kilépés (a token megváltozott)
+  onExternalChange(listener: Listener) {
+    externalChangeListeners.add(listener)
+    return () => {
+      externalChangeListeners.delete(listener)
     }
   },
 }

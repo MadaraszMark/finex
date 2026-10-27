@@ -1,7 +1,7 @@
 import { SkeletonCard, SkeletonCardHeader, SkeletonChips, SkeletonRows, SkeletonStatTile } from '../../../components/skeletons/SkeletonKit'
 import Skeleton from '../../../components/ui/Skeleton'
 
-// A kategóriák rangsorának sorai (ikon, név, összeg, alatta a sáv)
+// A kategóriák rangsorának sorai
 export function CategoryRowsSkeleton({ count }: { count: number }) {
   return (
     <div className="space-y-4">
@@ -22,7 +22,7 @@ export function CategoryRowsSkeleton({ count }: { count: number }) {
   )
 }
 
-// A Statisztika oldal váza: szűrők, a négy mutató, a havi grafikon, alul a két egyforma kártya
+// A Statisztika oldal váza: szűrők, mutatók, grafikon és két kártya
 export default function StatisticsSkeleton() {
   return (
     <>

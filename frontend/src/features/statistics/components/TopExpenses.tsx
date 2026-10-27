@@ -14,7 +14,7 @@ interface TopExpensesProps {
   refreshing?: boolean
 }
 
-// Az időszak legnagyobb kiadásai; egy tételre kattintva a Tranzakciók oldalon nyílik meg az adatlapja
+// Az időszak legnagyobb kiadásai; kattintásra a tétel adatlapja nyílik meg
 export default function TopExpenses({ data, periodLabel, refreshing = false }: TopExpensesProps) {
   const navigate = useNavigate()
   const [now] = useState(() => new Date())

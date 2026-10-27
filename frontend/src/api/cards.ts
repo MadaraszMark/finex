@@ -25,8 +25,8 @@ export async function updateCardLimits(id: number, request: UpdateCardLimitsRequ
   return data
 }
 
-// Demó kártyás fizetés: a számla egyenlegéből levonódik, és beleszámít a mai költésbe
-export async function payWithCard(id: number, request: CardPaymentRequest): Promise<TransactionResponse> {
-  const { data } = await api.post<TransactionResponse>(`/cards/${id}/payments`, request)
+// Demó kártyás fizetés; az Idempotency-Key miatt a kétszer elküldött kérés csak egyszer terhel
+export async function payWithCard(id: number, request: CardPaymentRequest, idempotencyKey: string): Promise<TransactionResponse> {
+  const { data } = await api.post<TransactionResponse>(`/cards/${id}/payments`, request, { headers: { 'Idempotency-Key': idempotencyKey } })
   return data
 }

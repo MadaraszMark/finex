@@ -11,8 +11,7 @@ const options: { value: ThemePreference; label: string; icon: LucideIcon; descri
   { value: 'system', label: 'Rendszer', icon: Monitor, description: 'Az eszközöd beállítása' },
 ]
 
-// Kis "képernyőkép" a témáról: világos vagy sötét felület a lila fejlécsávval (a rendszer témánál kettéosztva).
-// A sávok magassága százalékos, így kicsiben (lista) és nagyban (kártya) is arányos.
+// A téma kis előnézete (a rendszer témánál kettéosztva)
 function ThemePreview({ theme, className }: { theme: ThemePreference; className?: string }) {
   const panel = (dark: boolean) => (
     <div className={cn('flex flex-1 flex-col gap-[7%] p-[8%]', dark ? 'bg-[#0d0a16]' : 'bg-[#f7f5fc]')}>
@@ -36,8 +35,7 @@ function ThemePreview({ theme, className }: { theme: ThemePreference; className?
   )
 }
 
-// Megjelenés: a három téma előnézettel; választáskor a kattintás helyéről körben terül szét az új téma.
-// A kártya konténer: keskeny oszlopban a témák egymás alatt, kis előnézettel; elég helyen három nagy kártya egymás mellett.
+// Megjelenés: választáskor a kattintás helyéről körben terül szét az új téma
 export default function AppearanceCard() {
   const { preference } = useTheme()
 

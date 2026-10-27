@@ -23,13 +23,12 @@ interface CommandItem {
   run: () => void
 }
 
-// Kereséshez: kisbetűs, ékezet és feltételes elválasztójel nélküli alak ("kedvezmenyezett" is megtalálja)
+// Kereséshez: kisbetűs, ékezet és feltételes elválasztójel nélküli alak
 function normalize(text: string): string {
   return text.replaceAll(SHY, '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
 }
 
-// Gyorskereső (Ctrl/⌘ + K): oldalak, gyakori műveletek, számlák és kedvezményezettek egy helyen.
-// Billentyűzettel teljesen kezelhető (↑/↓ léptetés, Enter megnyitás, Esc bezárás), a felolvasónak combobox-listbox.
+// Gyorskereső (Ctrl/⌘ + K): oldalak, műveletek, számlák és kedvezményezettek egy helyen
 export default function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   return <AnimatePresence>{open && <CommandPanel onClose={onClose} />}</AnimatePresence>
 }

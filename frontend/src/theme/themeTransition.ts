@@ -1,7 +1,6 @@
 import { themeStore, type ThemePreference } from './themeStore'
 
-// Témaváltás "kör alakú felfedéssel": az új téma a kattintás helyéről táguló körben terül szét (View Transitions API).
-// Ahol a böngésző nem ismeri, vagy csökkentett mozgás van beállítva, a váltás egyszerűen azonnali.
+// Táguló körös témaváltás (View Transitions API); támogatás vagy mozgás nélkül azonnali
 export function changeTheme(preference: ThemePreference, origin?: { x: number; y: number }) {
   const apply = () => themeStore.setPreference(preference)
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches

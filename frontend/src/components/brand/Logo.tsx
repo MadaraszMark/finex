@@ -1,7 +1,7 @@
 import { useId } from 'react'
 import { cn } from '../../lib/cn'
 
-// A koncepcióképek jele: pipa egy körben
+// A márkajel: pipa egy körben
 export function LogoGlyph({ className, strokeWidth = 3 }: { className?: string; strokeWidth?: number }) {
   return (
     <svg viewBox="0 0 48 48" fill="none" aria-hidden className={className}>
@@ -26,7 +26,7 @@ const wordmarkSizes: Record<LogoSize, string> = {
   lg: 'text-2xl',
 }
 
-// Az alkalmazás ikonja (a favicon is ez): lila színátmenetes, lekerekített négyzet, benne a pipás kör
+// Az alkalmazás ikonja (a favicon is ez)
 export function LogoMark({ tone = 'default', size = 'md', className }: { tone?: LogoTone; size?: LogoSize; className?: string }) {
   const gradientId = useId()
 

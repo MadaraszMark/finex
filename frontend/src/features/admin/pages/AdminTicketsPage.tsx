@@ -32,8 +32,7 @@ function parseStatus(value: string | null): TicketStatus | undefined {
   return statusOptions.find((option) => option.value === value && option.value !== 'ALL')?.value as TicketStatus | undefined
 }
 
-// Az ügyfélszolgálat munkafelülete: balra a ticketek állapot szerint szűrve, jobbra a kiválasztott beszélgetése a
-// válaszadással és a lezárással/újranyitással. A szűrő és a kiválasztott ticket a címsorban van (?status=…&ticket=…).
+// Ticketkezelő: a szűrő és a kiválasztott ticket a címsorban van (?status=…&ticket=…)
 export default function AdminTicketsPage() {
   const [params, setParams] = useSearchParams()
   const status = parseStatus(params.get('status'))
@@ -75,7 +74,6 @@ export default function AdminTicketsPage() {
     <>
       <PageHeader eyebrow="Adminisztráció" title="Ticketek" description="Válaszolj az ügyfelek kérdéseire, és zárd le a megoldott ügyeket." />
 
-      {/* A lista és a beszélgetés egyforma magas (a lista kártyája a beszélgetéséhez nyúlik) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]">
         <Card className={cn('p-4 sm:p-5', selectedId !== undefined && 'hidden lg:block')}>
           <ChipGroup

@@ -8,8 +8,7 @@ export interface SelectProps extends ComponentProps<'select'> {
   hint?: string
 }
 
-// Címkés legördülő lista a natív <select> elemmel (mobilon a rendszer saját választója nyílik meg),
-// a TextField-del azonos kinézettel. A react-hook-form register() eredménye ráteríthető.
+// Natív <select> (mobilon a rendszer választója nyílik) a TextField-del azonos kinézettel
 export default function Select({ label, error, hint, id, className, children, ...props }: SelectProps) {
   const generatedId = useId()
   const selectId = id ?? generatedId

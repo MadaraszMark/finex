@@ -8,9 +8,7 @@ import { accountTheme } from '../accountTheme'
 
 const MotionLink = motion.create(Link)
 
-// Számlakártya a koncepcióképek stílusában (pénznemenként más színátmenet, hullám- és pöttydíszítéssel);
-// a számlaadatlapra visz. A lezárt számla szürke. Rácsban a sor magasságát kitöltheti (h-full): az egyenleg ilyenkor
-// is a kártya aljára kerül, így a szomszédos kártyákon egy vonalban áll.
+// Számlakártya; h-full mellett is alul az egyenleg, így a rácsban egy vonalban áll
 export default function AccountCard({ account, className }: { account: AccountResponse; className?: string }) {
   const theme = accountTheme(account)
 

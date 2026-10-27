@@ -10,17 +10,14 @@ interface DialogProps {
   onClose: () => void
   title: string
   description?: string
-  // A fejléc ikonja színátmenetes jelvényben (pl. <Send />); a "danger" tónus piros (megerősítésnél)
   icon?: ReactNode
   tone?: 'brand' | 'danger'
-  // "lg": szélesebb ablak (pl. beszélgetés, részletes adatlap)
   size?: 'md' | 'lg'
   children: ReactNode
   className?: string
 }
 
-// Felugró ablak: nagyobb képernyőn középen rugós animációval megjelenő üvegpanel, mobilon alulról felcsúszó lap,
-// amely a fogantyúnál fogva lehúzva is bezárható. Bezáráskor kiúszik (AnimatePresence), csak utána tűnik el a DOM-ból.
+// Felugró ablak: asztalin középen üvegpanel, mobilon lehúzással is bezárható alsó lap
 export default function Dialog(props: DialogProps) {
   return <AnimatePresence>{props.open && <DialogPanel {...props} />}</AnimatePresence>
 }
@@ -67,7 +64,6 @@ function DialogPanel({ onClose, title, description, icon, tone = 'brand', size =
           className,
         )}
       >
-        {/* Halvány lila fény a fejléc mögött */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-[radial-gradient(90%_100%_at_0%_0%,rgb(168_120_245/0.22),transparent_70%)] dark:bg-[radial-gradient(90%_100%_at_0%_0%,rgb(124_69_209/0.3),transparent_70%)]"
@@ -114,8 +110,7 @@ function DialogPanel({ onClose, title, description, icon, tone = 'brand', size =
           </div>
         </header>
 
-        {/* A görgetett rész alsó térköze egy belső elemen van, nem a görgető dobozon: a ragadós gombsor (DialogActions)
-            így pontosan az ablak aljához tapad (a böngésző a görgető doboz belső margóját levonná a helyéből) */}
+        {/* Az alsó térköz belső elemen van, hogy a ragadós gombsor pontosan az ablak aljához tapadjon */}
         <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-6">
           <div className="pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6">{children}</div>
         </div>
@@ -124,7 +119,7 @@ function DialogPanel({ onClose, title, description, icon, tone = 'brand', size =
   )
 }
 
-// Az ablak gombsora: görgetés közben is az ablak alján marad (üveghatású sáv), mobilon a gombok egymás alatt
+// Az ablak gombsora: görgetéskor is az ablak alján marad, mobilon a gombok egymás alatt
 export function DialogActions({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div

@@ -5,8 +5,7 @@ interface AmountFieldProps extends Omit<TextFieldProps, 'rightSlot' | 'inputMode
   currency: string
 }
 
-// Összegmező: mobilon számbillentyűzet, a mező végén a pénznem jele. A szöveget a zod-séma értelmezi
-// (szóköz ezres elválasztó és tizedesvessző is megengedett: "12 500", "120,50").
+// Összegmező; a zod-séma a szóközös ezreseket és a tizedesvesszőt is elfogadja ("12 500", "120,50")
 export default function AmountField({ currency, ...props }: AmountFieldProps) {
   return (
     <TextField

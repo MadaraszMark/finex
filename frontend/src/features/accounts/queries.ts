@@ -1,14 +1,15 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { closeAccount, deposit, getAccount, getBalanceHistory, getMyAccounts, getStatement, openAccount } from '../../api/accounts'
+import { closeAccount, getAccount, getBalanceHistory, getMyAccounts, getStatement, openAccount } from '../../api/accounts'
 import { queryKeys } from '../../api/queryKeys'
-import type { AccountResponse, DepositRequest } from '../../api/types'
+import { exchange } from '../../api/transactions'
+import type { AccountResponse } from '../../api/types'
 import { invalidateMoneyQueries } from '../../lib/queryClient'
 
 export function useAccounts() {
   return useQuery({ queryKey: queryKeys.accounts, queryFn: getMyAccounts })
 }
 
-// A számlaadatlap azonnal megjelenik, ha a számla már szerepel a betöltött listában (utána a háttérben frissül)
+// A már betöltött listából azonnal megjelenik, utána a háttérben frissül
 export function useAccount(id: number) {
   const queryClient = useQueryClient()
   return useQuery({
@@ -37,10 +38,11 @@ export function useBalanceHistory(accountId: number, from: string, to: string) {
   })
 }
 
-// Számlanyitás és -zárás után a számlák, a kártyák (a backend kártyát nyit, illetve megszüntet) és az összesítők frissülnek
+// Számlanyitás és -zárás a kártyákat is érinti (a backend kártyát nyit, illetve megszüntet)
 function useAccountChangeInvalidation() {
   const queryClient = useQueryClient()
-  return () => Promise.all([queryKeys.accounts, queryKeys.cards, queryKeys.statistics].map((queryKey) => queryClient.invalidateQueries({ queryKey })))
+  // Számlazáráskor a róla induló rendszeres átutalások is leállnak, ezért azok is frissülnek
+  return () => Promise.all([queryKeys.accounts, queryKeys.cards, queryKeys.statistics, queryKeys.standingOrders].map((queryKey) => queryClient.invalidateQueries({ queryKey })))
 }
 
 export function useOpenAccount() {
@@ -53,9 +55,7 @@ export function useCloseAccount() {
   return useMutation({ mutationFn: closeAccount, onSuccess: invalidate })
 }
 
-export function useDeposit() {
-  return useMutation({
-    mutationFn: ({ accountId, request }: { accountId: number; request: DepositRequest }) => deposit(accountId, request),
-    onSuccess: invalidateMoneyQueries,
-  })
+// Devizaváltás két saját számla között: mindkét számla egyenlege és a tételek is változnak
+export function useExchange() {
+  return useMutation({ mutationFn: exchange, onSuccess: invalidateMoneyQueries })
 }

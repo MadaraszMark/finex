@@ -17,8 +17,7 @@ import { useAdminUser, useUpdateUserRole, useUpdateUserStatus } from '../queries
 
 type PendingChange = { kind: 'status'; value: UserStatus } | { kind: 'role'; value: UserRole }
 
-// Egy ügyfél teljes áttekintése: adatok, számlák, kártyák, megtakarítások; letiltás/feloldás és szerepkör-módosítás
-// (a saját fiókját az admin nem tilthatja le, és a saját szerepkörét sem módosíthatja – ezt a backend ellenőrzi)
+// Ügyfél adatlapja; saját fiókját az admin nem tilthatja le, a szerepkörét sem módosíthatja
 export default function UserDetailsDialog({ userId, onClose }: { userId: number | undefined; onClose: () => void }) {
   const [shownId, setShownId] = useState(userId)
   if (userId !== undefined && userId !== shownId) {

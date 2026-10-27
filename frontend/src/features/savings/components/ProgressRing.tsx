@@ -2,7 +2,7 @@ import { motion, useReducedMotion } from 'motion/react'
 import { useId } from 'react'
 
 interface ProgressRingProps {
-  // 0–100 (a célösszeg feletti gyűjtésnél 100-nál megáll a kör, a felirat a valós értéket mutatja)
+  // 0–100; cél felett a kör megáll, a felirat a valós értéket mutatja
   percent: number
   size?: number
   label: string
@@ -10,8 +10,7 @@ interface ProgressRingProps {
 
 const STROKE = 10
 
-// Körkörös haladásjelző a megtakarítási célokhoz: a márka színátmenetével töltődik fel, közepén a százalék.
-// A felolvasóprogramnak meter szerepű elem adja át az értéket.
+// Körkörös haladásjelző; a felolvasóprogramnak meter szerepű elem adja át az értéket
 export default function ProgressRing({ percent, size = 112, label }: ProgressRingProps) {
   const reduceMotion = useReducedMotion()
   const gradientId = useId()

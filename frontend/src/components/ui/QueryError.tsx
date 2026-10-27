@@ -9,7 +9,7 @@ interface QueryErrorProps {
   className?: string
 }
 
-// Egy adatblokk betöltése nem sikerült: rövid üzenet és újrapróbálás (az oldal többi része működik tovább)
+// Sikertelen adatblokk: üzenet és újrapróbálás, az oldal többi része működik tovább
 export default function QueryError({ message, onRetry, retrying = false, className }: QueryErrorProps) {
   return (
     <div role="alert" className={cn('flex flex-col items-center gap-3 px-6 py-8 text-center', className)}>

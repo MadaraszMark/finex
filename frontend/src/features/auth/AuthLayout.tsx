@@ -9,6 +9,7 @@ import { headlineWord, staggerContainer } from '../../lib/motion'
 import { ThemeToggleButton } from '../../theme/ThemeControls'
 import CardShowcase from './components/CardShowcase'
 import FloatingDecorations from './components/FloatingDecorations'
+import HeadlineWords from './components/HeadlineWords'
 
 interface Copy {
   title: [string, string]
@@ -39,24 +40,8 @@ function Headline({ copy, pathname }: { copy: Copy; pathname: string }) {
     <AnimatePresence mode="wait">
       <motion.div key={pathname} variants={staggerContainer} initial="hidden" animate="show" exit="exit">
         <h1 className="text-4xl leading-[1.05] font-extrabold tracking-tight sm:text-5xl xl:text-6xl">
-          <span className="block">
-            {copy.title[0].split(' ').map((word, index) => (
-              <motion.span key={`${index}-${word}`} variants={headlineWord} className="mr-[0.25em] inline-block">
-                {word}
-              </motion.span>
-            ))}
-          </span>
-          <span className="block">
-            {copy.title[1].split(' ').map((word, index) => (
-              <motion.span
-                key={`${index}-${word}`}
-                variants={headlineWord}
-                className="mr-[0.25em] inline-block bg-[linear-gradient(90deg,#ffffff,#f5d0fe,#ddd6fe,#ffffff)] bg-[length:200%_auto] bg-clip-text pb-1 text-transparent motion-safe:animate-gradient-x"
-              >
-                {word}
-              </motion.span>
-            ))}
-          </span>
+          <HeadlineWords text={copy.title[0]} />
+          <HeadlineWords text={copy.title[1]} highlight />
         </h1>
         <motion.p variants={headlineWord} className="mt-5 hidden max-w-md text-lg text-white/80 sm:block">
           {copy.subtitle}
@@ -66,8 +51,7 @@ function Headline({ copy, pathname }: { copy: Copy; pathname: string }) {
   )
 }
 
-// A belépés és a regisztráció közös kerete (útvonal-szintű layout): a háttér, a cím és a kártya helyben marad,
-// oldalváltáskor csak a kártya tartalma cserélődik, a kártya magassága pedig simán igazodik.
+// A belépés és a regisztráció közös layoutja: oldalváltáskor csak a kártya tartalma cserélődik
 export default function AuthLayout() {
   const location = useLocation()
   const outlet = useOutlet()
@@ -90,7 +74,6 @@ export default function AuthLayout() {
         <section>
           <Headline copy={copy} pathname={location.pathname} />
 
-          {/* Közepes képernyőn a kiemelt funkciók, nagy képernyőn a bankkártyás "kirakat" */}
           <motion.ul
             variants={staggerContainer}
             initial="hidden"
@@ -117,7 +100,6 @@ export default function AuthLayout() {
           transition={{ type: 'spring', stiffness: 110, damping: 18 }}
           className="relative w-full max-w-md justify-self-center rounded-[2rem] border border-white/50 bg-card/90 p-6 text-foreground shadow-[0_40px_80px_-30px_rgb(20_8_45/0.6)] backdrop-blur-2xl sm:p-9 lg:justify-self-end dark:border-white/10 dark:bg-card/80"
         >
-          {/* Halvány lila fénycsík a kártya tetején */}
           <div aria-hidden className="absolute inset-x-10 -top-px h-px bg-linear-to-r from-transparent via-brand-400 to-transparent" />
 
           <AnimatedHeight>

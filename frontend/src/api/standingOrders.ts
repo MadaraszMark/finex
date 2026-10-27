@@ -1,7 +1,7 @@
 import { api } from './client'
 import type { CreateStandingOrderRequest, StandingOrderResponse, UpdateStandingOrderRequest } from './types'
 
-// StandingOrderController (/standing-orders): rendszeres átutalások (a backend ütemezője óránként teljesíti az esedékeseket)
+// StandingOrderController: rendszeres átutalások (az ütemező óránként teljesíti az esedékeseket)
 
 // A megszüntetett megbízások is benne vannak (active = false), a legújabb elöl
 export async function getStandingOrders(): Promise<StandingOrderResponse[]> {

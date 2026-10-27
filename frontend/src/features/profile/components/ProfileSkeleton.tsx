@@ -1,7 +1,7 @@
 import { SkeletonCard, SkeletonCardHeader, SkeletonField, SkeletonRows } from '../../../components/skeletons/SkeletonKit'
 import Skeleton from '../../../components/ui/Skeleton'
 
-// A Profil oldal váza: a felső névjegy, alatta két egyforma sor (adatok és jelszó, belépések és megjelenés)
+// A Profil oldal váza: névjegy, alatta két egyforma kártyasor
 export default function ProfileSkeleton() {
   return (
     <>

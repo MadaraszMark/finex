@@ -10,10 +10,8 @@ interface AccountsCarouselProps {
   onOpenAccount: () => void
 }
 
-// A koncepciókép számlakártya-sora: mobilon vízszintesen lapozható (a következő kártya belóg a képbe),
-// asztali nézetben rácsban; a sor végén új számla nyitása
+// Számlakártyák: mobilon vízszintesen lapozható sor, asztali nézetben rács
 export default function AccountsCarousel({ accounts, onOpenAccount }: AccountsCarouselProps) {
-  // A nyitható számlák száma a backend beállítása (GET /settings)
   const { data: settings } = useBankSettings()
   const itemClass = 'w-[min(20rem,82vw)] shrink-0 snap-start lg:w-auto'
 

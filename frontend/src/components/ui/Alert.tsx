@@ -16,12 +16,11 @@ const icons: Record<AlertTone, ReactNode> = {
   info: <Info />,
 }
 
-// Űrlap szintű üzenet (pl. a backend hibaüzenete). A felolvasóprogram azonnal felolvassa.
+// Űrlap szintű üzenet (pl. a backend hibaüzenete), a felolvasó azonnal felolvassa
 export default function Alert({ tone = 'info', className, children }: { tone?: AlertTone; className?: string; children: ReactNode }) {
   const alertRef = useRef<HTMLDivElement>(null)
 
-  // Felugró ablakban a beküldés után megjelenő hibaüzenet magától láthatóvá görgetődik (hosszú ablakban az alja
-  // alatt lehetne); alul ráhagyással, hogy a ragadós gombsor ne takarja el
+  // Ablakban a hibaüzenet láthatóvá görgetődik (a scroll-mb miatt a ragadós gombsor nem takarja)
   useEffect(() => {
     const alert = alertRef.current
     if (tone === 'danger' && alert?.closest('dialog')) {

@@ -35,8 +35,7 @@ function resolve(preference: ThemePreference): ResolvedTheme {
   return preference
 }
 
-// A <html> "dark" osztálya kapcsolja a sötét színeket (index.css). Váltás közben az átmenetek ki vannak kapcsolva,
-// két képkocka múlva visszakapcsolnak.
+// A <html> dark osztálya kapcsol; váltás közben két képkockáig nincsenek átmenetek
 function applyToDocument(resolved: ResolvedTheme) {
   const root = document.documentElement
   root.classList.add('theme-switching')

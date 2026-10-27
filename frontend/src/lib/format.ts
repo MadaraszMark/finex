@@ -1,16 +1,15 @@
 import type { AccountStatus, AccountType, CardStatus, Currency, StandingOrderFrequency, TransactionType } from '../api/types'
 
-// Feltételes elválasztójel (soft hyphen) hosszú, egyszavas feliratokba (pl. `Megtaka${SHY}rítások`): a szó csak
-// szűk helyen (pl. mobilos csempéken) törik meg ott, kötőjellel; máshol nem látszik
+// Feltételes elválasztójel: a hosszú szó csak szűk helyen törik meg, kötőjellel
 export const SHY = String.fromCharCode(0xad)
 
 // A valódi mínuszjel (−) szebb, mint a kötőjel, amit az Intl a magyar formátumban használ
 const MINUS = String.fromCharCode(0x2212)
 
-// Pénznemenként egy formázó (az animált egyenlegkijelzés képkockánként formáz, ezért nem hozunk létre újat minden híváskor)
+// Pénznemenként egy formázó, mert az animált egyenleg képkockánként formáz
 const moneyFormatters = new Map<string, Intl.NumberFormat>()
 
-// Pénzösszeg a magyar formátumban: "1 252 578 Ft", "1234,50 €" (a forint egész, a deviza két tizedesre kerekítve)
+// Magyar formátum: "1 252 578 Ft", "1234,50 €" (a forint egész, a deviza két tizedes)
 export function formatMoney(amount: number, currency: string): string {
   let formatter = moneyFormatters.get(currency)
   if (!formatter) {
@@ -72,8 +71,7 @@ export function formatTime(isoDate: string): string {
   return timeFormatter.format(new Date(isoDate))
 }
 
-// Egy tétel ideje a listákban, mint a banki appokban: "Most", "12 perce", "3 órája", "Tegnap", "szept. 28."
-// (a "now" paraméter azért kell, hogy a formázás tiszta függvény maradjon)
+// Relatív idő a listákban: "Most", "12 perce", "3 órája", "Tegnap", "szept. 28."
 export function formatRelativeTime(isoDate: string, now: Date): string {
   const date = new Date(isoDate)
   const minutes = Math.floor((now.getTime() - date.getTime()) / 60_000)
@@ -125,7 +123,7 @@ export function formatShortIban(iban: string): string {
   return `${iban.slice(0, 4)} •••• ${iban.slice(-4)}`
 }
 
-// A backend már maszkolva küldi a kártyaszámot ("**** **** **** 1184"), itt csak pöttyökre cseréljük a csillagokat
+// A backend maszkolva küldi a kártyaszámot, itt csak pöttyökre cseréljük a csillagokat
 export function formatMaskedCard(maskedNumber: string | undefined): string {
   return maskedNumber ? maskedNumber.replaceAll('*', '•') : 'Nincs kártya'
 }
@@ -135,7 +133,7 @@ export function formatCardExpiry(expiryDate: string): string {
   return `${expiryDate.slice(5, 7)}/${expiryDate.slice(2, 4)}`
 }
 
-// A beírt összeg értelmezése: a szóköz ezres elválasztó és a tizedesvessző is megengedett ("12 500,50")
+// Szóközös ezres elválasztó és tizedesvessző is megengedett ("12 500,50")
 export function parseAmount(input: string): number | undefined {
   const normalized = input.replace(/\s/g, '').replace(',', '.')
   if (!/^\d+(\.\d{1,2})?$/.test(normalized)) {
@@ -144,7 +142,7 @@ export function parseAmount(input: string): number | undefined {
   return Number(normalized)
 }
 
-// Nap a listák fejlécében: "Ma", "Tegnap", "szeptember 28., vasárnap" (korábbi évben az évvel együtt)
+// Nap a listák fejlécében: "Ma", "Tegnap", "szeptember 28., vasárnap"
 export function formatDayHeading(date: Date, now: Date): string {
   if (date.toDateString() === now.toDateString()) {
     return 'Ma'
@@ -162,7 +160,7 @@ export function formatDayHeading(date: Date, now: Date): string {
   }).format(date)
 }
 
-// Jövőbeli nap viszonyítva: "ma", "holnap", "5 nap múlva" (pl. a rendszeres átutalás következő teljesítése)
+// Jövőbeli nap viszonyítva: "ma", "holnap", "5 nap múlva"
 export function formatDaysUntil(isoDate: string, now: Date): string {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const days = Math.round((parseIsoDate(isoDate).getTime() - today.getTime()) / 86_400_000)

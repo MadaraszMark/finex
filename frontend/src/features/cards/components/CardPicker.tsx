@@ -14,8 +14,7 @@ interface CardPickerProps {
   onSelect: (id: number) => void
 }
 
-// A kártyák választója: asztali nézetben egymás alatt, mobilon vízszintesen lapozható sorban.
-// Rádiócsoportként működik (nyilakkal is váltható); a kiválasztott kártya kiemelt, a többi halványabb.
+// Kártyaválasztó rádiócsoportként (nyilakkal is váltható); mobilon vízszintesen lapozható
 export default function CardPicker({ cards, accounts, selectedId, onSelect }: CardPickerProps) {
   const buttonsRef = useRef<Array<HTMLButtonElement | null>>([])
   const selectedIndex = cards.findIndex((card) => card.id === selectedId)
@@ -64,7 +63,7 @@ export default function CardPicker({ cards, accounts, selectedId, onSelect }: Ca
               selected && 'bg-brand-gradient shadow-glow',
             )}
           >
-            {/* A halványítás a belső elemen van: a gomb saját átlátszóságát a beúszó animáció állítja */}
+            {/* Halványítás belül: a gomb átlátszóságát a beúszó animáció állítja */}
             <span aria-hidden className={cn('block transition-opacity duration-300', !selected && 'opacity-70 group-hover:opacity-100')}>
               <span className="block h-52">
                 <FinexCard

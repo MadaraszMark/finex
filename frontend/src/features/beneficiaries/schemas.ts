@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { ibanField, messageField, partnerNameField } from '../transfer/schemas'
 
-// A backend szabályai (CreateBeneficiaryRequest / UpdateBeneficiaryRequest): név, érvényes IBAN, rövid megjegyzés
+// A backend szabályai (CreateBeneficiaryRequest / UpdateBeneficiaryRequest)
 export const beneficiarySchema = z.object({
   name: partnerNameField,
   accountNumber: ibanField,

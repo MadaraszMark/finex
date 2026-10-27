@@ -8,7 +8,7 @@ import { Card } from '../../../components/ui/Card'
 import { formatDateTime, formatIban, formatMoney, formatSignedMoney } from '../../../lib/format'
 import { staggerContainer, staggerItem } from '../../../lib/motion'
 
-// 5. lépés: a nyugta. A pipa "berobban", körülötte lassan táguló gyűrű; alatta az utalás adatai és a folytatás
+// 5. lépés: a nyugta az utalás adataival
 export default function TransferReceipt({ receipt, onNewTransfer }: { receipt: TransferResponse; onNewTransfer: () => void }) {
   const rows = [
     { label: 'Kinek', value: receipt.partnerName },

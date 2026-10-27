@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 
-// Az egérrel követett fényfolt a "spotlight" osztályú kártyákon (index.css): egyetlen, az egész dokumentumra
-// figyelő eseménykezelő állítja a hovered kártya --spot-x / --spot-y változóit, React-renderelés nélkül
+// Egérkövető fényfolt a .spotlight kártyákon: egyetlen dokumentumszintű figyelő, renderelés nélkül
 export function useSpotlight() {
   useEffect(() => {
     function handlePointerMove(event: PointerEvent) {

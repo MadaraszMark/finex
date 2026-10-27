@@ -9,8 +9,7 @@ export interface TextFieldProps extends ComponentProps<'input'> {
   rightSlot?: ReactNode
 }
 
-// Címkés beviteli mező hibaüzenettel. A react-hook-form register() eredménye (name, onChange, onBlur, ref)
-// egyszerűen ráteríthető, mert a ref React 19-ben sima propként továbbadódik az <input>-nak.
+// Címkés mező hibaüzenettel; a register() ráteríthető, mert React 19-ben a ref sima prop
 export default function TextField({ label, error, hint, leftIcon, rightSlot, id, className, ...props }: TextFieldProps) {
   const generatedId = useId()
   const inputId = id ?? generatedId

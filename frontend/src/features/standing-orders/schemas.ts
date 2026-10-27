@@ -2,8 +2,7 @@ import { z } from 'zod'
 import { amountSchema } from '../accounts/schemas'
 import { ibanField, messageField, partnerNameField } from '../transfer/schemas'
 
-// A backend szabályai (CreateStandingOrderRequest / UpdateStandingOrderRequest). A dátum nem lehet a múltban,
-// ezért a séma a mai napot is megkapja; az összeg szabálya a forrásszámla pénznemétől függ.
+// A backend szabályai; a dátum nem lehet múltbeli, ezért a séma a mai napot is megkapja
 export function standingOrderSchema(currency: string, today: string) {
   return z.object({
     accountId: z.string().min(1, 'Válaszd ki, melyik számláról menjen az utalás.'),

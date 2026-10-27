@@ -47,8 +47,7 @@ interface TransactionDetailDialogProps {
   onClose: () => void
 }
 
-// Egy tétel adatlapja: összeg, partner, számlák, kártya, közlemény és a kategóriák (hozzáadás, levétel).
-// Utalásnál egy gombbal újra lehet utalni ugyanannak a címzettnek, illetve vissza lehet utalni a küldőnek.
+// Egy tétel adatlapja; utalásnál újra lehet utalni, illetve vissza lehet utalni a küldőnek
 export default function TransactionDetailDialog({ transactionId, onClose }: TransactionDetailDialogProps) {
   const navigate = useNavigate()
 
@@ -199,6 +198,11 @@ function TransactionDetails({ transaction, accountLabel, cardLabel, children }: 
       <p className={cn('mt-5 text-4xl font-extrabold tracking-tight', incoming ? 'text-emerald-700 dark:text-emerald-400' : 'text-foreground')}>
         {formatSignedMoney(signedAmount(transaction.type, transaction.amount), transaction.currency)}
       </p>
+
+      {transaction.reversalOfId !== null && (
+        <p className="mt-3 rounded-2xl bg-muted/70 px-4 py-2.5 text-sm text-foreground">Ez egy sztornó tétel: a #{transaction.reversalOfId} számú tételt semlegesíti.</p>
+      )}
+      {transaction.reversed && <p className="mt-3 rounded-2xl bg-muted/70 px-4 py-2.5 text-sm text-foreground">Ezt a tételt a bank sztornózta (egy javító tétel semlegesítette).</p>}
 
       <dl className="mt-6 divide-y divide-border rounded-2xl border border-border">
         {rows.map((row) => (

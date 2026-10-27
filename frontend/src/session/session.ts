@@ -4,16 +4,23 @@ import type { AuthResponse } from '../api/types'
 import { queryClient } from '../lib/queryClient'
 import { sessionStore, type SessionEndReason } from './sessionStore'
 
-// Belépés vagy regisztráció után: az előző felhasználó gyorsítótárazott adatai törlődnek, a válaszban kapott
-// felhasználói adatok pedig rögtön a gyorsítótárba kerülnek (a fejléc így azonnal mutatja a nevet)
+// Másik fülön be- vagy kilépés után azonnal törlődik a gyorsítótár (más adata ne látsszon)
+sessionStore.onExternalChange(() => queryClient.clear())
+
+// Belépéskor törlődik a gyorsítótár, a kapott felhasználó rögtön bekerül (a név azonnal látszik)
 export function startSession(auth: AuthResponse) {
   queryClient.clear()
   queryClient.setQueryData(queryKeys.me, auth.user)
   sessionStore.start({ token: auth.token, expiresAt: auth.expiresAt ?? null })
 }
 
-// Kilépés, lejárt vagy érvénytelen token: a token és a gyorsítótár is törlődik.
-// Többszöri hívás (pl. egyszerre több 401-es válasz) nem okoz gondot.
+// Ugyanaz a felhasználó, új token (pl. jelszócsere után): a gyorsítótár megmarad
+export function replaceToken(auth: AuthResponse) {
+  queryClient.setQueryData(queryKeys.me, auth.user)
+  sessionStore.start({ token: auth.token, expiresAt: auth.expiresAt ?? null })
+}
+
+// Kilépés vagy lejárt token: token és gyorsítótár törlése (a többszöri hívás sem gond)
 export function endSession(reason: SessionEndReason = 'logout') {
   if (!sessionStore.getState().session) {
     return
@@ -27,8 +34,12 @@ export function endSession(reason: SessionEndReason = 'logout') {
   }
 }
 
-// A felhasználó saját kilépése (a menü "Kijelentkezés" gombja)
+// Saját kilépés: a token a szerveren is visszavonódik, de a kilépés nem várja meg a választ
 export function logout() {
+  const token = sessionStore.getToken()
+  if (token) {
+    void fetch('/api/users/me/logout', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, keepalive: true }).catch(() => undefined)
+  }
   endSession('logout')
   toast.success('Sikeresen kijelentkeztél.')
 }

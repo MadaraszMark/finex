@@ -1,8 +1,7 @@
 import { CircleCheck } from 'lucide-react'
 import TextField, { type TextFieldProps } from './TextField'
 
-// Számlaszám (IBAN) mező: gépelés közben pipa jelzi, ha a számlaszám formailag érvényes (lib/iban.ts).
-// A szóközök és a kisbetűk megengedettek, a backend normalizálja őket.
+// IBAN mező: a pipa a formai érvényességet jelzi; a szóközt és a kisbetűt a backend normalizálja
 export default function IbanField({ valid = false, ...props }: Omit<TextFieldProps, 'rightSlot'> & { valid?: boolean }) {
   return (
     <TextField

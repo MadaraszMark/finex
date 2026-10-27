@@ -1,5 +1,4 @@
-// Az alkalmazás hátterének halvány, lassan úszó lila fényei (a fejlécsáv alatt is legyen némi élet,
-// de a tartalom olvashatóságát ne zavarja)
+// Az alkalmazás hátterének halvány, lassan úszó lila fényei
 export default function AmbientBackground() {
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 -z-20 overflow-hidden">

@@ -2,13 +2,18 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import {
   createCategory,
   deleteCategory,
+  depositToAccount,
+  getAccountTransactions,
   getAdminDashboard,
   getAllAccounts,
   getAllTickets,
+  getReconciliation,
   getTicketAsAdmin,
   getUserDetails,
   replyToTicket,
+  reverseTransaction,
   runJob,
+  searchAuditLog,
   searchLoginLogs,
   searchUsers,
   updateAccountStatus,
@@ -16,13 +21,14 @@ import {
   updateTicketStatus,
   updateUserRole,
   updateUserStatus,
+  type AuditLogFilter,
   type LoginLogFilter,
 } from '../../api/admin'
 import { queryKeys } from '../../api/queryKeys'
-import type { AccountStatus, CategoryRequest, TicketStatus, UserRole, UserStatus } from '../../api/types'
+import type { AccountStatus, CategoryRequest, DepositRequest, TicketStatus, UserRole, UserStatus } from '../../api/types'
+import { invalidateMoneyQueries } from '../../lib/queryClient'
 
-// Az admin felület lekérdezései és módosításai. Módosítás után az "admin" előtagú adatok frissülnek
-// (a táblázatok, az áttekintő számai), valamint az érintett ügyféloldali adatok is.
+// Módosítás után az "admin" előtagú és az érintett ügyféloldali adatok is frissülnek
 
 function useAdminInvalidation(extraKeys: readonly (readonly unknown[])[] = []) {
   const queryClient = useQueryClient()
@@ -33,7 +39,7 @@ export function useAdminDashboard() {
   return useQuery({ queryKey: queryKeys.adminDashboard, queryFn: getAdminDashboard })
 }
 
-// Egy ütemezett feladat kézi futtatása pénzt mozgat (kamat, rendszeres átutalás): minden adat frissül
+// Az ütemezett feladat pénzt mozgat (kamat, rendszeres átutalás): minden adat frissül
 export function useRunJob() {
   const queryClient = useQueryClient()
   return useMutation({ mutationFn: runJob, onSuccess: () => queryClient.invalidateQueries() })
@@ -65,9 +71,9 @@ export function useAdminAccounts(status: AccountStatus | undefined, page: number
   })
 }
 
-// A saját számlákat (ha az admin is ügyfél) és a kártyákat is érintheti (lezáráskor a kártya megszűnik)
+// Lezáráskor a kártya megszűnik, a rendszeres átutalások leállnak, az ügyfél értesítést kap
 export function useUpdateAccountStatus() {
-  const invalidate = useAdminInvalidation([queryKeys.accounts, queryKeys.cards])
+  const invalidate = useAdminInvalidation([queryKeys.accounts, queryKeys.cards, queryKeys.standingOrders, queryKeys.notifications])
   return useMutation({ mutationFn: ({ id, status }: { id: number; status: AccountStatus }) => updateAccountStatus(id, status), onSuccess: invalidate })
 }
 
@@ -119,7 +125,7 @@ export function useAdminLoginLogs(filter: LoginLogFilter, page: number) {
   })
 }
 
-// A kategóriák a tranzakciók űrlapjain is megjelennek, ezért a közös kategórialista is frissül
+// A közös kategórialista is frissül (a tranzakciók űrlapjain is megjelenik)
 export function useSaveCategory() {
   const invalidate = useAdminInvalidation([queryKeys.categories])
   return useMutation({
@@ -131,4 +137,42 @@ export function useSaveCategory() {
 export function useDeleteCategory() {
   const invalidate = useAdminInvalidation([queryKeys.categories])
   return useMutation({ mutationFn: deleteCategory, onSuccess: invalidate })
+}
+
+// Befizetés és sztornó után az ügyfél pénzügyi adatai is frissülnek
+export function useAdminDeposit() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({
+    mutationFn: ({ accountId, request }: { accountId: number; request: DepositRequest }) => depositToAccount(accountId, request),
+    onSuccess: () => Promise.all([invalidate(), invalidateMoneyQueries()]),
+  })
+}
+
+export function useAdminAccountTransactions(accountId: number | undefined, page: number) {
+  return useQuery({
+    queryKey: queryKeys.adminAccountTransactions(accountId ?? 0, page),
+    queryFn: () => getAccountTransactions(accountId ?? 0, page),
+    enabled: accountId !== undefined,
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useReverseTransaction() {
+  const invalidate = useAdminInvalidation()
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: number; reason: string }) => reverseTransaction(id, reason),
+    onSuccess: () => Promise.all([invalidate(), invalidateMoneyQueries()]),
+  })
+}
+
+export function useReconciliation() {
+  return useQuery({ queryKey: queryKeys.adminReconciliation, queryFn: getReconciliation })
+}
+
+export function useAuditLog(filter: AuditLogFilter, page: number) {
+  return useQuery({
+    queryKey: queryKeys.adminAuditLog(filter, page),
+    queryFn: () => searchAuditLog(filter, page),
+    placeholderData: keepPreviousData,
+  })
 }

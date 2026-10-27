@@ -12,6 +12,7 @@ import { cn } from '../../../lib/cn'
 import { formatMoney } from '../../../lib/format'
 import { staggerContainer, staggerItem } from '../../../lib/motion'
 import OpenTicketsCard from '../components/OpenTicketsCard'
+import ReconciliationCard from '../components/ReconciliationCard'
 import { useAdminDashboard, useRunJob } from '../queries'
 
 const numberFormatter = new Intl.NumberFormat('hu-HU')
@@ -21,8 +22,7 @@ const jobs = [
   { job: 'standing-orders', title: 'Rendszeres átutalások', description: 'A mára esedékes megbízások teljesítése', icon: CalendarClock },
 ] as const
 
-// Admin áttekintés: a bank működése számokban (4 oszlopos rács), alatta két egyforma kártya – az ütemezett feladatok
-// kézi indítása és a válaszra váró ticketek. A két kártya közti hézag a mutatók középső hézagára esik.
+// Admin áttekintés: a bank számai, ütemezett feladatok kézi indítása, válaszra váró ticketek
 export default function AdminDashboardPage() {
   const dashboardQuery = useAdminDashboard()
   const runJob = useRunJob()
@@ -68,7 +68,6 @@ export default function AdminDashboardPage() {
                     <tile.icon aria-hidden className={cn('size-4 shrink-0', tile.alert ? 'text-warning' : 'text-primary')} />
                     {tile.label}
                   </dt>
-                  {/* A szám a csempe szélességéhez igazodik, így keskeny csempén sem törik szét */}
                   <dd className="mt-auto pt-1.5 text-[clamp(1.125rem,12cqi,1.5rem)] font-extrabold tracking-tight break-words text-foreground">{tile.value}</dd>
                 </motion.div>
               ))
@@ -96,6 +95,8 @@ export default function AdminDashboardPage() {
         </Card>
 
         <OpenTicketsCard />
+
+        <ReconciliationCard />
       </div>
     </>
   )

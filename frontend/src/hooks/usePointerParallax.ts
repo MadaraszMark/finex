@@ -7,8 +7,7 @@ export interface PointerParallax {
   y: MotionValue<number>
 }
 
-// Az egér mozgását követő értékek a "mélységhatáshoz" (díszítőelemek, döntött bankkártya).
-// React-renderelés nélkül frissülnek, így nem lassítják az oldalt; csökkentett mozgásnál kikapcsol.
+// Egérkövető mélységhatás React-renderelés nélkül; csökkentett mozgásnál kikapcsol
 export function usePointerParallax(): PointerParallax {
   const reduceMotion = useReducedMotion()
   const rawX = useMotionValue(0)

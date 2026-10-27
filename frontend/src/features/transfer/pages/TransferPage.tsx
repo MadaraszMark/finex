@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, ArrowRight, Send } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { useCallback, useState, type FormEvent } from 'react'
+import { useCallback, useRef, useState, type FormEvent } from 'react'
 import { FormProvider, useForm, useWatch, type Resolver } from 'react-hook-form'
 import { useSearchParams } from 'react-router'
 import { toast } from 'sonner'
@@ -14,6 +14,7 @@ import PageHeader from '../../../components/ui/PageHeader'
 import QueryError from '../../../components/ui/QueryError'
 import { useBankSettings } from '../../../hooks/useBankSettings'
 import { formatMoney, parseAmount } from '../../../lib/format'
+import { newIdempotencyKey } from '../../../lib/idempotency'
 import { normalizeIban } from '../../../lib/iban'
 import { useCurrentUser } from '../../../session/useCurrentUser'
 import { useAccounts } from '../../accounts/queries'
@@ -31,9 +32,10 @@ import { transferSchema, type TransferForm } from '../schemas'
 
 const steps = ['Honnan', 'Kinek', 'Mennyit', 'Áttekintés'] as const
 const stepFields: (keyof TransferForm)[][] = [['fromAccountId'], ['toAccountNumber', 'partnerName'], ['amount', 'message'], []]
+// Ennyi ideig nem indítható az utalás az áttekintés után (dupla kattintás ellen)
+const reviewGuardMs = 600
 
-// Utalás lépésről lépésre: forrásszámla → címzett → összeg → áttekintés → nyugta. A varázsló a címsorból előre
-// kitölthető (?from=3&to=HU…&name=…&amount=…), így a kedvezményezettek és a tételek "Utalás" gombja ide visz.
+// Utalás lépésről lépésre; a címsorból előre kitölthető (?from=3&to=HU…&name=…&amount=…)
 export default function TransferPage() {
   const accountsQuery = useAccounts()
   const beneficiariesQuery = useBeneficiaries()
@@ -85,7 +87,7 @@ interface TransferWizardProps {
   onDone: (receipt: TransferResponse) => void
 }
 
-// A címsor paramétereiből a kezdőállapot: kitöltött mezők, az első hiányos lépés és a címzett forrása
+// Kezdőállapot a címsorból: kitöltött mezők és az első hiányos lépés
 function initialState(params: URLSearchParams, accounts: AccountResponse[], beneficiaries: BeneficiaryResponse[]) {
   const from = accounts.find((account) => String(account.id) === params.get('from')) ?? accounts[0]
   const to = normalizeIban(params.get('to') ?? '')
@@ -127,9 +129,11 @@ function TransferWizard({ accounts, beneficiaries, onDone }: TransferWizardProps
   const [step, setStep] = useState(initial.step)
   const [direction, setDirection] = useState(1)
   const [mode, setMode] = useState<RecipientMode>(initial.mode)
+  const reviewShownAt = useRef(0)
+  // Áttekintésenként egy kulcs: az újraküldéseket a szerver legfeljebb egyszer könyveli le
+  const idempotencyKey = useRef('')
 
-  // Az összeg szabálya a kiválasztott forrásszámla pénznemétől és a backend napi limitjétől függ, ezért a séma minden
-  // ellenőrzéskor ahhoz igazodik
+  // A séma a forrásszámla pénzneméhez és a backend napi limitjéhez igazodik
   const { data: settings } = useBankSettings()
   const dailyLimit = settings?.transferDailyLimit
   const resolver = useCallback<Resolver<TransferForm>>(
@@ -154,9 +158,13 @@ function TransferWizard({ accounts, beneficiaries, onDone }: TransferWizardProps
   function goTo(nextStep: number) {
     setDirection(nextStep > step ? 1 : -1)
     setStep(nextStep)
+    if (nextStep === steps.length - 1) {
+      reviewShownAt.current = Date.now()
+      idempotencyKey.current = newIdempotencyKey()
+    }
   }
 
-  // Továbblépés előtt az aktuális lépés mezői ellenőrződnek, és ami a sémából nem látszik (másik adat kell hozzá)
+  // Továbblépés előtt a lépés mezői, a saját számla és a fedezet is ellenőrződik
   async function next() {
     const valid = await form.trigger(stepFields[step])
     if (!valid || !source) {
@@ -176,12 +184,15 @@ function TransferWizard({ accounts, beneficiaries, onDone }: TransferWizardProps
   function submit(formValues: TransferForm) {
     transferMutation.mutate(
       {
-        fromAccountId: Number(formValues.fromAccountId),
-        toAccountNumber: normalizeIban(formValues.toAccountNumber),
-        partnerName: formValues.partnerName,
-        amount: parseAmount(formValues.amount) ?? 0,
-        message: formValues.message || undefined,
-        categoryIds: formValues.categoryId ? [Number(formValues.categoryId)] : undefined,
+        request: {
+          fromAccountId: Number(formValues.fromAccountId),
+          toAccountNumber: normalizeIban(formValues.toAccountNumber),
+          partnerName: formValues.partnerName,
+          amount: parseAmount(formValues.amount) ?? 0,
+          message: formValues.message || undefined,
+          categoryIds: formValues.categoryId ? [Number(formValues.categoryId)] : undefined,
+        },
+        idempotencyKey: idempotencyKey.current,
       },
       {
         onSuccess: async (response) => {
@@ -199,18 +210,18 @@ function TransferWizard({ accounts, beneficiaries, onDone }: TransferWizardProps
     )
   }
 
+  // A Tovább és az Utalás gomb egy helyen van: a túl korai beküldést (dupla kattintás) elvetjük
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (step < steps.length - 1) {
       void next()
-    } else {
+    } else if (Date.now() - reviewShownAt.current >= reviewGuardMs) {
       void form.handleSubmit(submit)()
     }
   }
 
   return (
     <FormProvider {...form}>
-      {/* A varázsló és az összefoglaló egyforma magas; a léptető gombok mindig a kártya aljára kerülnek */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <Card className="flex flex-col p-5 sm:p-8">
           <Stepper steps={steps} current={step} />
@@ -306,7 +317,6 @@ function TransferWizard({ accounts, beneficiaries, onDone }: TransferWizardProps
           </form>
         </Card>
 
-        {/* Nagy képernyőn gépelés közben is látszik, mi fog történni */}
         <Card className="hidden p-6 lg:block">
           <CardHeader title="Összefoglaló" />
           <div className="mt-4">

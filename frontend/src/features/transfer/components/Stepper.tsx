@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react'
 import { cn } from '../../../lib/cn'
 
-// A varázsló lépései: a kész lépések pipát kapnak, a köztük lévő vonal a haladással töltődik
+// A varázsló lépésjelzője; a lépések közti vonal a haladással töltődik
 export default function Stepper({ steps, current }: { steps: readonly string[]; current: number }) {
   return (
     <ol className="flex items-center gap-2">

@@ -13,7 +13,7 @@ interface TicketListProps {
   showCustomer?: boolean
 }
 
-// Ticketek listája (a legújabb elöl): tárgy, állapot, utolsó módosítás; a kiválasztott kiemelve
+// Ticketek listája, a legújabb elöl
 export default function TicketList({ tickets, selectedId, onSelect, now, showCustomer = false }: TicketListProps) {
   return (
     <ul className="space-y-2">

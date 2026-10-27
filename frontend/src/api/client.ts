@@ -3,8 +3,7 @@ import { endSession } from '../session/session'
 import { sessionStore } from '../session/sessionStore'
 import type { ApiError } from './types'
 
-// Minden backend-hívás ezen a példányon megy át. A /api előtagú kéréseket
-// fejlesztés közben a Vite proxy továbbítja a Spring Boot backendnek (vite.config.ts).
+// Minden backend-hívás ezen a példányon megy át (a /api kéréseket a Vite proxy továbbítja)
 export const api = axios.create({ baseURL: '/api' })
 
 // A bejelentkezéskor kapott JWT token minden kérés fejlécébe bekerül
@@ -16,8 +15,7 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// 401: lejárt vagy érvénytelen token, illetve közben letiltott felhasználó → a munkamenet véget ér,
-// a felhasználó a belépő oldalra kerül (a belépés után oda tér vissza, ahol volt)
+// 401: lejárt token vagy letiltott felhasználó, a munkamenet véget ér
 api.interceptors.response.use(
   (response) => response,
   (error: unknown) => {
@@ -58,12 +56,12 @@ export function getErrorMessage(error: unknown): string {
   return apiError.message || `Hiba történt (HTTP ${error.response.status}).`
 }
 
-// 404: a kért erőforrás nem létezik, vagy nem a bejelentkezett felhasználóé (a backend ilyenkor sem árulja el, hogy létezik)
+// 404: nem létezik vagy nem a felhasználóé (a backend szándékosan nem különbözteti meg)
 export function isNotFoundError(error: unknown): boolean {
   return axios.isAxiosError(error) && error.response?.status === 404
 }
 
-// A backend validációs hibái mezőnként (MethodArgumentNotValidException → violations), űrlapmezőkhöz
+// A backend validációs hibái mezőnként, az űrlapmezőkhöz
 export function getFieldErrors(error: unknown): Record<string, string> {
   const violations = getApiError(error)?.violations ?? []
   return Object.fromEntries(violations.map((violation) => [violation.field, violation.message]))

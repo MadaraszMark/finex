@@ -16,8 +16,7 @@ import TicketConversation from '../components/TicketConversation'
 import TicketList from '../components/TicketList'
 import { useMyTickets, useSendTicketMessage, useTicket } from '../queries'
 
-// Ügyfélszolgálat: bal oldalon a ticketek, jobbra a kiválasztott beszélgetése (mobilon egymás után: lista → beszélgetés).
-// A kiválasztott ticket a címsorban van (?ticket=12), így az értesítésből vagy linkből közvetlenül megnyitható.
+// Ügyfélszolgálat; a kiválasztott ticket a címsorban van (?ticket=12), így linkelhető
 export default function SupportPage() {
   const ticketsQuery = useMyTickets()
   const [params, setParams] = useSearchParams()
@@ -69,7 +68,6 @@ export default function SupportPage() {
           />
         </Card>
       ) : (
-        // A lista és a beszélgetés egyforma magas (a lista kártyája a beszélgetéséhez nyúlik)
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]">
           <Card className={cn('p-4 sm:p-5', selectedId !== undefined && 'hidden lg:block')}>
             <p className="mb-3 px-1 text-sm font-semibold text-muted-foreground">{tickets.length} ticket</p>

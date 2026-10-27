@@ -1,5 +1,4 @@
-// A backend DTO-inak (hu.finex.main.dto) megfelelő típusok.
-// A BigDecimal összegek számként, az Instant időpontok ISO-szövegként, a LocalDate dátumok "ÉÉÉÉ-HH-NN" alakban érkeznek.
+// A backend DTO-i: összegek számként, időpontok ISO-szövegként, dátumok "ÉÉÉÉ-HH-NN" alakban
 
 export type TransactionType = 'INCOME' | 'OUTCOME' | 'TRANSFER_IN' | 'TRANSFER_OUT'
 export type AccountStatus = 'ACTIVE' | 'BLOCKED' | 'CLOSED' | 'FROZEN'
@@ -22,7 +21,7 @@ export interface LoginRequest {
   password: string
 }
 
-// Regisztráció (CreateUserRequest): a szerepkör mindig USER, azt a backend állítja be
+// A szerepkört (mindig USER) a backend állítja be
 export interface RegisterRequest {
   firstName: string
   lastName: string
@@ -49,7 +48,6 @@ export interface AuthResponse {
   user: UserResponse
 }
 
-// A backend által támogatott devizanemek (CreateAccountRequest mintája: HUF|EUR|USD)
 export type Currency = 'HUF' | 'EUR' | 'USD'
 
 export interface AccountResponse {
@@ -74,7 +72,6 @@ export interface DepositRequest {
   message?: string
 }
 
-// Számlakivonat egy tétele: az előjeles összeg és a tétel utáni egyenleg (futó egyenleg)
 export interface StatementItemResponse {
   transactionId: number
   createdAt: string
@@ -86,7 +83,7 @@ export interface StatementItemResponse {
   runningBalance: number
 }
 
-// Számlakivonat egy időszakra (a from/to "ÉÉÉÉ-HH-NN", mindkét nap beleszámít)
+// A from és a to napja is beleszámít
 export interface StatementResponse {
   accountId: number
   accountNumber: string
@@ -126,7 +123,6 @@ export interface UpdateCardLimitsRequest {
   onlinePaymentEnabled: boolean
 }
 
-// Demó kártyás fizetés (pl. bolti vagy online vásárlás)
 export interface CardPaymentRequest {
   merchantName: string
   amount: number
@@ -151,6 +147,9 @@ export interface TransactionListItem {
   currency: string
   categories: CategoryResponse[]
   createdAt: string
+  // Sztornó tételnél az eredeti (semlegesített) tétel azonosítója
+  reversalOfId: number | null
+  reversed: boolean
 }
 
 export interface TransactionResponse {
@@ -166,9 +165,11 @@ export interface TransactionResponse {
   categories: CategoryResponse[]
   currency: string
   createdAt: string
+  // Sztornó tételnél az eredeti (semlegesített) tétel azonosítója
+  reversalOfId: number | null
+  reversed: boolean
 }
 
-// A tranzakciók keresőjének szűrői (TransactionSearchRequest); a dátumok "ÉÉÉÉ-HH-NN" alakúak
 export interface TransactionSearchParams {
   accountId?: number
   type?: TransactionType
@@ -180,7 +181,7 @@ export interface TransactionSearchParams {
   maxAmount?: number
 }
 
-// Utalás (TransferRequest): FineX-es címzettnél azonnal jóváíródik, külső számlára csak a terhelés történik meg
+// Belső címzettnél azonnal jóváíródik, külső számlánál csak a terhelés történik meg
 export interface TransferRequest {
   fromAccountId: number
   toAccountNumber: string
@@ -268,7 +269,7 @@ export interface UpdateStandingOrderRequest {
 export type SavingsStatus = 'ACTIVE' | 'FROZEN' | 'CLOSED'
 export type SavingsTransactionType = 'DEPOSIT' | 'WITHDRAWAL' | 'INTEREST'
 
-// Megtakarítási cél; a pénzneme a megnyitáskor választott folyószámláé. A progressPercent csak célösszegnél van.
+// A pénznem a forrás folyószámláé; a progressPercent csak célösszegnél van
 export interface SavingsAccountResponse {
   id: number
   userId: number
@@ -329,7 +330,7 @@ export interface CategorySpendingResponse {
   transactionCount: number
 }
 
-// A főoldal összesítője egy devizanemben (a hónap a folyó naptári hónap, budapesti idő szerint)
+// A hónap a folyó naptári hónap, budapesti idő szerint
 export interface DashboardSummaryResponse {
   currency: string
   totalBalance: number
@@ -341,7 +342,7 @@ export interface DashboardSummaryResponse {
   unreadNotificationCount: number
 }
 
-// Egy hónap bevétele és kiadása; a month "ÉÉÉÉ-HH" alakú
+// A month "ÉÉÉÉ-HH" alakú
 export interface MonthlySummaryResponse {
   month: string
   income: number
@@ -352,12 +353,13 @@ export interface MonthlySummaryResponse {
 export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED'
 export type LoginStatus = 'SUCCESS' | 'FAILED'
 
-// Saját adatok módosítása (UpdateUserRequest)
 export interface UpdateUserRequest {
   firstName: string
   lastName: string
   email: string
   phone?: string
+  // Csak e-mail-cseréhez kötelező (ellopott tokennel se lehessen átvenni a fiókot)
+  currentPassword?: string
 }
 
 export interface ChangePasswordRequest {
@@ -365,7 +367,6 @@ export interface ChangePasswordRequest {
   newPassword: string
 }
 
-// Egy belépési kísérlet a saját belépési naplóban (az eszközt a böngésző azonosítója mutatja)
 export interface LoginLogListItem {
   status: LoginStatus
   ipAddress: string | null
@@ -404,7 +405,7 @@ export interface TicketMessageResponse {
   createdAt: string
 }
 
-// A ticket teljes beszélgetéssel (a nyitó üzenet a message mezőben, a válaszok a messages listában)
+// A nyitó üzenet a message mezőben, a válaszok a messages listában
 export interface SupportTicketResponse {
   id: number
   userId: number
@@ -418,14 +419,19 @@ export interface SupportTicketResponse {
   updatedAt: string
 }
 
-// Admin felület
-// A bank üzleti szabályainak paraméterei (GET /settings): a felület ezekből dolgozik, nem saját másolatból
+// GET /settings: a felület ezekből dolgozik, nem saját konstansokból
 export interface BankSettingsResponse {
   transferDailyLimit: number
   maxAccountsPerUser: number
   savingsInterestRate: number
   cardDefaultDailyLimit: number
   cardDefaultDailyLimitForeign: number
+  cardMaxDailyLimit: number
+  maxSavingsPerUser: number
+  maxStandingOrdersPerUser: number
+  maxBeneficiariesPerUser: number
+  // Devizaárfolyamok: 1 egység = ennyi forint (pl. EUR: 395)
+  exchangeRates: Record<string, number>
 }
 
 export interface AdminDashboardResponse {
@@ -465,7 +471,6 @@ export interface AccountListItem {
   status: AccountStatus
 }
 
-// Egy ügyfél teljes áttekintése (admin)
 export interface UserDetailsResponse {
   user: UserResponse
   accounts: AccountListItem[]
@@ -473,7 +478,7 @@ export interface UserDetailsResponse {
   savingsAccounts: SavingsAccountResponse[]
 }
 
-// Kategória létrehozása és módosítása (az ikon a lucide ikonkészlet neve, legfeljebb 20 karakter)
+// Az ikon a lucide ikonkészlet neve, legfeljebb 20 karakter
 export interface CategoryRequest {
   name: string
   icon?: string
@@ -492,7 +497,7 @@ export interface UnreadCountResponse {
   count: number
 }
 
-// Spring Data lapozott válasz (a backend VIA_DTO módban küldi: a lapozási adatok a "page" objektumban vannak)
+// Spring Data lapozás VIA_DTO módban: a lapozási adatok a page objektumban vannak
 export interface Page<T> {
   content: T[]
   page: {
@@ -501,4 +506,69 @@ export interface Page<T> {
     totalElements: number
     totalPages: number
   }
+}
+
+export interface ExchangeRequest {
+  fromAccountId: number
+  toAccountId: number
+  amount: number
+}
+
+export interface ExchangeResponse {
+  transactionId: number
+  fromAccountId: number
+  toAccountId: number
+  fromAmount: number
+  fromCurrency: string
+  toAmount: number
+  toCurrency: string
+  rate: number
+  fromAccountNewBalance: number
+  toAccountNewBalance: number
+  createdAt: string
+}
+
+export type AuditAction =
+  | 'USER_STATUS_CHANGED'
+  | 'USER_ROLE_CHANGED'
+  | 'ACCOUNT_STATUS_CHANGED'
+  | 'ACCOUNT_DEPOSIT'
+  | 'TRANSACTION_REVERSED'
+  | 'CATEGORY_CREATED'
+  | 'CATEGORY_UPDATED'
+  | 'CATEGORY_DELETED'
+  | 'TICKET_STATUS_CHANGED'
+  | 'JOB_RUN'
+
+export type AuditTargetType = 'USER' | 'ACCOUNT' | 'TRANSACTION' | 'CATEGORY' | 'SUPPORT_TICKET' | 'JOB'
+
+export interface AuditLogResponse {
+  id: number
+  actorId: number | null
+  actorEmail: string
+  action: AuditAction
+  targetType: AuditTargetType
+  targetId: number | null
+  details: string | null
+  ipAddress: string | null
+  createdAt: string
+}
+
+// Főkönyvi egyeztetés: a tárolt egyenlegek egyeznek-e a könyvelt tételekkel
+export interface ReconciliationItem {
+  kind: 'ACCOUNT' | 'SAVINGS'
+  id: number
+  label: string
+  currency: string
+  storedBalance: number
+  ledgerBalance: number
+  difference: number
+}
+
+export interface ReconciliationResponse {
+  checkedAt: string
+  accountCount: number
+  savingsCount: number
+  balanced: boolean
+  mismatches: ReconciliationItem[]
 }

@@ -9,7 +9,7 @@ export interface TextAreaProps extends ComponentProps<'textarea'> {
   hideLabel?: boolean
 }
 
-// Többsoros szövegmező a TextField kinézetével; a tartalomhoz igazodó magasságú (field-sizing), de legfeljebb max-h-ig nő
+// Többsoros mező; a tartalomhoz igazodik (field-sizing), de legfeljebb max-h-ig nő
 export default function TextArea({ label, error, hint, hideLabel = false, id, className, ...props }: TextAreaProps) {
   const generatedId = useId()
   const inputId = id ?? generatedId

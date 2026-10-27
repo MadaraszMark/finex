@@ -11,7 +11,7 @@ import PasswordChecklist from '../../auth/components/PasswordChecklist'
 import { useChangePassword } from '../queries'
 import { passwordSchema, type PasswordForm } from '../schemas'
 
-// Jelszócsere: a jelenlegi jelszó és kétszer az új, a követelmények élőben pipálódnak ki
+// Jelszócsere, a követelmények élőben pipálódnak ki
 export default function PasswordCard() {
   const changePassword = useChangePassword()
 
@@ -34,7 +34,7 @@ export default function PasswordCard() {
       {
         onSuccess: () => {
           reset()
-          toast.success('Megváltoztattad a jelszavad', { description: 'Legközelebb már az újjal lépj be.' })
+          toast.success('Megváltoztattad a jelszavad', { description: 'Minden más eszközön kijelentkeztettünk, legközelebb már az újjal lépj be.' })
         },
       },
     )
@@ -53,7 +53,6 @@ export default function PasswordCard() {
 
         {changePassword.isError && <Alert tone="danger">{getErrorMessage(changePassword.error)}</Alert>}
 
-        {/* A gomb a kártya aljára kerül, így a szomszédos kártya gombjával egy vonalban áll */}
         <div className="mt-auto flex justify-end">
           <Button type="submit" loading={changePassword.isPending}>
             Jelszó megváltoztatása

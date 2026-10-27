@@ -1,5 +1,4 @@
-// IBAN-számlaszámok ellenőrzése a backend IbanUtils szabályai szerint (ISO 13616, mod-97 ellenőrzőszám),
-// hogy a hibás számlaszám már gépelés közben kiderüljön. A végső ellenőrzés mindig a backendé.
+// IBAN-ellenőrzés a backend IbanUtils szabályai szerint (mod-97); a végső ellenőrzés a backendé
 
 // Szóközök nélküli, nagybetűs alak: "hu15 1177 3016 ..." → "HU1511773016..."
 export function normalizeIban(value: string): string {
@@ -15,8 +14,7 @@ export function isValidIban(value: string): boolean {
     return false
   }
 
-  // Az ország és az ellenőrzőszám a végére kerül, a betűk számokká alakulnak (A = 10 … Z = 35),
-  // és a kapott (nagyon hosszú) szám 97-tel osztva 1 maradékot kell adjon. Számjegyenként számolunk, így nem kell BigInt.
+  // Mod-97: ország és ellenőrzőszám a végére, betűk számokká; számjegyenként, BigInt nélkül
   const rearranged = iban.slice(4) + iban.slice(0, 4)
   let remainder = 0
   for (const character of rearranged) {

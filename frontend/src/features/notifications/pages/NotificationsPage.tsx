@@ -40,8 +40,7 @@ function groupByDay(items: NotificationResponse[], now: Date) {
   return groups
 }
 
-// Értesítések: napok szerint, típus és olvasottság szerinti szűréssel; egyenként kattintásra, vagy egyszerre
-// ("Mind olvasott") jelölhetők olvasottnak
+// Értesítések napok szerint, típus és olvasottság szerinti szűréssel
 export default function NotificationsPage() {
   const notificationsQuery = useNotifications()
   const { data: unread = 0 } = useUnreadCount()

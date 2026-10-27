@@ -26,8 +26,7 @@ interface CardSettingsProps {
   account: AccountResponse | undefined
 }
 
-// A kiválasztott kártya kezelése: mai költés a limithez képest, tiltás és feloldás, online fizetés, napi limit,
-// alapadatok és demó fizetés. A megszűnt kártya (lezárt számla) csak megtekinthető.
+// A kiválasztott kártya kezelése; a megszűnt kártya (lezárt számla) csak megtekinthető
 export default function CardSettings({ card, account }: CardSettingsProps) {
   const blockCard = useBlockCard()
   const unblockCard = useUnblockCard()

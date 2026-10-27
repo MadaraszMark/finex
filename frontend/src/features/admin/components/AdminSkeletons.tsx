@@ -4,7 +4,7 @@ import Skeleton from '../../../components/ui/Skeleton'
 import { cn } from '../../../lib/cn'
 import SupportSkeleton from '../../support/components/SupportSkeleton'
 
-// Az admin áttekintő váza: nyolc mutató két sorban, alatta a két egyforma kártya
+// Az admin áttekintő váza: mutatók, két kártya és a főkönyvi egyeztetés
 export function AdminDashboardSkeleton() {
   return (
     <>
@@ -23,12 +23,15 @@ export function AdminDashboardSkeleton() {
             </div>
           </SkeletonCard>
         ))}
+        <SkeletonCard className="p-6 sm:p-6 lg:col-span-2">
+          <SkeletonCardHeader action />
+          <Skeleton className="mt-5 h-[4.5rem]" />
+        </SkeletonCard>
       </div>
     </>
   )
 }
 
-// A táblázat sorai (az admin listákon)
 export function TableRowsSkeleton({ rows = 6 }: { rows?: number }) {
   return (
     <div className="space-y-3">
@@ -40,8 +43,8 @@ export function TableRowsSkeleton({ rows = 6 }: { rows?: number }) {
   )
 }
 
-// Táblázatos admin oldal (felhasználók, számlák, belépési napló) váza: a szűrők és a táblázat egy kártyán
-export function AdminTableSkeleton({ filters }: { filters: 'search' | 'chips' | 'logs' }) {
+// Táblázatos admin oldalak váza: a szűrők és a táblázat egy kártyán
+export function AdminTableSkeleton({ filters }: { filters: 'search' | 'chips' | 'logs' | 'audit' }) {
   return (
     <SkeletonCard>
       {filters === 'search' && (
@@ -51,7 +54,7 @@ export function AdminTableSkeleton({ filters }: { filters: 'search' | 'chips' | 
         </div>
       )}
       {filters === 'chips' && <SkeletonChips count={5} />}
-      {filters === 'logs' && (
+      {(filters === 'logs' || filters === 'audit') && (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_12rem_12rem]">
             {[0, 1, 2].map((index) => (
@@ -61,7 +64,7 @@ export function AdminTableSkeleton({ filters }: { filters: 'search' | 'chips' | 
               </div>
             ))}
           </div>
-          <SkeletonChips count={3} className="mt-4" />
+          {filters === 'logs' && <SkeletonChips count={3} className="mt-4" />}
         </>
       )}
       <div className="mt-5">
@@ -71,7 +74,6 @@ export function AdminTableSkeleton({ filters }: { filters: 'search' | 'chips' | 
   )
 }
 
-// A kategóriák csempéinek váza (ikon, név, két gomb)
 export function AdminCategoriesSkeleton() {
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(min(18rem,100%),1fr))] gap-3">
@@ -87,13 +89,16 @@ export function AdminCategoriesSkeleton() {
   )
 }
 
-// Az admin oldalak váza útvonal szerint (az oldal kódjának és a szerepkör ellenőrzésének betöltése közben)
+// Útvonal szerinti váz, amíg az oldal kódja és a szerepkör-ellenőrzés betöltődik
 export function AdminPageSkeleton({ pathname }: { pathname: string }) {
   if (pathname.startsWith('/admin/users')) {
     return <AdminTableSkeleton filters="search" />
   }
   if (pathname.startsWith('/admin/accounts')) {
     return <AdminTableSkeleton filters="chips" />
+  }
+  if (pathname.startsWith('/admin/audit-log')) {
+    return <AdminTableSkeleton filters="audit" />
   }
   if (pathname.startsWith('/admin/login-logs')) {
     return <AdminTableSkeleton filters="logs" />
@@ -107,7 +112,6 @@ export function AdminPageSkeleton({ pathname }: { pathname: string }) {
   return <AdminDashboardSkeleton />
 }
 
-// Egy admin oldal teljes váza (fejléc + tartalom): első betöltéskor és a szerepkör ellenőrzése közben
 export function AdminRouteSkeleton({ pathname }: { pathname: string }) {
   return (
     <PageSkeleton header={{ eyebrow: true, action: pathname.startsWith('/admin/categories') }}>

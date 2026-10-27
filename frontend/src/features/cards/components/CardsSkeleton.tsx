@@ -1,7 +1,7 @@
 import { SkeletonCard } from '../../../components/skeletons/SkeletonKit'
 import Skeleton from '../../../components/ui/Skeleton'
 
-// A Kártyák oldal váza: balra a kártyák (mobilon vízszintes sorban), jobbra a kiválasztott kártya beállításai
+// A Kártyák oldal váza: balra a kártyák, jobbra a beállítások
 export default function CardsSkeleton() {
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
