@@ -9,7 +9,7 @@ Spring Boot REST API és React webes felület: felhasználók, bankszámlák, ba
 | [`backend/`](backend) | Spring Boot REST API (Java 17, Maven) | Eclipse / Spring Tool Suite |
 | [`frontend/`](frontend) | React + TypeScript webes felület (Vite, Tailwind CSS) | VS Code |
 | [`database/`](database) | PostgreSQL (Docker Compose), a séma és a demóadatok leírása | Docker Desktop, pgAdmin |
-| [`docs/`](docs) | [Telepítési útmutató](docs/TELEPITES.md), [Fejlesztői dokumentáció](docs/FEJLESZTES.md), UI koncepcióképek | – |
+| [`docs/`](docs) | [Telepítési útmutató](docs/TELEPITES.md), [Fejlesztői dokumentáció](docs/FEJLESZTES.md), [REST API végpontjai](docs/API.md), UI koncepcióképek | – |
 
 ---
 
@@ -53,7 +53,8 @@ docker compose up -d --build --wait
 
 Az első alkalommal több percig tart (letölti és lefordítja a backendet és a frontendet), utána: **http://localhost:3000**
 (Swagger UI: http://localhost:3000/api/swagger-ui.html). Leállítás: `docker compose down` – az adatok megmaradnak.
-Részletek: [`docs/TELEPITES.md`](docs/TELEPITES.md#8-indítás-egy-paranccsal-docker-compose).
+Részletek: [`docs/TELEPITES.md`](docs/TELEPITES.md#8-indítás-egy-paranccsal-docker-compose). Belépés és mit érdemes
+kipróbálni: [`INDITAS.md`](INDITAS.md).
 
 ## 🚀 Indítás (fejlesztői környezet)
 
